@@ -11,7 +11,9 @@ backend/
 │   ├── pom.xml
 │   ├── pipker-spring-boot-starter-redis/        # Redis 技术基础设施 Starter
 │   └── pipker-spring-boot-starter-log/          # 技术日志 Starter
-├── pipker-business/                              # 项目业务能力模块
+├── pipker-business/                              # 业务聚合模块（pom）
+│   ├── pipker-business-common/                   # 公共业务能力模块
+│   └── pipker-business-api/                      # 单独业务能力模块
 └── pipker-server/                                # 可执行 Spring Boot Server
 ```
 
@@ -23,8 +25,10 @@ backend/
 | `pipker-starters` | `com.pipker:pipker-starters` | `pom` | 聚合 Pipker 的技术 Starter，仅参与 Reactor 构建，不产出业务 Jar。 |
 | `pipker-spring-boot-starter-redis` | `com.pipker:pipker-spring-boot-starter-redis` | `jar` | Redis 技术基础设施边界；当前依赖 Spring Boot 官方 `spring-boot-starter-data-redis`，由 Spring Boot 提供 Redis 自动配置。 |
 | `pipker-spring-boot-starter-log` | `com.pipker:pipker-spring-boot-starter-log` | `jar` | 技术日志基础设施边界；当前依赖 Spring Boot 官方 `spring-boot-starter-logging`，保留日志格式、MDC / TraceId、请求日志和日志脱敏的后续扩展位置。 |
-| `pipker-business` | `com.pipker:pipker-business` | `jar` | 项目业务能力边界，承载后续应用业务代码。 |
-| `pipker-server` | `com.pipker:pipker-server` | `jar` | 可执行 HTTP Server；组合业务模块、Redis Starter、Log Starter，以及当前直接使用的 Web 与 Validation Starter。 |
+| `pipker-business` | `com.pipker:pipker-business` | `pom` | 聚合公共业务模块和单独业务模块，仅参与 Reactor 构建，不产出业务 Jar。 |
+| `pipker-business-common` | `com.pipker:pipker-business-common` | `jar` | 公共业务能力边界，供单独业务模块复用；不依赖 Server 或单独业务模块。 |
+| `pipker-business-api` | `com.pipker:pipker-business-api` | `jar` | 单独业务能力边界，当前由 Server 组装，并依赖公共业务模块。 |
+| `pipker-server` | `com.pipker:pipker-server` | `jar` | 可执行 HTTP Server；组合单独业务模块、Redis Starter、Log Starter，以及当前直接使用的 Web 与 Validation Starter。 |
 
 ## 模块关系
 
@@ -34,7 +38,9 @@ flowchart TD
     Starters["pipker-starters<br/>聚合模块"]
     Redis["pipker-spring-boot-starter-redis"]
     Log["pipker-spring-boot-starter-log"]
-    Business["pipker-business"]
+    Business["pipker-business<br/>业务聚合模块"]
+    BusinessCommon["pipker-business-common"]
+    BusinessApi["pipker-business-api"]
     Server["pipker-server"]
     SpringRedis["Spring Boot Data Redis Starter"]
     SpringLog["Spring Boot Logging Starter"]
@@ -44,7 +50,10 @@ flowchart TD
     Framework --> Server
     Starters --> Redis
     Starters --> Log
-    Server --> Business
+    Business --> BusinessCommon
+    Business --> BusinessApi
+    Server --> BusinessApi
+    BusinessApi --> BusinessCommon
     Server --> Redis
     Server --> Log
     Redis --> SpringRedis
@@ -53,9 +62,11 @@ flowchart TD
 
 依赖方向约束：
 
-- `pipker-server` 可以依赖 `pipker-business` 和技术 Starter。
+- `pipker-server` 依赖 `pipker-business-api` 和技术 Starter。
+- `pipker-business-api` 可以依赖 `pipker-business-common`。
+- `pipker-business-common` 不依赖单独业务模块或 `pipker-server`。
 - 技术 Starter 不依赖 `pipker-business` 或 `pipker-server`。
-- `pipker-business` 不依赖 `pipker-server`。
+- 业务模块不依赖 `pipker-server`。
 - `pipker-starters` 只负责聚合，不作为 Server 的运行时依赖。
 
 ## 当前 Starter 边界

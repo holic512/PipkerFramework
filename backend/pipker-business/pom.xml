@@ -3,10 +3,10 @@
     @file pom.xml
     @project Pipker Framework
     @module Pipker Business
-    @description Defines the default project-business module for application developers.
-    @logic Inherits shared build conventions and produces an empty jar module until project-specific business capabilities are implemented.
+    @description Aggregates Pipker's common and dedicated project-business modules without producing an artifact.
+    @logic Inherits shared build conventions and groups business modules for Reactor builds; concrete business code belongs to child modules.
     @dependencies pipker-framework parent
-    @index_tags maven,module,project-business
+    @index_tags maven,aggregator,project-business
     @author holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -23,9 +23,14 @@
     </parent>
 
     <artifactId>pipker-business</artifactId>
-    <packaging>jar</packaging>
+    <packaging>pom</packaging>
 
     <name>Pipker Business</name>
-    <description>Default project-business module for Pipker Framework applications.</description>
+    <description>Maven aggregator for Pipker Framework business modules.</description>
+
+    <modules>
+        <module>pipker-business-common</module>
+        <module>pipker-business-api</module>
+    </modules>
 
 </project>

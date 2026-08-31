@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file pom.xml
+    @project Pipker Framework
+    @module Pipker Business API
+    @description Defines the dedicated Pipker application business module assembled by the server.
+    @logic Inherits shared build conventions and depends only on shared business capabilities; concrete application business code can be added here without coupling to the server.
+    @dependencies pipker-framework parent, pipker-business-common
+    @index_tags maven,module,business,api
+    @author holic512
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.pipker</groupId>
+        <artifactId>pipker-framework</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>pipker-business-api</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Pipker Business API</name>
+    <description>Dedicated application business module for Pipker Framework.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.pipker</groupId>
+            <artifactId>pipker-business-common</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

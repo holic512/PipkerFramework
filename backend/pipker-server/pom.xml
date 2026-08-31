@@ -3,9 +3,9 @@
     @file pom.xml
     @project Pipker Framework
     @module Pipker Server
-    @description Builds the executable HTTP server and assembles the current Pipker business and technical-starter modules.
-    @logic Inherits the parent build defaults, combines project business with Redis and logging starters plus the existing web and validation starters, and packages the application through Spring Boot.
-    @dependencies pipker-framework parent, pipker-business, Pipker Redis Starter, Pipker Log Starter, Spring Boot Web, Spring Boot Validation
+    @description Builds the executable HTTP server and assembles the dedicated Pipker business and technical-starter modules.
+    @logic Inherits the parent build defaults, combines the business API module with Redis and logging starters plus the existing web and validation starters, and packages the application through Spring Boot.
+    @dependencies pipker-framework parent, pipker-business-api, Pipker Redis Starter, Pipker Log Starter, Spring Boot Web, Spring Boot Validation
     @index_tags maven,module,server,spring-boot
     @author holic512
 -->
@@ -29,7 +29,7 @@
     <dependencies>
         <dependency>
             <groupId>com.pipker</groupId>
-            <artifactId>pipker-business</artifactId>
+            <artifactId>pipker-business-api</artifactId>
         </dependency>
         <dependency>
             <groupId>com.pipker</groupId>

@@ -1,0 +1,13 @@
+# Maven build output
+target/
+
+# IntelliJ IDEA project metadata and output
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Local runtime files
+*.log
+.DS_Store

@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@500;600;700;900&display=swap');
+
+:root {
+  --font-display: 'Noto Serif SC', 'Songti SC', serif;
+  --font-body: 'Manrope', 'PingFang SC', sans-serif;
+  --font-mono: 'DM Mono', 'SFMono-Regular', monospace;
+  --surface-base: #fbfcf8;
+  --surface-tinted: #f1f5ed;
+  --ink-strong: #1d302b;
+  --ink-muted: #61716b;
+  --ink-soft: #84918b;
+  --accent-strong: #517d41;
+  --line-subtle: #dfe7df;
+  --line-strong: #bdccbd;
+  color: var(--ink-strong);
+  background: var(--surface-base);
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-width: 20rem;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100svh;
+}

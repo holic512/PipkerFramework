@@ -4,8 +4,8 @@
     @project Pipker Framework
     @module Pipker Server
     @description Builds the executable HTTP server and assembles the dedicated Pipker business and technical-starter modules.
-    @logic Inherits the parent build defaults, combines the business API module with Redis and logging starters plus the existing web and validation starters, and packages the application through Spring Boot.
-    @dependencies pipker-framework parent, pipker-business-api, Pipker Redis Starter, Pipker Log Starter, Spring Boot Web, Spring Boot Validation
+    @logic Inherits the parent build defaults, combines the business API module with technical starters for Redis, logging, Sa-Token authentication, and security cryptography, then packages the application through Spring Boot.
+    @dependencies pipker-framework parent, pipker-business-api, Pipker Redis Starter, Pipker Log Starter, Pipker Sa-Token Starter, Pipker Security Starter, Spring Boot Web, Spring Boot Validation
     @index_tags maven,module,server,spring-boot
     @author holic512
 -->
@@ -40,6 +40,14 @@
             <artifactId>pipker-spring-boot-starter-log</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.pipker</groupId>
+            <artifactId>pipker-spring-boot-starter-satoken</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.pipker</groupId>
+            <artifactId>pipker-spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
@@ -50,6 +58,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

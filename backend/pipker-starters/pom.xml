@@ -31,6 +31,8 @@
     <modules>
         <module>pipker-spring-boot-starter-redis</module>
         <module>pipker-spring-boot-starter-log</module>
+        <module>pipker-spring-boot-starter-satoken</module>
+        <module>pipker-spring-boot-starter-security</module>
     </modules>
 
 </project>

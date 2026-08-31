@@ -38,6 +38,7 @@
 
     <properties>
         <java.version>21</java.version>
+        <sa-token.version>1.46.0</sa-token.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -63,6 +64,16 @@
             <dependency>
                 <groupId>com.pipker</groupId>
                 <artifactId>pipker-spring-boot-starter-log</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.pipker</groupId>
+                <artifactId>pipker-spring-boot-starter-satoken</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.pipker</groupId>
+                <artifactId>pipker-spring-boot-starter-security</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

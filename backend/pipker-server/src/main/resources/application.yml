@@ -1,6 +1,49 @@
+# @file application.yml
+# @project Pipker Framework
+# @module Pipker Server
+# @description Defines the default server runtime, Bearer-token, memory-session, and active cryptography configuration.
+# @logic Keeps Redis optional through a profile, protects API routes through Sa-Token, and requires environment-supplied material for the selected field-encryption algorithm.
+# @dependencies Spring Boot, Pipker Sa-Token Starter, Pipker Security Starter
+# @index_tags server,configuration,sa-token,security,cryptography
+# @author holic512
 spring:
   application:
     name: pipker-server
 
 server:
   port: 8080
+
+sa-token:
+  token-name: Authorization
+  token-prefix: Bearer
+  timeout: 604800
+  active-timeout: 1800
+  is-concurrent: true
+  is-share: false
+  token-style: random-128
+  is-read-header: true
+  is-read-body: false
+  is-read-cookie: false
+  is-log: false
+  is-print: false
+
+pipker:
+  security:
+    auth:
+      session-store: memory
+      protected-paths:
+        - /api/**
+      public-routes:
+        - GET /api/ping
+    crypto:
+      password:
+        algorithm: bcrypt
+        bcrypt-strength: 12
+        pbkdf2-iterations: 600000
+        pbkdf2-salt-length: 16
+        pbkdf2-hash-width: 256
+      encryption:
+        algorithm: aes-gcm
+        aes-gcm-key: ${PIPKER_SECURITY_AES_GCM_KEY:}
+        rsa-oaep-public-key: ${PIPKER_SECURITY_RSA_OAEP_PUBLIC_KEY:}
+        rsa-oaep-private-key: ${PIPKER_SECURITY_RSA_OAEP_PRIVATE_KEY:}

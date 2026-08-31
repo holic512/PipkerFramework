@@ -3,8 +3,8 @@
     @file pom.xml
     @project Pipker Framework
     @module Pipker Business Common
-    @description Defines the shared business capability module for Pipker applications.
-    @logic Inherits shared build conventions and provides the dependency boundary for future reusable business capabilities without depending on dedicated business modules or the server.
+    @description Defines the shared business capability module and framework-neutral authentication identity contracts for Pipker applications.
+    @logic Inherits shared build conventions and provides reusable business capabilities such as LoginType and LoginIdentity without depending on dedicated business modules, technical starters, or the server.
     @dependencies pipker-framework parent
     @index_tags maven,module,business,common
     @author holic512

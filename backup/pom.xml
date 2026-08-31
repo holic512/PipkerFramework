@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
+<!--
+    @file pom.xml
+    @project Pipker Framework
+    @module Parent and aggregator build
+    @description Defines the shared build baseline and aggregates the base, business, and server modules.
+    @logic Inherits Spring Boot dependency and plugin management, provides Java and encoding defaults, and manages internal module versions for server assembly.
+    @dependencies Spring Boot Maven parent
+    @index_tags maven,parent,aggregator,java-21
+    @author holic512
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="
-            http://maven.apache.org/POM/4.0.0
-            https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
 
-    <!--
-        Spring Boot 官方父工程
-        负责统一管理大量 Spring Boot 相关依赖与 Maven 插件版本
-    -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -19,96 +22,48 @@
         <relativePath/>
     </parent>
 
-    <!-- ==================== Pipker 基础信息 ==================== -->
-
     <groupId>com.pipker</groupId>
     <artifactId>pipker-framework</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-
     <packaging>pom</packaging>
 
     <name>Pipker Framework</name>
-    <description>Pipker enterprise application development framework</description>
-
-    <!-- ==================== 子模块 ==================== -->
+    <description>Parent and aggregator project for Pipker Framework.</description>
 
     <modules>
-
-        <!-- 当前只有一个启动模块 -->
+        <module>pipker-base</module>
+        <module>pipker-business</module>
         <module>pipker-server</module>
-
     </modules>
 
-    <!-- ==================== 全局属性 ==================== -->
-
     <properties>
-
-        <!-- Java 基线 -->
         <java.version>21</java.version>
-
-        <!-- Pipker 自身版本 -->
-        <pipker.version>${project.version}</pipker.version>
-
-        <!-- 编码 -->
+        <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-
-        <!-- Maven 编译 -->
-        <maven.compiler.release>${java.version}</maven.compiler.release>
-
     </properties>
 
-    <!--
-        ==================== 统一依赖版本管理 ====================
-
-        Spring Boot 自己管理的依赖，不需要在这里重复声明版本。
-
-        以后例如：
-        MyBatis-Plus
-        Sa-Token
-        Redisson
-        MapStruct
-        Hutool
-        等非 Spring Boot 官方管理的依赖，
-        可以统一放到这里。
-    -->
     <dependencyManagement>
         <dependencies>
-
-            <!--
-            示例：
-
             <dependency>
-                <groupId>com.baomidou</groupId>
-                <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
-                <version>${mybatis-plus.version}</version>
+                <groupId>com.pipker</groupId>
+                <artifactId>pipker-base</artifactId>
+                <version>${project.version}</version>
             </dependency>
-            -->
-
+            <dependency>
+                <groupId>com.pipker</groupId>
+                <artifactId>pipker-business</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
-    <!-- ==================== 构建配置 ==================== -->
-
     <build>
-
-        <!--
-            这里暂时不配置 Spring Boot 打包插件。
-            因为真正产生可执行 Jar 的是 pipker-server，
-            Spring Boot Maven Plugin 应该放在 pipker-server 中。
-        -->
-
+        <!-- Add shared plugin versions or configuration here only when they are introduced. -->
         <pluginManagement>
             <plugins>
-
-                <!--
-                    后续 Pipker 自己需要统一 Maven 插件版本时，
-                    可以集中配置在这里。
-                -->
-
             </plugins>
         </pluginManagement>
-
     </build>
 
 </project>

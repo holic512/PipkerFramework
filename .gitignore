@@ -11,3 +11,20 @@ out/
 # Local runtime files
 *.log
 .DS_Store
+
+# Frontend dependencies, build output, caches, and local environment files
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/coverage/
+frontend/.vite/
+frontend/*.tsbuildinfo
+frontend/*.local
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+frontend/lerna-debug.log*

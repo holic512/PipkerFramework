@@ -3,8 +3,8 @@
     @file pom.xml
     @project Pipker Framework
     @module Parent and aggregator build
-    @description Defines the shared build baseline and aggregates the currently available server module.
-    @logic Inherits Spring Boot dependency and plugin management, then provides Java and encoding defaults to child modules.
+    @description Defines the shared build baseline and aggregates the base, business, and server modules.
+    @logic Inherits Spring Boot dependency and plugin management, provides Java and encoding defaults, and manages internal module versions for server assembly.
     @dependencies Spring Boot Maven parent
     @index_tags maven,parent,aggregator,java-21
     @author holic512
@@ -31,6 +31,8 @@
     <description>Parent and aggregator project for Pipker Framework.</description>
 
     <modules>
+        <module>pipker-base</module>
+        <module>pipker-business</module>
         <module>pipker-server</module>
     </modules>
 
@@ -41,9 +43,18 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
-    <!-- Add non-Spring-Boot dependency versions here only when they are introduced. -->
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>com.pipker</groupId>
+                <artifactId>pipker-base</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.pipker</groupId>
+                <artifactId>pipker-business</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 

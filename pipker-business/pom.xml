@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file pom.xml
+    @project Pipker Framework
+    @module Pipker Business
+    @description Defines the default project-business module for application developers.
+    @logic Inherits shared build conventions and produces an empty jar module until project-specific business capabilities are implemented.
+    @dependencies pipker-framework parent
+    @index_tags maven,module,project-business
+    @author holic512
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.pipker</groupId>
+        <artifactId>pipker-framework</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>pipker-business</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Pipker Business</name>
+    <description>Default project-business module for Pipker Framework applications.</description>
+
+</project>

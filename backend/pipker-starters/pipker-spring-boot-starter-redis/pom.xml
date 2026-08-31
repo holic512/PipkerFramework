@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file pom.xml
+    @project Pipker Framework
+    @module Pipker Spring Boot Starter Redis
+    @description Provides the lightweight dependency boundary for Pipker Redis infrastructure.
+    @logic Delegates Redis client and automatic-configuration support to Spring Boot's official Redis starter; custom Pipker Redis infrastructure can be added here when concrete requirements exist.
+    @dependencies pipker-framework parent, Spring Boot Data Redis Starter
+    @index_tags maven,module,starter,redis,spring-boot
+    @author holic512
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.pipker</groupId>
+        <artifactId>pipker-framework</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>pipker-spring-boot-starter-redis</artifactId>
+
+    <name>Pipker Spring Boot Starter Redis</name>
+    <description>Redis infrastructure starter for Pipker Framework.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

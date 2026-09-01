@@ -3,9 +3,9 @@
     文件：pom.xml
     项目：Pipker Framework
     模块：Pipker Spring Boot Starter Log
-    说明：为 Pipker 技术日志基础设施提供轻量依赖边界。
-    处理逻辑：提供 Spring Boot 标准日志基线，并预留日志格式、MDC、TraceId 传递、请求日志和脱敏等基础设施扩展位置。
-    依赖：pipker-framework 父工程、Spring Boot Logging Starter
+    说明：为 Pipker 技术日志基础设施提供自动配置、MDC、HTTP 日志、操作日志和脱敏能力。
+    处理逻辑：组合 Spring Boot 日志、自动配置、Jackson 与 AOP 基础设施；Servlet MVC 依赖保持可选，使非 Web 应用可安全使用核心能力。
+    依赖：pipker-framework 父工程、Spring Boot Logging/AutoConfigure/Jackson/AOP Starter、可选 Spring Boot Web MVC
     检索关键词：maven、模块、starter、日志、spring-boot
     作者：holic512
 -->
@@ -31,6 +31,33 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-logging</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-jackson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

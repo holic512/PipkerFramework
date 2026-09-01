@@ -26,7 +26,7 @@ backend/
 | `pipker-framework` | `com.pipker:pipker-framework` | `pom` | 根 Parent 与 Maven Reactor；统一管理 Spring Boot、Java、编码和内部模块版本。 |
 | `pipker-starters` | `com.pipker:pipker-starters` | `pom` | 聚合 Pipker 的技术 Starter，仅参与 Reactor 构建，不产出业务 Jar。 |
 | `pipker-spring-boot-starter-redis` | `com.pipker:pipker-spring-boot-starter-redis` | `jar` | Redis 技术基础设施边界；当前依赖 Spring Boot 官方 `spring-boot-starter-data-redis`，由 Spring Boot 提供 Redis 自动配置。 |
-| `pipker-spring-boot-starter-log` | `com.pipker:pipker-spring-boot-starter-log` | `jar` | 技术日志基础设施边界；当前依赖 Spring Boot 官方 `spring-boot-starter-logging`，保留日志格式、MDC / TraceId、请求日志和日志脱敏的后续扩展位置。 |
+| `pipker-spring-boot-starter-log` | `com.pipker:pipker-spring-boot-starter-log` | `jar` | 统一日志基础设施；提供 TraceId/MDC、条件化 HTTP 与慢请求日志、操作日志、脱敏、异常日志与低耦合扩展 SPI，不重新包装 SLF4J API。 |
 | `pipker-spring-boot-starter-satoken` | `com.pipker:pipker-spring-boot-starter-satoken` | `jar` | 基于 Sa-Token `1.46.0` 的基础鉴权能力；提供 Bearer Token、统一登录会话门面、全局 API 过滤和内存/Redis DAO 切换。 |
 | `pipker-spring-boot-starter-security` | `com.pipker:pipker-spring-boot-starter-security` | `jar` | 密码哈希与字段加解密边界；以配置选择 BCrypt/PBKDF2 与 AES-GCM/RSA-OAEP 的活动算法，对业务只暴露一个安全服务。 |
 | `pipker-business` | `com.pipker:pipker-business` | `pom` | 聚合公共业务模块和单独业务模块，仅参与 Reactor 构建，不产出业务 Jar。 |
@@ -92,14 +92,153 @@ flowchart TD
 
 ### Log Starter
 
-`pipker-spring-boot-starter-log` 当前只提供技术日志的依赖边界，不实现业务审计或用户操作日志。以下能力属于未来扩展方向，但尚未实现：
+`pipker-spring-boot-starter-log` 是统一日志基础设施 Starter。业务代码继续直接使用 SLF4J：
 
-- 统一日志格式
-- MDC / TraceId 传播
-- 请求日志
-- 日志脱敏
+```java
+@Slf4j
+public class UserService {
 
-用户登录日志、用户操作日志、数据修改日志、审计日志与操作人记录属于业务能力，不在该 Starter 范围内。
+    public void create() {
+        log.info("User created");
+    }
+}
+```
+
+Starter 不新增 `LogUtils.info()`、`LogUtils.error()` 或自定义 Logger 门面。它提供的能力如下：
+
+| 能力 | 默认状态 | 说明 |
+| --- | --- | --- |
+| TraceId / MDC | 开启 | 复用合法上游 `X-Trace-Id` 或生成新值；维护 `traceId`、`requestId`、`serviceName`、`clientIp`、`httpMethod`、`requestUri`。 |
+| TraceId 响应 Header | 开启 | 将本次 TraceId 回写到 `X-Trace-Id`。 |
+| 单条 HTTP 请求日志 | 关闭 | 避免引入 Starter 后产生大量访问日志；启用后输出 `[HTTP]`。 |
+| 慢请求日志 | 开启 | 默认阈值 `1000ms`，超过后输出 `[SLOW]` WARN。 |
+| `@OperationLog` 操作日志 | 开启 | 只对显式标注的方法记录，不写数据库；默认参数和返回值不记录。 |
+| 敏感信息脱敏 | 开启 | 默认屏蔽密码、令牌、Cookie、手机号、邮箱、身份证号、银行卡号等。 |
+| MVC 异常日志 | 开启 | 仅观察异常、保留完整栈，不创建或替换全局异常处理器。 |
+| 请求 Header / 请求 Body / 响应 Body | 关闭 | 需明确开启；仅允许 JSON 文本、受长度上限保护并且统一脱敏。 |
+
+#### 完整配置示例
+
+下列示例展示全部主要配置项；没有必要时可只保留需要覆盖默认值的部分。
+
+```yaml
+pipker:
+  log:
+    enabled: true
+    context:
+      # 未设置时采用 spring.application.name；仍未设置时为 application。
+      service-name: pipker-server
+      request-id-enabled: true
+      client-ip-enabled: true
+    trace:
+      enabled: true
+      header-name: X-Trace-Id
+      accept-upstream: true
+      write-response-header: true
+    request:
+      # 轻量默认：逐条请求日志关闭；慢请求仍会记录。
+      enabled: false
+      level: info
+      include-parameters: false
+      include-headers: false
+      include-request-body: false
+      include-response-body: false
+      # 单位为字节；请求和响应日志副本都受此限制。
+      max-body-length: 4096
+      # 用于与已有 Filter 协调；默认 Ordered.HIGHEST_PRECEDENCE + 10。
+      filter-order: -2147483638
+      ignored-paths:
+        - /actuator/**
+        - /error
+        - /favicon.ico
+      ignored-content-types:
+        - multipart/*
+        - application/octet-stream
+        - image/*
+      body-content-types:
+        - application/json
+        - application/*+json
+    slow-request:
+      enabled: true
+      threshold: 1000
+      level: warn
+    operation:
+      enabled: true
+      level: info
+      record-parameters: false
+      record-result: false
+      max-value-length: 4096
+    sensitive:
+      enabled: true
+      mask-text: "******"
+      # 在默认字段集合外追加需要脱敏的字段名和类型。
+      additional-fields:
+        apiSecret: token
+        employeeEmail: email
+    exception:
+      enabled: true
+      max-message-length: 1024
+```
+
+`ignored-paths` 同时作用于普通请求日志和慢请求日志。TraceId/MDC 仍会在这些请求中建立，保证诊断上下文一致。请求与响应 Body 只在 Content-Type 匹配 `body-content-types` 时记录；multipart、二进制、解析失败的 JSON 不会回退输出原始文本。
+
+#### Logback 格式策略
+
+Starter 不携带 `logback-spring.xml`、不创建日志目录，也不设定滚动或保留周期。应用拥有自己的日志输出策略；若希望控制台展示 TraceId，可在应用配置中加入：
+
+```yaml
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{traceId}] [%X{requestId}] %logger{36} - %msg%n"
+```
+
+例如一次携带 `X-Trace-Id: upstream-123` 的请求执行上述业务代码，输出可为：
+
+```text
+2026-09-01 15:10:00.123 INFO  [upstream-123] [a5d3…] c.p.user.UserService - User created
+```
+
+#### 操作日志与脱敏示例
+
+```java
+import com.pipker.starter.log.annotation.OperationLog;
+import com.pipker.starter.log.annotation.OperationLogRecordPolicy;
+import com.pipker.starter.log.annotation.Sensitive;
+import com.pipker.starter.log.sensitive.SensitiveType;
+
+public record CreateUserCommand(
+        String username,
+        @Sensitive(SensitiveType.PHONE) String phone,
+        @Sensitive String password
+) {
+}
+
+@OperationLog(
+        module = "用户管理",
+        operation = "新增用户",
+        recordParameters = OperationLogRecordPolicy.ENABLED
+)
+public UserView createUser(CreateUserCommand command) {
+    // 正常业务逻辑；日志中 phone/password 已脱敏。
+}
+```
+
+成功操作输出到独立 Logger `pipker.operation`，字段包含模块、操作名称、方法、请求路径、MDC 中可用的操作人/IP、脱敏参数、耗时和成功状态。失败操作仍会记录 `success=false`、异常类型和受限异常消息，原异常会按业务语义继续抛出。
+
+#### 扩展边界与其他模块协作
+
+当前日志 Starter 不依赖任何业务模块。以下能力均为可选协作，而非启动前置条件：
+
+| 目标 | 协作模块 | 接入方式 |
+| --- | --- | --- |
+| `userId`、`username` MDC | Sa-Token 或未来 Auth Starter | 认证模块实现 `LogContextContributor`。当前 `AuthSessionService` 可提供用户 ID 和登录类型，但不含用户名契约。 |
+| `tenantId` MDC | 未来 Tenant 模块 | Tenant 模块实现 `LogContextContributor`。 |
+| 操作日志外部存储 | 使用方基础设施模块 | 提供唯一 `OperationLogHandler` Bean 以替换默认 SLF4J Handler。 |
+| 全局异常处理集成 | 未来异常处理模块 | 在既有 Handler 中调用 `ExceptionLogReporter`，无需新建第二个 Advice。 |
+| 异步 MDC 透传 | 使用方线程池模块 | 将 `MdcTaskDecorator` 组合到自行管理的 Executor；Starter 不接管全局线程池。 |
+| Feign / RestClient / WebClient 透传 | 对应客户端模块 | 当前未实现；后续应以可选、条件化 Adapter 读取 MDC `traceId` 并写入已配置 Header。 |
+
+第一阶段仅实现 Servlet/MVC 请求链路。Gateway、Feign、RestClient、WebClient 和自动接管异步线程池均留作后续按实际依赖引入的扩展，避免日志 Starter 反向耦合业务或网络客户端模块。
 
 ## Sa-Token 鉴权 Starter
 
@@ -174,4 +313,4 @@ mvn -pl pipker-server -am spring-boot:run
 mvn clean test
 ```
 
-该命令会按 Reactor 顺序构建根项目、两个 Starter、Starter 聚合模块、业务模块与 Server 模块，并运行已有的 Server 测试。
+该命令会按 Reactor 顺序构建根项目、全部技术 Starter、Starter 聚合模块、业务模块与 Server 模块，并运行各模块测试。

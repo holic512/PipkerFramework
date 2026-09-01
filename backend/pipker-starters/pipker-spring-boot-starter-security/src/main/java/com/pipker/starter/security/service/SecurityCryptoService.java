@@ -10,15 +10,49 @@
  */
 package com.pipker.starter.security.service;
 
+/**
+ * 面向业务模块的统一密码哈希与字段加解密接口。
+ */
 public interface SecurityCryptoService {
 
+    /**
+     * 使用当前配置的密码算法生成带算法标识的密码哈希。
+     *
+     * @param rawPassword 原始密码
+     * @return 可持久化的密码哈希
+     */
     String hashPassword(CharSequence rawPassword);
 
+    /**
+     * 校验原始密码是否匹配已存储的、可识别的密码哈希。
+     *
+     * @param rawPassword 待校验的原始密码
+     * @param storedHash 已存储的密码哈希
+     * @return 密码匹配时返回 {@code true}
+     */
     boolean matchesPassword(CharSequence rawPassword, String storedHash);
 
+    /**
+     * 判断已存储的密码哈希是否需要按当前配置重新生成。
+     *
+     * @param storedHash 已存储的密码哈希
+     * @return 需要升级或格式不可识别时返回 {@code true}
+     */
     boolean needsPasswordUpgrade(String storedHash);
 
+    /**
+     * 使用当前配置的可逆加密算法加密明文。
+     *
+     * @param plainText 待加密的明文
+     * @return 带算法和版本标识的密文
+     */
     String encrypt(String plainText);
 
+    /**
+     * 解密当前配置算法生成的密文。
+     *
+     * @param cipherText 带算法和版本标识的密文
+     * @return 解密后的明文
+     */
     String decrypt(String cipherText);
 }

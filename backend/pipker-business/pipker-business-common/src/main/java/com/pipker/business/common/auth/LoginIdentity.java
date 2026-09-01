@@ -12,8 +12,29 @@ package com.pipker.business.common.auth;
 
 import java.util.Objects;
 
-public record LoginIdentity(LoginType loginType, String userId) {
+/**
+ * 表示创建和解析认证会话所需的最小登录身份。
+ *
+ * @param loginType 登录账户域
+ * @param userId 账户域内的用户标识
+ */
+public record LoginIdentity(
+        /**
+         * 登录账户域。
+         */
+        LoginType loginType,
+        /**
+         * 账户域内的用户标识。
+         */
+        String userId
+) {
 
+    /**
+     * 校验登录域和用户标识，并拒绝空白或包含身份编码分隔符的用户标识。
+     *
+     * @param loginType 登录账户域
+     * @param userId 账户域内的用户标识
+     */
     public LoginIdentity {
         Objects.requireNonNull(loginType, "loginType must not be null");
         Objects.requireNonNull(userId, "userId must not be null");

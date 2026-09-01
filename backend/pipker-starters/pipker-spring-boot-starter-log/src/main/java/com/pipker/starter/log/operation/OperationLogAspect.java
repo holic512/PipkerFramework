@@ -32,6 +32,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 拦截 {@link OperationLog} 方法并在成功或失败后发布操作日志记录。
+ */
 @Aspect
 public class OperationLogAspect {
 
@@ -42,6 +45,14 @@ public class OperationLogAspect {
     private final LogValueRenderer valueRenderer;
     private final List<OperationLogHandler> handlers;
 
+    /**
+     * 创建操作日志切面。
+     *
+     * @param properties 日志配置
+     * @param sanitizer 日志值脱敏器
+     * @param valueRenderer 日志值渲染器
+     * @param handlers 操作日志处理器集合
+     */
     public OperationLogAspect(
             PipkerLogProperties properties,
             LogSanitizer sanitizer,
@@ -54,6 +65,14 @@ public class OperationLogAspect {
         this.handlers = List.copyOf(handlers);
     }
 
+    /**
+     * 执行业务方法，并将成功结果或异常转换为旁路操作日志记录。
+     *
+     * @param joinPoint 当前 AOP 连接点
+     * @param operationLog 当前方法上的操作日志声明
+     * @return 业务方法原始返回值
+     * @throws Throwable 业务方法原始抛出的异常
+     */
     @Around("@annotation(operationLog)")
     public Object around(ProceedingJoinPoint joinPoint, OperationLog operationLog) throws Throwable {
         long startedAt = System.nanoTime();

@@ -22,6 +22,9 @@ import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * 在响应正常写出的同时，按字节数限制捕获响应副本。
+ */
 final class BoundedResponseCaptureWrapper extends HttpServletResponseWrapper {
 
     private final ByteArrayOutputStream capturedContent = new ByteArrayOutputStream();
@@ -31,11 +34,23 @@ final class BoundedResponseCaptureWrapper extends HttpServletResponseWrapper {
     private PrintWriter writer;
     private boolean truncated;
 
+    /**
+     * 创建受限响应包装器。
+     *
+     * @param response 原始 HTTP 响应
+     * @param maxLength 最多捕获的字节数
+     */
     BoundedResponseCaptureWrapper(HttpServletResponse response, int maxLength) {
         super(response);
         this.maxLength = Math.max(0, maxLength);
     }
 
+    /**
+     * 返回会同时写入原响应和受限缓存的输出流。
+     *
+     * @return 响应输出流
+     * @throws IOException 无法获取原响应输出流时抛出
+     */
     @Override
     public ServletOutputStream getOutputStream() throws IOException {
         if (outputStream == null) {
@@ -44,6 +59,12 @@ final class BoundedResponseCaptureWrapper extends HttpServletResponseWrapper {
         return outputStream;
     }
 
+    /**
+     * 返回使用响应字符集并连接到受限输出流的字符写入器。
+     *
+     * @return 响应写入器
+     * @throws IOException 无法获取原响应输出流时抛出
+     */
     @Override
     public PrintWriter getWriter() throws IOException {
         if (writer == null) {
@@ -53,6 +74,11 @@ final class BoundedResponseCaptureWrapper extends HttpServletResponseWrapper {
         return writer;
     }
 
+    /**
+     * 先刷新包装器写入器，再刷新原响应缓冲区。
+     *
+     * @throws IOException 刷新原响应失败时抛出
+     */
     @Override
     public void flushBuffer() throws IOException {
         if (writer != null) {
@@ -61,6 +87,9 @@ final class BoundedResponseCaptureWrapper extends HttpServletResponseWrapper {
         super.flushBuffer();
     }
 
+    /**
+     * 重置原响应及已捕获内容。
+     */
     @Override
     public void reset() {
         super.reset();
@@ -68,6 +97,9 @@ final class BoundedResponseCaptureWrapper extends HttpServletResponseWrapper {
         truncated = false;
     }
 
+    /**
+     * 重置原响应缓冲区及已捕获内容。
+     */
     @Override
     public void resetBuffer() {
         super.resetBuffer();
@@ -75,6 +107,11 @@ final class BoundedResponseCaptureWrapper extends HttpServletResponseWrapper {
         truncated = false;
     }
 
+    /**
+     * 返回当前已捕获的响应内容。
+     *
+     * @return 响应内容字节数组
+     */
     byte[] getCapturedContent() {
         if (writer != null) {
             writer.flush();
@@ -82,6 +119,11 @@ final class BoundedResponseCaptureWrapper extends HttpServletResponseWrapper {
         return capturedContent.toByteArray();
     }
 
+    /**
+     * 判断响应内容是否超过捕获上限。
+     *
+     * @return 超过上限时返回 {@code true}
+     */
     boolean isTruncated() {
         return truncated;
     }
@@ -98,6 +140,9 @@ final class BoundedResponseCaptureWrapper extends HttpServletResponseWrapper {
         }
     }
 
+    /**
+     * 仅将尚未超过上限的字节复制到内存缓存，并记录是否发生截断。
+     */
     private void capture(byte[] bytes, int offset, int length) {
         int remaining = maxLength - capturedContent.size();
         if (remaining <= 0) {
@@ -109,6 +154,9 @@ final class BoundedResponseCaptureWrapper extends HttpServletResponseWrapper {
         truncated = truncated || capturedLength < length;
     }
 
+    /**
+     * 将写入委托给原输出流并同步捕获有限副本的输出流。
+     */
     private final class CapturingServletOutputStream extends ServletOutputStream {
 
         private final ServletOutputStream delegate;
@@ -117,23 +165,47 @@ final class BoundedResponseCaptureWrapper extends HttpServletResponseWrapper {
             this.delegate = delegate;
         }
 
+        /**
+         * 写入单个字节并尝试捕获该字节。
+         *
+         * @param value 待写入的字节
+         * @throws IOException 原响应写入失败时抛出
+         */
         @Override
         public void write(int value) throws IOException {
             delegate.write(value);
             capture(new byte[]{(byte) value}, 0, 1);
         }
 
+        /**
+         * 写入字节数组并尝试捕获其中的有限部分。
+         *
+         * @param bytes 待写入的字节数组
+         * @param offset 起始偏移量
+         * @param length 写入长度
+         * @throws IOException 原响应写入失败时抛出
+         */
         @Override
         public void write(byte[] bytes, int offset, int length) throws IOException {
             delegate.write(bytes, offset, length);
             capture(bytes, offset, length);
         }
 
+        /**
+         * 返回原输出流的就绪状态。
+         *
+         * @return 原输出流是否就绪
+         */
         @Override
         public boolean isReady() {
             return delegate.isReady();
         }
 
+        /**
+         * 将写入监听器委托给原输出流。
+         *
+         * @param writeListener 写入监听器
+         */
         @Override
         public void setWriteListener(WriteListener writeListener) {
             delegate.setWriteListener(writeListener);

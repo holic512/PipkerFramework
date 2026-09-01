@@ -17,10 +17,19 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
+/**
+ * 自动配置 Pipker 统一的密码哈希和字段加密服务。
+ */
 @AutoConfiguration
 @EnableConfigurationProperties(PipkerSecurityProperties.class)
 public class PipkerSecurityAutoConfiguration {
 
+    /**
+     * 注册默认安全密码学服务。
+     *
+     * @param properties 安全密码学配置
+     * @return 安全密码学服务
+     */
     @Bean
     @ConditionalOnMissingBean
     public SecurityCryptoService securityCryptoService(PipkerSecurityProperties properties) {

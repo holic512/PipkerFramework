@@ -12,5 +12,20 @@ package com.pipker.starter.satoken.service;
 
 import com.pipker.business.common.auth.LoginIdentity;
 
-public record AuthToken(String value, LoginIdentity identity) {
+/**
+ * 承载新建会话的原始令牌和对应登录身份。
+ *
+ * @param value 原始 Sa-Token 值，不包含传输层 Bearer 前缀
+ * @param identity 创建该令牌的登录身份
+ */
+public record AuthToken(
+        /**
+         * 原始 Sa-Token 值。
+         */
+        String value,
+        /**
+         * 创建该令牌的登录身份。
+         */
+        LoginIdentity identity
+) {
 }

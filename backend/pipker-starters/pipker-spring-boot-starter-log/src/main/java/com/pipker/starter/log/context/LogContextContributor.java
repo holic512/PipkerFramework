@@ -10,8 +10,16 @@
  */
 package com.pipker.starter.log.context;
 
+/**
+ * 为当前请求贡献认证、租户等附加日志上下文的扩展点。
+ */
 @FunctionalInterface
 public interface LogContextContributor {
 
+    /**
+     * 向请求日志上下文追加自定义字段。
+     *
+     * @param context 当前请求的受控日志上下文
+     */
     void contribute(LogContext context);
 }

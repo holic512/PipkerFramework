@@ -38,11 +38,26 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Objects;
 
+/**
+ * 使用 Spring Security Crypto 与 JDK JCA/JCE 实现密码哈希和字段加密。
+ */
 public class DefaultSecurityCryptoService implements SecurityCryptoService {
 
+    /**
+     * BCrypt 哈希的存储前缀。
+     */
     private static final String BCRYPT_PREFIX = "{bcrypt}";
+    /**
+     * PBKDF2 哈希的存储前缀。
+     */
     private static final String PBKDF2_PREFIX = "{pbkdf2-sha256}";
+    /**
+     * AES-GCM 密文信封前缀。
+     */
     private static final String AES_ENVELOPE_PREFIX = "v1:aes-gcm:";
+    /**
+     * RSA-OAEP 密文信封前缀。
+     */
     private static final String RSA_ENVELOPE_PREFIX = "v1:rsa-oaep-sha256:";
     private static final int AES_KEY_BYTES = 32;
     private static final int AES_GCM_NONCE_BYTES = 12;
@@ -56,6 +71,13 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
     private final RSAPublicKey rsaPublicKey;
     private final RSAPrivateKey rsaPrivateKey;
 
+    /**
+     * 创建安全密码学服务，并在初始化阶段校验当前算法所需的密钥材料。
+     *
+     * @param properties 安全密码学配置
+     * @throws NullPointerException 配置为空时抛出
+     * @throws IllegalStateException 密钥材料缺失、格式错误或算法不受支持时抛出
+     */
     public DefaultSecurityCryptoService(PipkerSecurityProperties properties) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.bcryptPasswordEncoder = new BCryptPasswordEncoder(properties.getPassword().getBcryptStrength());
@@ -73,6 +95,13 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         }
     }
 
+    /**
+     * 使用当前配置算法生成带算法前缀的密码哈希。
+     *
+     * @param rawPassword 原始密码
+     * @return 可持久化的密码哈希
+     * @throws NullPointerException 原始密码为空时抛出
+     */
     @Override
     public String hashPassword(CharSequence rawPassword) {
         String password = requirePassword(rawPassword);
@@ -82,6 +111,13 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         };
     }
 
+    /**
+     * 根据哈希前缀选择兼容的算法校验密码。
+     *
+     * @param rawPassword 待校验的原始密码
+     * @param storedHash 已存储的密码哈希
+     * @return 密码匹配时返回 {@code true}
+     */
     @Override
     public boolean matchesPassword(CharSequence rawPassword, String storedHash) {
         if (rawPassword == null || storedHash == null) {
@@ -97,6 +133,12 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         return false;
     }
 
+    /**
+     * 判断密码哈希是否不是当前配置格式或成本参数已过时。
+     *
+     * @param storedHash 已存储的密码哈希
+     * @return 需要升级时返回 {@code true}
+     */
     @Override
     public boolean needsPasswordUpgrade(String storedHash) {
         if (storedHash == null) {
@@ -109,6 +151,14 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         };
     }
 
+    /**
+     * 使用当前配置的 AES-GCM 或 RSA-OAEP 算法加密明文。
+     *
+     * @param plainText 待加密的明文
+     * @return 带版本和算法前缀的密文
+     * @throws NullPointerException 明文为空时抛出
+     * @throws IllegalStateException 底层加密操作失败时抛出
+     */
     @Override
     public String encrypt(String plainText) {
         Objects.requireNonNull(plainText, "plainText must not be null");
@@ -118,6 +168,14 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         };
     }
 
+    /**
+     * 解密当前配置算法生成的密文信封。
+     *
+     * @param cipherText 带版本和算法前缀的密文
+     * @return 解密后的明文
+     * @throws NullPointerException 密文为空时抛出
+     * @throws IllegalArgumentException 密文格式、算法前缀或认证校验无效时抛出
+     */
     @Override
     public String decrypt(String cipherText) {
         Objects.requireNonNull(cipherText, "cipherText must not be null");
@@ -127,6 +185,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         };
     }
 
+    /**
+     * 生成包含迭代次数、Base64 盐和 Base64 哈希的 PBKDF2 存储值。
+     */
     private String hashPbkdf2(String password) {
         byte[] salt = new byte[properties.getPassword().getPbkdf2SaltLength()];
         secureRandom.nextBytes(salt);
@@ -137,6 +198,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
                 + Base64.getEncoder().encodeToString(hash);
     }
 
+    /**
+     * 解析并恒定时间比较 PBKDF2 存储值。
+     */
     private boolean matchesPbkdf2(String password, String encodedHash) {
         String[] segments = encodedHash.split("\\$", -1);
         if (segments.length != 3) {
@@ -156,6 +220,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         }
     }
 
+    /**
+     * 判断 PBKDF2 存储值的迭代次数和输出宽度是否需要升级。
+     */
     private boolean needsPbkdf2Upgrade(String storedHash) {
         if (!storedHash.startsWith(PBKDF2_PREFIX)) {
             return true;
@@ -174,6 +241,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         }
     }
 
+    /**
+     * 派生 PBKDF2-HMAC-SHA256 密钥，并在完成后清理密码字符数组。
+     */
     private byte[] derivePbkdf2(String password, byte[] salt, int iterations, int hashWidth) {
         char[] passwordCharacters = password.toCharArray();
         PBEKeySpec specification = new PBEKeySpec(passwordCharacters, salt, iterations, hashWidth);
@@ -189,6 +259,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         }
     }
 
+    /**
+     * 使用随机 GCM nonce 加密明文并组装 AES-GCM 信封。
+     */
     private String encryptAes(String plainText) {
         byte[] nonce = new byte[AES_GCM_NONCE_BYTES];
         secureRandom.nextBytes(nonce);
@@ -204,6 +277,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         }
     }
 
+    /**
+     * 校验 AES-GCM 信封、恢复 nonce 并验证认证标签后解密。
+     */
     private String decryptAes(String cipherText) {
         if (!cipherText.startsWith(AES_ENVELOPE_PREFIX)) {
             throw new IllegalArgumentException("Ciphertext was not produced by the active AES-GCM algorithm");
@@ -226,6 +302,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         }
     }
 
+    /**
+     * 使用 RSA 公钥和固定 OAEP 参数加密明文。
+     */
     private String encryptRsa(String plainText) {
         try {
             Cipher cipher = rsaOaepCipher();
@@ -237,6 +316,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         }
     }
 
+    /**
+     * 使用 RSA 私钥和固定 OAEP 参数解密密文信封。
+     */
     private String decryptRsa(String cipherText) {
         if (!cipherText.startsWith(RSA_ENVELOPE_PREFIX)) {
             throw new IllegalArgumentException("Ciphertext was not produced by the active RSA-OAEP-SHA-256 algorithm");
@@ -251,6 +333,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         }
     }
 
+    /**
+     * 解码并校验 256 位 AES-GCM 密钥。
+     */
     private SecretKeySpec loadAesKey(String encodedKey) {
         byte[] key = decodeRequiredBase64(encodedKey, "AES-GCM key");
         if (key.length != AES_KEY_BYTES) {
@@ -259,6 +344,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         return new SecretKeySpec(key, "AES");
     }
 
+    /**
+     * 解码并加载 X.509 DER 格式的 RSA 公钥。
+     */
     private RSAPublicKey loadRsaPublicKey(String encodedKey) {
         try {
             PublicKey key = KeyFactory.getInstance("RSA")
@@ -272,6 +360,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         }
     }
 
+    /**
+     * 解码并加载 PKCS#8 DER 格式的 RSA 私钥。
+     */
     private RSAPrivateKey loadRsaPrivateKey(String encodedKey) {
         try {
             PrivateKey key = KeyFactory.getInstance("RSA")
@@ -285,6 +376,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         }
     }
 
+    /**
+     * 解码必填的 Base64 配置值，并将配置错误转换为启动失败。
+     */
     private byte[] decodeRequiredBase64(String encodedValue, String description) {
         if (encodedValue == null || encodedValue.isBlank()) {
             throw new IllegalStateException(description + " must be configured");
@@ -296,10 +390,16 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         }
     }
 
+    /**
+     * 创建 RSA-OAEP-SHA-256 Cipher 实例。
+     */
     private Cipher rsaOaepCipher() throws GeneralSecurityException {
         return Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
     }
 
+    /**
+     * 返回 RSA-OAEP 使用的 SHA-256 和 MGF1 参数。
+     */
     private OAEPParameterSpec oaepParameterSpec() {
         return new OAEPParameterSpec(
                 "SHA-256",
@@ -309,6 +409,9 @@ public class DefaultSecurityCryptoService implements SecurityCryptoService {
         );
     }
 
+    /**
+     * 校验并转换原始密码，保持调用方传入的密码语义不变。
+     */
     private String requirePassword(CharSequence rawPassword) {
         Objects.requireNonNull(rawPassword, "rawPassword must not be null");
         return rawPassword.toString();

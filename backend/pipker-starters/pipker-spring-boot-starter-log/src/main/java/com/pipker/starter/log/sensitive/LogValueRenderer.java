@@ -10,9 +10,27 @@
  */
 package com.pipker.starter.log.sensitive;
 
+/**
+ * 将日志值脱敏并序列化为受长度限制的文本。
+ */
 public interface LogValueRenderer {
 
+    /**
+     * 脱敏并渲染指定值。
+     *
+     * @param value 待渲染的原始值
+     * @param maxLength 输出文本的最大长度；非正数表示不截断
+     * @return JSON 文本或安全占位值
+     */
     String render(Object value, int maxLength);
 
+    /**
+     * 按显式敏感类型脱敏并渲染指定值。
+     *
+     * @param value 待渲染的原始值
+     * @param explicitType 强制使用的敏感类型，可为空
+     * @param maxLength 输出文本的最大长度；非正数表示不截断
+     * @return JSON 文本或安全占位值
+     */
     String render(Object value, SensitiveType explicitType, int maxLength);
 }

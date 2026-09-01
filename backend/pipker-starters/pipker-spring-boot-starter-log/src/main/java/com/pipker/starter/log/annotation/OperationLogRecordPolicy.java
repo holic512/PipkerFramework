@@ -10,8 +10,23 @@
  */
 package com.pipker.starter.log.annotation;
 
+/**
+ * 操作日志对参数和返回值记录策略的覆盖方式。
+ */
 public enum OperationLogRecordPolicy {
+
+    /**
+     * 继承 {@code pipker.log.operation} 下的全局配置。
+     */
     DEFAULT,
+
+    /**
+     * 强制记录当前方法对应的值。
+     */
     ENABLED,
+
+    /**
+     * 强制不记录当前方法对应的值。
+     */
     DISABLED
 }

@@ -42,6 +42,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * 在单个 Servlet Filter 中建立请求上下文，并输出 HTTP、慢请求和异常日志。
+ */
 public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("pipker.http");
@@ -55,6 +58,16 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
     private final ExceptionLogReporter exceptionLogReporter;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
+    /**
+     * 创建请求日志 Filter。
+     *
+     * @param properties 日志配置
+     * @param environment Spring 环境
+     * @param valueRenderer 日志值渲染器
+     * @param jsonMapper JSON 映射器
+     * @param contributors 请求日志上下文贡献者
+     * @param exceptionLogReporter 异常报告器，可为空
+     */
     public PipkerRequestLoggingFilter(
             PipkerLogProperties properties,
             Environment environment,
@@ -71,6 +84,12 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         this.exceptionLogReporter = exceptionLogReporter;
     }
 
+    /**
+     * 当 Trace、普通请求日志和慢请求日志均关闭时跳过请求。
+     *
+     * @param request 当前请求
+     * @return 是否跳过 Filter
+     */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return !properties.getTrace().isEnabled()
@@ -78,11 +97,25 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
                 && !properties.getSlowRequest().isEnabled();
     }
 
+    /**
+     * 异步分派阶段不重复进入 Filter，改由异步完成监听器记录请求。
+     *
+     * @return 始终返回 {@code true}
+     */
     @Override
     protected boolean shouldNotFilterAsyncDispatch() {
         return true;
     }
 
+    /**
+     * 建立请求 MDC，按配置包装请求/响应，并在同步或异步完成时输出日志。
+     *
+     * @param request 当前 HTTP 请求
+     * @param response 当前 HTTP 响应
+     * @param filterChain 后续 Filter 链
+     * @throws ServletException Servlet 处理失败时抛出
+     * @throws IOException 请求或响应 I/O 失败时抛出
+     */
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -117,6 +150,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * 创建由 Filter 管理的基础日志上下文。
+     */
     private Map<String, String> createContextValues(HttpServletRequest request) {
         Map<String, String> values = new LinkedHashMap<>();
         if (properties.getTrace().isEnabled()) {
@@ -134,6 +170,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         return values;
     }
 
+    /**
+     * 依次执行上下文贡献者，并隔离单个贡献者的运行时异常。
+     */
     private void contribute(LogContext context) {
         for (LogContextContributor contributor : contributors) {
             try {
@@ -144,6 +183,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * 仅在启用请求体日志且媒体类型允许时包装请求。
+     */
     private HttpServletRequest wrapRequestIfNecessary(HttpServletRequest request) {
         if (!properties.getRequest().isEnabled()
                 || !properties.getRequest().isIncludeRequestBody()
@@ -156,6 +198,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         return new ContentCachingRequestWrapper(request, bodyLimit());
     }
 
+    /**
+     * 仅在启用响应体日志时使用受限响应捕获包装器。
+     */
     private HttpServletResponse wrapResponseIfNecessary(HttpServletResponse response) {
         if (!properties.getRequest().isEnabled() || !properties.getRequest().isIncludeResponseBody()) {
             return response;
@@ -163,6 +208,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         return new BoundedResponseCaptureWrapper(response, bodyLimit());
     }
 
+    /**
+     * 为异步请求注册完成、超时、错误和再次启动回调。
+     */
     private void registerAsyncCompletion(
             HttpServletRequest request,
             HttpServletRequest wrappedRequest,
@@ -199,12 +247,18 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * 报告异步请求阶段收到的异常。
+     */
     private void logAsyncFailure(HttpServletRequest request, Throwable exception) {
         if (exception != null) {
             reportException(request, exception);
         }
     }
 
+    /**
+     * 在请求完成时按忽略规则输出普通请求日志和慢请求日志。
+     */
     private void logCompletedRequest(HttpServletRequest request, HttpServletResponse response, long startedAt) {
         if (isIgnoredPath(request.getRequestURI())) {
             return;
@@ -223,6 +277,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * 组装并输出普通 HTTP 请求日志。
+     */
     private void logRequest(HttpServletRequest request, HttpServletResponse response, long costMillis) {
         String parameters = properties.getRequest().isIncludeParameters() ? renderParameters(request) : null;
         String headers = properties.getRequest().isIncludeHeaders() ? renderHeaders(request) : null;
@@ -237,12 +294,18 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         );
     }
 
+    /**
+     * 将请求参数渲染为脱敏 JSON 文本。
+     */
     private String renderParameters(HttpServletRequest request) {
         Map<String, List<String>> parameters = new LinkedHashMap<>();
         request.getParameterMap().forEach((name, values) -> parameters.put(name, List.of(values)));
         return valueRenderer.render(parameters, properties.getOperation().getMaxValueLength());
     }
 
+    /**
+     * 将请求头渲染为脱敏 JSON 文本。
+     */
     private String renderHeaders(HttpServletRequest request) {
         Map<String, List<String>> headers = new LinkedHashMap<>();
         Enumeration<String> names = request.getHeaderNames();
@@ -258,6 +321,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         return valueRenderer.render(headers, properties.getOperation().getMaxValueLength());
     }
 
+    /**
+     * 读取已缓存且媒体类型允许的请求体并渲染为 JSON 文本。
+     */
     private String renderRequestBody(HttpServletRequest request) {
         if (!(request instanceof ContentCachingRequestWrapper wrapper) || !isBodyContentAllowed(request.getContentType())) {
             return null;
@@ -265,6 +331,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         return renderJsonBody(wrapper.getContentAsByteArray(), false);
     }
 
+    /**
+     * 读取已捕获且媒体类型允许的响应体并渲染为 JSON 文本。
+     */
     private String renderResponseBody(HttpServletResponse response) {
         if (!(response instanceof BoundedResponseCaptureWrapper wrapper) || !isBodyContentAllowed(response.getContentType())) {
             return null;
@@ -273,6 +342,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         return rendered;
     }
 
+    /**
+     * 解析 JSON 请求体；空内容或无效 JSON 使用空值或安全占位值表示。
+     */
     private String renderJsonBody(byte[] body, boolean truncated) {
         if (body == null || body.length == 0) {
             return null;
@@ -286,6 +358,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * 判断媒体类型是否允许读取并解析内容体。
+     */
     private boolean isBodyContentAllowed(String contentType) {
         if (contentType == null || contentType.isBlank() || matchesContentType(contentType, properties.getRequest().getIgnoredContentTypes())) {
             return false;
@@ -293,6 +368,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         return matchesContentType(contentType, properties.getRequest().getBodyContentTypes());
     }
 
+    /**
+     * 使用大小写不敏感的通配模式匹配媒体类型。
+     */
     private boolean matchesContentType(String contentType, List<String> patterns) {
         if (contentType == null || patterns == null) {
             return false;
@@ -304,6 +382,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
                 .anyMatch(pattern -> contentTypeMatches(actual, pattern));
     }
 
+    /**
+     * 执行单个媒体类型模式的精确或前后缀匹配。
+     */
     private boolean contentTypeMatches(String actual, String pattern) {
         if (pattern.equals(actual)) {
             return true;
@@ -320,11 +401,17 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         return false;
     }
 
+    /**
+     * 判断请求路径是否命中忽略路径模式。
+     */
     private boolean isIgnoredPath(String path) {
         List<String> ignoredPaths = properties.getRequest().getIgnoredPaths();
         return ignoredPaths != null && ignoredPaths.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 
+    /**
+     * 优先采用合法的上游 TraceId，否则生成新的随机标识。
+     */
     private String resolveTraceId(HttpServletRequest request) {
         if (properties.getTrace().isAcceptUpstream()) {
             String upstream = request.getHeader(properties.getTrace().getHeaderName());
@@ -335,6 +422,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         return randomId();
     }
 
+    /**
+     * 校验 TraceId 的长度和允许字符，避免将任意请求头写入 MDC。
+     */
     private boolean isValidTraceId(String traceId) {
         if (traceId == null || traceId.isBlank() || traceId.length() > TRACE_ID_MAX_LENGTH) {
             return false;
@@ -345,6 +435,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
                 || character == '.');
     }
 
+    /**
+     * 按配置、应用名和固定默认值的顺序解析服务名称。
+     */
     private String resolveServiceName() {
         String configured = properties.getContext().getServiceName();
         if (configured != null && !configured.isBlank()) {
@@ -354,6 +447,9 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         return applicationName == null || applicationName.isBlank() ? "application" : applicationName;
     }
 
+    /**
+     * 旁路报告异常，并保证报告器故障不改变原始请求结果。
+     */
     private void reportException(HttpServletRequest request, Throwable exception) {
         if (exceptionLogReporter != null) {
             try {
@@ -364,14 +460,23 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * 返回至少为 1 的内容体捕获上限。
+     */
     private int bodyLimit() {
         return Math.max(1, properties.getRequest().getMaxBodyLength());
     }
 
+    /**
+     * 生成不含连字符的随机请求标识。
+     */
     private String randomId() {
         return UUID.randomUUID().toString().replace("-", "");
     }
 
+    /**
+     * 将统一日志调用分派到实际日志等级。
+     */
     private void logAt(LogLevel level, String message, Object... arguments) {
         LogLevel actualLevel = level == null ? LogLevel.INFO : level;
         switch (actualLevel) {

@@ -10,7 +10,18 @@
  */
 package com.pipker.starter.satoken.config;
 
+/**
+ * Sa-Token 会话数据的持久化后端。
+ */
 public enum SessionStore {
+
+    /**
+     * 使用进程内存保存会话，适合单实例开发环境。
+     */
     MEMORY,
+
+    /**
+     * 使用 Redis 保存会话，适合需要共享会话的部署环境。
+     */
     REDIS
 }

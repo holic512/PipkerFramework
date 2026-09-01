@@ -10,7 +10,18 @@
  */
 package com.pipker.starter.security.config;
 
+/**
+ * 支持的可逆字段加密算法。
+ */
 public enum EncryptionAlgorithm {
+
+    /**
+     * 使用 AES-GCM 对称加密。
+     */
     AES_GCM,
+
+    /**
+     * 使用 RSA-OAEP 与 SHA-256 参数的非对称加密。
+     */
     RSA_OAEP_SHA256
 }

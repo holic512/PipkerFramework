@@ -10,8 +10,16 @@
  */
 package com.pipker.starter.log.operation;
 
+/**
+ * 消费一条已经完成脱敏的业务操作日志记录。
+ */
 @FunctionalInterface
 public interface OperationLogHandler {
 
+    /**
+     * 处理业务操作日志记录。
+     *
+     * @param record 已脱敏的操作日志记录
+     */
     void handle(OperationLogRecord record);
 }

@@ -12,8 +12,17 @@ package com.pipker.starter.log.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+/**
+ * 报告一次 HTTP 请求处理过程中发生的异常。
+ */
 @FunctionalInterface
 public interface ExceptionLogReporter {
 
+    /**
+     * 将异常交给日志或其他诊断处理器。
+     *
+     * @param request 发生异常的 HTTP 请求
+     * @param exception 待报告的异常
+     */
     void report(HttpServletRequest request, Throwable exception);
 }

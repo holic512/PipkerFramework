@@ -17,18 +17,35 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+/**
+ * 将 HTTP 异常以完整堆栈写入 {@code pipker.exception} Logger 的默认实现。
+ */
 public class DefaultExceptionLogReporter implements ExceptionLogReporter {
 
+    /**
+     * 标记请求是否已经报告过异常的 Servlet 请求属性名。
+     */
     public static final String REPORTED_ATTRIBUTE = DefaultExceptionLogReporter.class.getName() + ".reported";
 
     private static final Logger LOGGER = LoggerFactory.getLogger("pipker.exception");
 
     private final PipkerLogProperties properties;
 
+    /**
+     * 使用日志配置创建默认异常报告器。
+     *
+     * @param properties 日志配置
+     */
     public DefaultExceptionLogReporter(PipkerLogProperties properties) {
         this.properties = properties;
     }
 
+    /**
+     * 报告异常；同一请求只报告一次，且报告失败不会影响原始异常传播。
+     *
+     * @param request 发生异常的 HTTP 请求
+     * @param exception 待报告的异常
+     */
     @Override
     public void report(HttpServletRequest request, Throwable exception) {
         if (request == null || exception == null || Boolean.TRUE.equals(request.getAttribute(REPORTED_ATTRIBUTE))) {

@@ -14,6 +14,9 @@ import org.slf4j.MDC;
 
 import java.util.Map;
 
+/**
+ * 以可关闭作用域的形式临时替换当前线程的 SLF4J MDC 上下文。
+ */
 public final class MdcContextScope implements AutoCloseable {
 
     private final Map<String, String> previous;
@@ -27,10 +30,19 @@ public final class MdcContextScope implements AutoCloseable {
         }
     }
 
+    /**
+     * 激活指定 MDC 值，并在作用域关闭时恢复进入前的上下文。
+     *
+     * @param values 要激活的 MDC 值；为空时清空当前 MDC
+     * @return 可用于 try-with-resources 的上下文作用域
+     */
     public static MdcContextScope activate(Map<String, String> values) {
         return new MdcContextScope(values);
     }
 
+    /**
+     * 恢复进入作用域前的 MDC 内容。
+     */
     @Override
     public void close() {
         if (previous == null || previous.isEmpty()) {

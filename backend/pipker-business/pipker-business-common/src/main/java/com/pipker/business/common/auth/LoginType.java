@@ -12,8 +12,23 @@ package com.pipker.business.common.auth;
 
 import java.util.Objects;
 
-public record LoginType(String value) {
+/**
+ * 表示一个可扩展的登录账户域。
+ *
+ * @param value 账户域标识，例如业务方自定义的用户域名称
+ */
+public record LoginType(
+        /**
+         * 账户域标识。
+         */
+        String value
+) {
 
+    /**
+     * 校验登录域不能为空、不能包含身份编码使用的分隔符。
+     *
+     * @param value 账户域标识
+     */
     public LoginType {
         Objects.requireNonNull(value, "loginType must not be null");
         value = value.trim();

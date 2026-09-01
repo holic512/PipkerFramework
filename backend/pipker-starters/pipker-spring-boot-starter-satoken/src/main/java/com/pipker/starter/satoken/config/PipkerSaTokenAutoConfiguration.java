@@ -35,6 +35,9 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.ArrayList;
 
+/**
+ * 自动配置 Sa-Token 会话、DAO 和受保护 API 的认证 Filter。
+ */
 @AutoConfiguration
 @EnableConfigurationProperties(PipkerAuthProperties.class)
 public class PipkerSaTokenAutoConfiguration {
@@ -43,6 +46,11 @@ public class PipkerSaTokenAutoConfiguration {
             {"type":"about:blank","title":"Unauthorized","status":401,"detail":"Authentication is required."}
             """.trim();
 
+    /**
+     * 绑定并注册 Sa-Token 原生配置。
+     *
+     * @return Sa-Token 配置对象
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConfigurationProperties(prefix = "sa-token")
@@ -50,6 +58,11 @@ public class PipkerSaTokenAutoConfiguration {
         return new SaTokenConfig();
     }
 
+    /**
+     * 在会话存储选择为内存时注册默认 DAO。
+     *
+     * @return Sa-Token 内存 DAO
+     */
     @Bean
     @ConditionalOnProperty(prefix = "pipker.security.auth", name = "session-store", havingValue = "memory", matchIfMissing = true)
     @ConditionalOnMissingBean(SaTokenDao.class)
@@ -57,6 +70,12 @@ public class PipkerSaTokenAutoConfiguration {
         return new SaTokenDaoDefaultImpl();
     }
 
+    /**
+     * 在会话存储选择为 Redis 时注册 Redis DAO。
+     *
+     * @param redisTemplate 字符串 Redis 模板
+     * @return Sa-Token Redis DAO
+     */
     @Bean
     @ConditionalOnProperty(prefix = "pipker.security.auth", name = "session-store", havingValue = "redis")
     @ConditionalOnMissingBean(SaTokenDao.class)
@@ -64,6 +83,13 @@ public class PipkerSaTokenAutoConfiguration {
         return new PipkerRedisSaTokenDao(redisTemplate);
     }
 
+    /**
+     * 在所有 Bean 初始化完成后将配置和 DAO 安装到 Sa-Token 管理器。
+     *
+     * @param pipkerSaTokenConfig Sa-Token 配置
+     * @param saTokenDao 选定的会话 DAO
+     * @return 管理器初始化回调
+     */
     @Bean
     public SmartInitializingSingleton pipkerSaTokenManagerInitializer(
             SaTokenConfig pipkerSaTokenConfig,
@@ -75,12 +101,23 @@ public class PipkerSaTokenAutoConfiguration {
         };
     }
 
+    /**
+     * 注册业务层使用的认证会话门面。
+     *
+     * @return Sa-Token 会话服务
+     */
     @Bean
     @ConditionalOnMissingBean
     public AuthSessionService authSessionService() {
         return new SaTokenAuthSessionService();
     }
 
+    /**
+     * 创建保护配置路径并放行显式声明匿名路由的 Sa-Token Filter。
+     *
+     * @param authProperties 认证路由配置
+     * @return Sa-Token Servlet Filter
+     */
     @Bean
     public SaServletFilter pipkerSaTokenFilter(PipkerAuthProperties authProperties) {
         return new SaServletFilter()
@@ -95,6 +132,9 @@ public class PipkerSaTokenAutoConfiguration {
                 .setError(ignored -> unauthorizedProblemDetail());
     }
 
+    /**
+     * 设置未认证响应状态和内容类型，并序列化 RFC 9457 Problem Detail。
+     */
     private String unauthorizedProblemDetail() {
         SaHolder.getResponse()
                 .setStatus(HttpStatus.UNAUTHORIZED.value())

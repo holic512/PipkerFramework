@@ -10,7 +10,18 @@
  */
 package com.pipker.starter.security.config;
 
+/**
+ * 支持的单向密码哈希算法。
+ */
 public enum PasswordAlgorithm {
+
+    /**
+     * 使用 BCrypt 哈希密码。
+     */
     BCRYPT,
+
+    /**
+     * 使用 PBKDF2-HMAC-SHA256 哈希密码。
+     */
     PBKDF2_SHA256
 }

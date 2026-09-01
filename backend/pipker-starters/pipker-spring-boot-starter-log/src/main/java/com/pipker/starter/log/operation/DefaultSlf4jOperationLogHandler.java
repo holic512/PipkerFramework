@@ -15,16 +15,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.logging.LogLevel;
 
+/**
+ * 将操作日志记录写入独立 {@code pipker.operation} Logger 的默认处理器。
+ */
 public class DefaultSlf4jOperationLogHandler implements OperationLogHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("pipker.operation");
 
     private final PipkerLogProperties properties;
 
+    /**
+     * 使用日志配置创建 SLF4J 操作日志处理器。
+     *
+     * @param properties 日志配置
+     */
     public DefaultSlf4jOperationLogHandler(PipkerLogProperties properties) {
         this.properties = properties;
     }
 
+    /**
+     * 按配置等级输出已脱敏的操作日志字段。
+     *
+     * @param record 已脱敏的操作日志记录
+     */
     @Override
     public void handle(OperationLogRecord record) {
         String message = "[OPERATION] module={} operation={} method={} path={} success={} cost={}ms "

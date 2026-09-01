@@ -15,8 +15,17 @@ import org.springframework.core.task.TaskDecorator;
 
 import java.util.Map;
 
+/**
+ * 为异步任务显式透传提交线程的 MDC 上下文。
+ */
 public final class MdcTaskDecorator implements TaskDecorator {
 
+    /**
+     * 包装任务，使其在执行期间使用提交线程的 MDC，并在结束后恢复目标线程上下文。
+     *
+     * @param runnable 待执行任务
+     * @return 带 MDC 上下文透传能力的任务
+     */
     @Override
     public Runnable decorate(Runnable runnable) {
         Map<String, String> callerContext = MDC.getCopyOfContextMap();

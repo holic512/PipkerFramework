@@ -30,6 +30,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * 递归生成常见容器、Record 和 JavaBean 的脱敏日志副本。
+ */
 public class DefaultLogSanitizer implements LogSanitizer {
 
     private static final String UNAVAILABLE = "<unavailable>";
@@ -58,15 +61,33 @@ public class DefaultLogSanitizer implements LogSanitizer {
 
     private final PipkerLogProperties properties;
 
+    /**
+     * 使用日志脱敏配置创建默认脱敏器。
+     *
+     * @param properties 日志配置
+     */
     public DefaultLogSanitizer(PipkerLogProperties properties) {
         this.properties = properties;
     }
 
+    /**
+     * 按字段名和默认敏感字段规则脱敏值。
+     *
+     * @param value 待脱敏的原始值
+     * @return 可安全写入日志的值副本
+     */
     @Override
     public Object sanitize(Object value) {
         return sanitize(value, null);
     }
 
+    /**
+     * 使用显式类型或自动识别规则脱敏值；内部读取失败时返回安全占位值。
+     *
+     * @param value 待脱敏的原始值
+     * @param explicitType 强制使用的敏感类型，可为空
+     * @return 可安全写入日志的值副本
+     */
     @Override
     public Object sanitize(Object value, SensitiveType explicitType) {
         try {
@@ -76,6 +97,9 @@ public class DefaultLogSanitizer implements LogSanitizer {
         }
     }
 
+    /**
+     * 递归处理嵌套值，并通过访问集合防止循环引用。
+     */
     private Object sanitize(
             Object value,
             SensitiveType explicitType,
@@ -217,6 +241,9 @@ public class DefaultLogSanitizer implements LogSanitizer {
         return null;
     }
 
+    /**
+     * 根据标准字段名或用户扩展字段解析敏感类型。
+     */
     private SensitiveType sensitiveTypeFor(String fieldName) {
         if (!properties.getSensitive().isEnabled() || fieldName == null) {
             return null;
@@ -247,6 +274,9 @@ public class DefaultLogSanitizer implements LogSanitizer {
                 || value instanceof TemporalAccessor;
     }
 
+    /**
+     * 按敏感类型生成掩码，同时保留必要的排障信息。
+     */
     private Object mask(Object value, SensitiveType type) {
         String text = safeToString(value);
         String mask = properties.getSensitive().getMaskText();

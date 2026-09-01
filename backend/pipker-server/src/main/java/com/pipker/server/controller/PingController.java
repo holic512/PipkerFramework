@@ -14,10 +14,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 提供 Server 最小运行状态检查接口。
+ */
 @RestController
 @RequestMapping("/api")
 public class PingController {
 
+    /**
+     * 返回 Server 正常运行的固定文本。
+     *
+     * @return Server 运行状态文本
+     */
     @GetMapping("/ping")
     public String ping() {
         return "Pipker Server is running.";

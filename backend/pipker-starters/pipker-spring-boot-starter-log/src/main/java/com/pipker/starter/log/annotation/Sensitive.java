@@ -18,10 +18,18 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * 指定字段、Record 组件、方法参数或方法返回值在日志中的脱敏类型。
+ */
 @Documented
 @Target({ElementType.FIELD, ElementType.RECORD_COMPONENT, ElementType.PARAMETER, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Sensitive {
 
+    /**
+     * 返回需要应用的敏感数据类型。
+     *
+     * @return 脱敏类型，默认为密码
+     */
     SensitiveType value() default SensitiveType.PASSWORD;
 }

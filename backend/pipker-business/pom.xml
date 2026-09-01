@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    @file pom.xml
-    @project Pipker Framework
-    @module Pipker Business
-    @description Aggregates Pipker's common and dedicated project-business modules without producing an artifact.
-    @logic Inherits shared build conventions and groups business modules for Reactor builds; concrete business code belongs to child modules.
-    @dependencies pipker-framework parent
-    @index_tags maven,aggregator,project-business
-    @author holic512
+    文件：pom.xml
+    项目：Pipker Framework
+    模块：Pipker Business
+    说明：聚合 Pipker 公共业务模块和独立项目业务模块，不单独生成构件。
+    处理逻辑：继承统一构建约定，并将业务模块组织到 Reactor 构建中；具体业务代码应放在子模块内。
+    依赖：pipker-framework 父工程
+    检索关键词：maven、聚合、业务模块
+    作者：holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

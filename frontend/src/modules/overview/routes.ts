@@ -1,12 +1,12 @@
 /**
- * @file routes.ts
- * @project Pipker Framework
- * @module Overview module routing
- * @description Exposes routes owned by the framework overview business module.
- * @logic Keeps page ownership inside the module while allowing the central router to compose it beneath the shared layout.
- * @dependencies Vue Router, OverviewPage
- * @index_tags frontend,module,overview,routes
- * @author holic512
+ * 文件：routes.ts
+ * 项目：Pipker Framework
+ * 模块：概览模块路由
+ * 说明：暴露框架概览业务模块负责的路由。
+ * 处理逻辑：将页面归属保留在模块内部，同时允许中央路由器将其组装到共享布局下。
+ * 依赖：Vue Router、OverviewPage
+ * 检索关键词：前端、模块、概览、路由
+ * 作者：holic512
  */
 import type { RouteRecordRaw } from 'vue-router'
 

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    @file pom.xml
-    @project Pipker Framework
-    @module Pipker Spring Boot Starter Log
-    @description Provides the lightweight dependency boundary for Pipker technical logging infrastructure.
-    @logic Supplies Spring Boot's standard logging baseline and reserves this module for future logging-format, MDC, TraceId, request-logging, and desensitization infrastructure only.
-    @dependencies pipker-framework parent, Spring Boot Logging Starter
-    @index_tags maven,module,starter,logging,spring-boot
-    @author holic512
+    文件：pom.xml
+    项目：Pipker Framework
+    模块：Pipker Spring Boot Starter Log
+    说明：为 Pipker 技术日志基础设施提供轻量依赖边界。
+    处理逻辑：提供 Spring Boot 标准日志基线，并预留日志格式、MDC、TraceId 传递、请求日志和脱敏等基础设施扩展位置。
+    依赖：pipker-framework 父工程、Spring Boot Logging Starter
+    检索关键词：maven、模块、starter、日志、spring-boot
+    作者：holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

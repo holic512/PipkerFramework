@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    @file pom.xml
-    @project Pipker Framework
-    @module Parent and aggregator build
-    @description Defines the shared build baseline and aggregates the starter, business, and server modules.
-    @logic Inherits Spring Boot dependency and plugin management, provides Java and encoding defaults, and manages internal business and starter module versions for server assembly.
-    @dependencies Spring Boot Maven parent
-    @index_tags maven,parent,aggregator,java-21
-    @author holic512
+    文件：pom.xml
+    项目：Pipker Framework
+    模块：父工程与聚合构建
+    说明：定义统一构建基线，并聚合 Starter、业务和 Server 模块。
+    处理逻辑：继承 Spring Boot 的依赖与插件管理，提供 Java 和编码默认配置，并为 Server 组装管理内部业务模块与 Starter 的版本。
+    依赖：Spring Boot Maven 父工程
+    检索关键词：maven、父工程、聚合、java-21
+    作者：holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -80,7 +80,7 @@
     </dependencyManagement>
 
     <build>
-        <!-- Add shared plugin versions or configuration here only when they are introduced. -->
+        <!-- 仅在引入共享插件版本或配置时补充。 -->
         <pluginManagement>
             <plugins>
             </plugins>

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    @file pom.xml
-    @project Pipker Framework
-    @module Pipker Spring Boot Starter Redis
-    @description Provides the lightweight dependency boundary for Pipker Redis infrastructure.
-    @logic Delegates Redis client and automatic-configuration support to Spring Boot's official Redis starter; custom Pipker Redis infrastructure can be added here when concrete requirements exist.
-    @dependencies pipker-framework parent, Spring Boot Data Redis Starter
-    @index_tags maven,module,starter,redis,spring-boot
-    @author holic512
+    文件：pom.xml
+    项目：Pipker Framework
+    模块：Pipker Spring Boot Starter Redis
+    说明：为 Pipker Redis 基础设施提供轻量依赖边界。
+    处理逻辑：将 Redis 客户端和自动配置能力交给 Spring Boot 官方 Redis Starter；明确需求后可在此增加 Pipker 自有 Redis 基础设施。
+    依赖：pipker-framework 父工程、Spring Boot Data Redis Starter
+    检索关键词：maven、模块、starter、redis、spring-boot
+    作者：holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

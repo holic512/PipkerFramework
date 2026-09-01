@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    @file pom.xml
-    @project Pipker Framework
-    @module Pipker Spring Boot Starter Security
-    @description Supplies Pipker's password hashing and configurable field cryptography infrastructure.
-    @logic Combines Spring Security Crypto with JDK cryptography primitives and exposes one configuration-selected security facade to consuming modules.
-    @dependencies pipker-framework parent, Spring Security Crypto, Spring Boot Validation
-    @index_tags maven,module,starter,security,cryptography,password
-    @author holic512
+    文件：pom.xml
+    项目：Pipker Framework
+    模块：Pipker Spring Boot Starter Security
+    说明：提供 Pipker 的密码哈希和可配置字段加密基础设施。
+    处理逻辑：结合 Spring Security Crypto 与 JDK 加密原语，并向使用方暴露由配置选择的统一安全门面。
+    依赖：pipker-framework 父工程、Spring Security Crypto、Spring Boot Validation
+    检索关键词：maven、模块、starter、安全、加密、密码
+    作者：holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

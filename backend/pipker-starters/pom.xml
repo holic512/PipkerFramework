@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    @file pom.xml
-    @project Pipker Framework
-    @module Pipker Starters
-    @description Aggregates Pipker's reusable Spring Boot technical starter modules without producing an artifact.
-    @logic Inherits the framework build baseline and groups independent technical starters for Reactor builds.
-    @dependencies pipker-framework parent
-    @index_tags maven,aggregator,starter,spring-boot
-    @author holic512
+    文件：pom.xml
+    项目：Pipker Framework
+    模块：Pipker Starters
+    说明：聚合可复用的 Pipker Spring Boot 技术 Starter，不单独生成构件。
+    处理逻辑：继承框架构建基线，并将相互独立的技术 Starter 组织到 Reactor 构建中。
+    依赖：pipker-framework 父工程
+    检索关键词：maven、聚合、starter、spring-boot
+    作者：holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

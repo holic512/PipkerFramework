@@ -1,12 +1,12 @@
 /**
- * @file PipkerAuthProperties.java
- * @project Pipker Framework
- * @module Pipker Spring Boot Starter Sa-Token
- * @description Binds Pipker's authentication routing and session-store settings from external configuration.
- * @logic Selects a single session backend and defines the protected path set plus method-aware anonymous API routes.
- * @dependencies Spring Boot Configuration Properties, Jakarta Validation
- * @index_tags starter,sa-token,configuration,authentication,routing
- * @author holic512
+ * 文件：PipkerAuthProperties.java
+ * 项目：Pipker Framework
+ * 模块：Pipker Spring Boot Starter Sa-Token
+ * 说明：从外部配置绑定 Pipker 的认证路由和会话存储设置。
+ * 处理逻辑：选择唯一的会话后端，定义受保护路径集合以及按 HTTP 方法区分的匿名 API 路由。
+ * 依赖：Spring Boot Configuration Properties、Jakarta Validation
+ * 检索关键词：starter、sa-token、配置、认证、路由
+ * 作者：holic512
  */
 package com.pipker.starter.satoken.config;
 

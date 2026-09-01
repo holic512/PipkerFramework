@@ -1,12 +1,12 @@
 /**
- * @file AuthSessionService.java
- * @project Pipker Framework
- * @module Pipker Spring Boot Starter Sa-Token
- * @description Defines Pipker's framework-neutral authentication-session operations for future business login flows.
- * @logic Accepts already-verified identities, creates and resolves Sa-Token sessions, and exposes current-request login checks without leaking Sa-Token utilities into business modules.
- * @dependencies LoginIdentity, Sa-Token
- * @index_tags starter,sa-token,authentication,session,public-api
- * @author holic512
+ * 文件：AuthSessionService.java
+ * 项目：Pipker Framework
+ * 模块：Pipker Spring Boot Starter Sa-Token
+ * 说明：为后续业务登录流程定义与框架无关的认证会话操作。
+ * 处理逻辑：接收已完成校验的身份信息，创建和解析 Sa-Token 会话，并提供当前请求的登录状态检查，不将 Sa-Token 工具泄漏到业务模块。
+ * 依赖：LoginIdentity、Sa-Token
+ * 检索关键词：starter、sa-token、认证、会话、公开接口
+ * 作者：holic512
  */
 package com.pipker.starter.satoken.service;
 

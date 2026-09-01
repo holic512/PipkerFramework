@@ -1,12 +1,12 @@
 /**
- * @file PipkerApplication.java
- * @project Pipker Framework
- * @module Pipker Server
- * @description Application entry point for the Pipker HTTP server.
- * @logic Boots Spring and enables component scanning from the server package root.
- * @dependencies Spring Boot
- * @index_tags application,bootstrap,spring-boot
- * @author holic512
+ * 文件：PipkerApplication.java
+ * 项目：Pipker Framework
+ * 模块：Pipker Server
+ * 说明：Pipker HTTP Server 的应用启动入口。
+ * 处理逻辑：启动 Spring，并从 Server 根包开始进行组件扫描。
+ * 依赖：Spring Boot
+ * 检索关键词：应用、启动、spring-boot
+ * 作者：holic512
  */
 package com.pipker.server;
 

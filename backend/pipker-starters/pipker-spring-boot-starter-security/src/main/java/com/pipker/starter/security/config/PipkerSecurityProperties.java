@@ -1,12 +1,12 @@
 /**
- * @file PipkerSecurityProperties.java
- * @project Pipker Framework
- * @module Pipker Spring Boot Starter Security
- * @description Binds the active password-hash and field-encryption algorithms plus their required cost and key settings.
- * @logic Limits each security capability to one configured write algorithm while retaining sufficient password parameters for deterministic verification and upgrade decisions.
- * @dependencies Spring Boot Configuration Properties, Jakarta Validation
- * @index_tags starter,security,configuration,cryptography,password
- * @author holic512
+ * 文件：PipkerSecurityProperties.java
+ * 项目：Pipker Framework
+ * 模块：Pipker Spring Boot Starter Security
+ * 说明：绑定当前密码哈希和字段加密算法，以及所需的成本参数和密钥设置。
+ * 处理逻辑：为每项安全能力限制一个配置的写入算法，同时保留足够的密码参数，用于确定性校验和升级判断。
+ * 依赖：Spring Boot Configuration Properties、Jakarta Validation
+ * 检索关键词：starter、安全、配置、加密、密码
+ * 作者：holic512
  */
 package com.pipker.starter.security.config;
 

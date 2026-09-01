@@ -1,18 +1,18 @@
-# Maven build output
+# Maven 构建输出
 target/
 
-# IntelliJ IDEA project metadata and output
+# IntelliJ IDEA 项目元数据和输出
 .idea/
 *.iml
 *.ipr
 *.iws
 out/
 
-# Local runtime files
+# 本地运行时文件
 *.log
 .DS_Store
 
-# Frontend dependencies, build output, caches, and local environment files
+# 前端依赖、构建输出、缓存和本地环境文件
 frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/

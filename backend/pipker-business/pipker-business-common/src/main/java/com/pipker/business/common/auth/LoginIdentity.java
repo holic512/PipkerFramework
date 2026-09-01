@@ -1,12 +1,12 @@
 /**
- * @file LoginIdentity.java
- * @project Pipker Framework
- * @module Pipker Business Common
- * @description Represents the minimal public identity required to create and resolve an authenticated application session.
- * @logic Keeps the login domain and domain-local user identifier together while avoiding a dependency on account persistence, roles, or Sa-Token APIs.
- * @dependencies LoginType, Java standard library
- * @index_tags business,common,authentication,identity,login
- * @author holic512
+ * 文件：LoginIdentity.java
+ * 项目：Pipker Framework
+ * 模块：Pipker Business Common
+ * 说明：表示创建和解析已认证应用会话所需的最小公开身份信息。
+ * 处理逻辑：将登录域与域内用户标识组合保存，同时不依赖账户持久化、角色或 Sa-Token API。
+ * 依赖：LoginType、Java 标准库
+ * 检索关键词：business、common、认证、身份、登录
+ * 作者：holic512
  */
 package com.pipker.business.common.auth;
 

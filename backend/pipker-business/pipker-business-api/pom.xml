@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    @file pom.xml
-    @project Pipker Framework
-    @module Pipker Business API
-    @description Defines the dedicated Pipker application business module assembled by the server.
-    @logic Inherits shared build conventions and depends only on shared business capabilities; concrete application business code can be added here without coupling to the server.
-    @dependencies pipker-framework parent, pipker-business-common
-    @index_tags maven,module,business,api
-    @author holic512
+    文件：pom.xml
+    项目：Pipker Framework
+    模块：Pipker Business API
+    说明：定义由 Server 组装的 Pipker 独立应用业务模块。
+    处理逻辑：继承统一构建约定，仅依赖公共业务能力；新增具体应用业务代码时无需耦合 Server。
+    依赖：pipker-framework 父工程、pipker-business-common
+    检索关键词：maven、模块、业务、api
+    作者：holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

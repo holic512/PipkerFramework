@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    @file pom.xml
-    @project Pipker Framework
-    @module Pipker Business Common
-    @description Defines the shared business capability module and framework-neutral authentication identity contracts for Pipker applications.
-    @logic Inherits shared build conventions and provides reusable business capabilities such as LoginType and LoginIdentity without depending on dedicated business modules, technical starters, or the server.
-    @dependencies pipker-framework parent
-    @index_tags maven,module,business,common
-    @author holic512
+    文件：pom.xml
+    项目：Pipker Framework
+    模块：Pipker Business Common
+    说明：定义共享业务能力模块，以及面向 Pipker 应用的框架无关认证身份契约。
+    处理逻辑：继承统一构建约定，提供 LoginType、LoginIdentity 等可复用业务能力，不依赖独立业务模块、技术 Starter 或 Server。
+    依赖：pipker-framework 父工程
+    检索关键词：maven、模块、业务、公共能力
+    作者：holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

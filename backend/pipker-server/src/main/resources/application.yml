@@ -1,11 +1,11 @@
-# @file application.yml
-# @project Pipker Framework
-# @module Pipker Server
-# @description Defines the default server runtime, Bearer-token, memory-session, and active cryptography configuration.
-# @logic Keeps Redis optional through a profile, protects API routes through Sa-Token, and requires environment-supplied material for the selected field-encryption algorithm.
-# @dependencies Spring Boot, Pipker Sa-Token Starter, Pipker Security Starter
-# @index_tags server,configuration,sa-token,security,cryptography
-# @author holic512
+# 文件：application.yml
+# 项目：Pipker Framework
+# 模块：Pipker Server
+# 说明：定义默认 Server 运行时、Bearer 令牌、内存会话和当前加密算法配置。
+# 处理逻辑：通过 profile 保持 Redis 可选，使用 Sa-Token 保护 API 路由，并要求从环境变量提供所选字段加密算法所需的密钥材料。
+# 依赖：Spring Boot、Pipker Sa-Token Starter、Pipker Security Starter
+# 检索关键词：server、配置、sa-token、安全、加密
+# 作者：holic512
 spring:
   application:
     name: pipker-server

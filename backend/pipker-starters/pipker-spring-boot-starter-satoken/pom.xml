@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    @file pom.xml
-    @project Pipker Framework
-    @module Pipker Spring Boot Starter Sa-Token
-    @description Supplies Pipker's Sa-Token authentication, authorization-filter, and optional Redis-session infrastructure.
-    @logic Combines Sa-Token's Spring Boot 4 integration with Pipker's common identity contract and provides conditional in-memory or Redis DAO auto-configuration.
-    @dependencies pipker-framework parent, pipker-business-common, Sa-Token Spring Boot 4 Starter, Spring Boot Web, Spring Boot Data Redis, Spring Boot Validation
-    @index_tags maven,module,starter,sa-token,authentication,redis
-    @author holic512
+    文件：pom.xml
+    项目：Pipker Framework
+    模块：Pipker Spring Boot Starter Sa-Token
+    说明：提供 Pipker 的 Sa-Token 认证、鉴权过滤器和可选 Redis 会话基础设施。
+    处理逻辑：结合 Sa-Token 的 Spring Boot 4 集成与 Pipker 公共身份契约，并提供条件化的内存或 Redis DAO 自动配置。
+    依赖：pipker-framework 父工程、pipker-business-common、Sa-Token Spring Boot 4 Starter、Spring Boot Web、Spring Boot Data Redis、Spring Boot Validation
+    检索关键词：maven、模块、starter、sa-token、认证、redis
+    作者：holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

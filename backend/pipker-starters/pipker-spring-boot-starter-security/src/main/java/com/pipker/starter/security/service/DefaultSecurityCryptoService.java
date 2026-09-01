@@ -1,12 +1,12 @@
 /**
- * @file DefaultSecurityCryptoService.java
- * @project Pipker Framework
- * @module Pipker Spring Boot Starter Security
- * @description Implements Pipker's selected password and field cryptography algorithms using Spring Security Crypto and JDK JCA/JCE primitives.
- * @logic Prefixes password hashes and ciphertext envelopes with their algorithm identifiers, validates selected key material at construction time, and rejects algorithm/key mismatches instead of silently downgrading security.
- * @dependencies Pipker Security Properties, Spring Security Crypto, Java Cryptography Architecture
- * @index_tags starter,security,cryptography,password,aes,rsa,pbkdf2,bcrypt
- * @author holic512
+ * 文件：DefaultSecurityCryptoService.java
+ * 项目：Pipker Framework
+ * 模块：Pipker Spring Boot Starter Security
+ * 说明：使用 Spring Security Crypto 和 JDK JCA/JCE 原语实现 Pipker 选择的密码与字段加密算法。
+ * 处理逻辑：为密码哈希和密文封装添加算法标识，在构造时校验所选密钥材料，并拒绝算法与密钥不匹配的情况，避免静默降低安全性。
+ * 依赖：Pipker Security Properties、Spring Security Crypto、Java Cryptography Architecture
+ * 检索关键词：starter、安全、加密、密码、AES、RSA、PBKDF2、BCrypt
+ * 作者：holic512
  */
 package com.pipker.starter.security.service;
 

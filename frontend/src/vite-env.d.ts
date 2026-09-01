@@ -1,12 +1,12 @@
 /**
- * @file vite-env.d.ts
- * @project Pipker Framework
- * @module Runtime environment typing
- * @description Declares the public Vite variables used by the frontend transport boundary.
- * @logic Limits browser-exposed configuration to the VITE_* values documented in .env.example.
- * @dependencies Vite client types
- * @index_tags frontend,vite,environment,typing
- * @author holic512
+ * 文件：vite-env.d.ts
+ * 项目：Pipker Framework
+ * 模块：运行时环境类型
+ * 说明：声明前端传输边界使用的公开 Vite 变量。
+ * 处理逻辑：将浏览器暴露的配置限制为 .env.example 中说明的 VITE_* 值。
+ * 依赖：Vite 客户端类型
+ * 检索关键词：前端、Vite、环境、类型
+ * 作者：holic512
  */
 /// <reference types="vite/client" />
 

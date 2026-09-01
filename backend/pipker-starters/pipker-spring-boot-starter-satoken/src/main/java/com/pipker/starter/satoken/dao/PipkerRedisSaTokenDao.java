@@ -1,12 +1,12 @@
 /**
- * @file PipkerRedisSaTokenDao.java
- * @project Pipker Framework
- * @module Pipker Spring Boot Starter Sa-Token
- * @description Implements Sa-Token persistence with Spring Data Redis while preserving Sa-Token's string and object session contracts.
- * @logic Prefixes all Sa-Token keys, delegates string values and TTL operations to StringRedisTemplate, serializes objects through Sa-Token's configured serializer, and scans keys without Redis KEYS commands.
- * @dependencies Sa-Token Core, Spring Data Redis
- * @index_tags starter,sa-token,redis,dao,session
- * @author holic512
+ * 文件：PipkerRedisSaTokenDao.java
+ * 项目：Pipker Framework
+ * 模块：Pipker Spring Boot Starter Sa-Token
+ * 说明：使用 Spring Data Redis 实现 Sa-Token 持久化，同时保留 Sa-Token 的字符串和对象会话契约。
+ * 处理逻辑：为所有 Sa-Token 键添加前缀，将字符串值和 TTL 操作委托给 StringRedisTemplate，通过 Sa-Token 配置的序列化器处理对象，并使用扫描方式读取键而不执行 Redis KEYS 命令。
+ * 依赖：Sa-Token Core、Spring Data Redis
+ * 检索关键词：starter、sa-token、redis、DAO、会话
+ * 作者：holic512
  */
 package com.pipker.starter.satoken.dao;
 

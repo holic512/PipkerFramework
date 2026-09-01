@@ -1,11 +1,11 @@
-# @file application-redis.yml
-# @project Pipker Framework
-# @module Pipker Server
-# @description Overrides the default in-memory Sa-Token session store with the configured Spring Data Redis connection.
-# @logic Is loaded only for the redis profile and requires external Redis connection settings before the Redis-backed authentication DAO can start.
-# @dependencies Spring Boot Data Redis, Pipker Sa-Token Starter
-# @index_tags server,configuration,redis,sa-token,profile
-# @author holic512
+# 文件：application-redis.yml
+# 项目：Pipker Framework
+# 模块：Pipker Server
+# 说明：使用已配置的 Spring Data Redis 连接覆盖默认的 Sa-Token 内存会话存储。
+# 处理逻辑：仅在 redis profile 下加载；Redis 认证 DAO 启动前必须提供外部 Redis 连接配置。
+# 依赖：Spring Boot Data Redis、Pipker Sa-Token Starter
+# 检索关键词：server、配置、redis、sa-token、profile
+# 作者：holic512
 spring:
   data:
     redis:

@@ -1,12 +1,12 @@
 <!--
-  @file OverviewPage.vue
-  @project Pipker Framework
-  @module Overview module page
-  @description Presents the established frontend baseline, module boundaries, and backend connectivity state.
-  @logic Renders architecture metadata and calls the confirmed health endpoint through the overview module API without assuming an unconfirmed response envelope.
-  @dependencies Vue Composition API, Element Plus, overview health API
-  @index_tags frontend,module,overview,page,element-plus
-  @author holic512
+  文件：OverviewPage.vue
+  项目：Pipker Framework
+  模块：概览模块页面
+  说明：展示已确定的前端基线、模块边界和后端连接状态。
+  处理逻辑：渲染架构信息，并通过概览模块 API 调用已确认的健康检查接口，不假设尚未确认的响应封装。
+  依赖：Vue Composition API、Element Plus、概览健康检查 API
+  检索关键词：前端、模块、概览、页面、Element Plus
+  作者：holic512
 -->
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'

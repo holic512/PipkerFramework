@@ -1,12 +1,12 @@
 /**
- * @file runtime.ts
- * @project Pipker Framework
- * @module Runtime configuration
- * @description Normalizes public Vite variables into the application runtime configuration.
- * @logic Validates optional string values once at startup and exposes safe fallbacks to infrastructure modules.
- * @dependencies Vite import.meta.env
- * @index_tags frontend,configuration,runtime,http
- * @author holic512
+ * 文件：runtime.ts
+ * 项目：Pipker Framework
+ * 模块：运行时配置
+ * 说明：将公开的 Vite 变量归一化为应用运行时配置。
+ * 处理逻辑：在启动时一次性校验可选字符串，并向基础设施模块提供安全的回退值。
+ * 依赖：Vite import.meta.env
+ * 检索关键词：前端、配置、运行时、HTTP
+ * 作者：holic512
  */
 const DEFAULT_API_BASE_URL = '/api'
 const DEFAULT_HTTP_TIMEOUT_MS = 10_000

@@ -1,12 +1,12 @@
 <!--
-  @file AppLayout.vue
-  @project Pipker Framework
-  @module Shared application layout
-  @description Provides the persistent navigation and content frame used by business modules.
-  @logic Reads global shell state from Pinia and renders active module routes inside the main content area.
-  @dependencies Vue Router, Pinia, Element Plus
-  @index_tags frontend,layout,navigation,pinia,element-plus
-  @author holic512
+  文件：AppLayout.vue
+  项目：Pipker Framework
+  模块：共享应用布局
+  说明：提供业务模块使用的持久导航和内容框架。
+  处理逻辑：从 Pinia 读取全局外壳状态，并在主要内容区域渲染当前模块路由。
+  依赖：Vue Router、Pinia、Element Plus
+  检索关键词：前端、布局、导航、Pinia、Element Plus
+  作者：holic512
 -->
 <script setup lang="ts">
 import { useAppStore } from '../stores/app'

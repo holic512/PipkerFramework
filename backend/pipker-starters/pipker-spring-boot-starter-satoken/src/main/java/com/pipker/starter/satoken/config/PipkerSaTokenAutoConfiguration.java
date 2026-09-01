@@ -1,12 +1,12 @@
 /**
- * @file PipkerSaTokenAutoConfiguration.java
- * @project Pipker Framework
- * @module Pipker Spring Boot Starter Sa-Token
- * @description Auto-configures Pipker's Sa-Token session facade, conditional DAO, and API authentication filter.
- * @logic Binds Sa-Token and Pipker settings, installs one selected persistence implementation into SaManager, protects configured API routes, and renders unauthenticated requests as RFC 9457 problem details.
- * @dependencies Sa-Token Spring Boot 4, Spring Boot Auto Configuration, Spring Web, Spring Data Redis
- * @index_tags starter,sa-token,auto-configuration,authentication,filter,redis
- * @author holic512
+ * 文件：PipkerSaTokenAutoConfiguration.java
+ * 项目：Pipker Framework
+ * 模块：Pipker Spring Boot Starter Sa-Token
+ * 说明：自动配置 Pipker 的 Sa-Token 会话门面、条件化 DAO 和 API 认证过滤器。
+ * 处理逻辑：绑定 Sa-Token 与 Pipker 配置，将选定的持久化实现安装到 SaManager，保护配置的 API 路由，并将未认证请求渲染为 RFC 9457 问题详情。
+ * 依赖：Sa-Token Spring Boot 4、Spring Boot 自动配置、Spring Web、Spring Data Redis
+ * 检索关键词：starter、sa-token、自动配置、认证、过滤器、redis
+ * 作者：holic512
  */
 package com.pipker.starter.satoken.config;
 

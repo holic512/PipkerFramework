@@ -1,12 +1,12 @@
 /**
- * @file SaTokenAuthSessionService.java
- * @project Pipker Framework
- * @module Pipker Spring Boot Starter Sa-Token
- * @description Implements the public authentication-session facade through Sa-Token's default login domain.
- * @logic Encodes an extensible LoginIdentity into a delimiter-safe Sa-Token login ID, delegates lifecycle operations to StpUtil, and decodes the current principal for callers.
- * @dependencies Pipker Authentication Contract, Sa-Token Core
- * @index_tags starter,sa-token,authentication,session,identity
- * @author holic512
+ * 文件：SaTokenAuthSessionService.java
+ * 项目：Pipker Framework
+ * 模块：Pipker Spring Boot Starter Sa-Token
+ * 说明：通过 Sa-Token 默认登录域实现公开的认证会话门面。
+ * 处理逻辑：将可扩展的 LoginIdentity 编码为不含分隔符歧义的 Sa-Token 登录 ID，将生命周期操作委托给 StpUtil，并为调用方解析当前主体。
+ * 依赖：Pipker 认证契约、Sa-Token Core
+ * 检索关键词：starter、sa-token、认证、会话、身份
+ * 作者：holic512
  */
 package com.pipker.starter.satoken.service;
 

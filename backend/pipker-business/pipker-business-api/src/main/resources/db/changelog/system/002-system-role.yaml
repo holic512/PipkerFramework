@@ -1,0 +1,55 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-system-role-create-table
+      author: holic512
+      changes:
+        - createTable:
+            tableName: system_role
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_system_role
+                    nullable: false
+              - column:
+                  name: role_code
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role_name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: VARCHAR(500)
+              - column:
+                  name: status
+                  type: VARCHAR(16)
+                  defaultValue: ENABLED
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sort
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: system_role
+            columnNames: role_code
+            constraintName: uk_system_role_role_code

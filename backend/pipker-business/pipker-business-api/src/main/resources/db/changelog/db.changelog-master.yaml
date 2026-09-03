@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/system/001-system-user.yaml
+  - include:
+      file: db/changelog/system/002-system-role.yaml
+  - include:
+      file: db/changelog/system/003-system-user-role.yaml
+  - include:
+      file: db/changelog/system/004-system-permission.yaml
+  - include:
+      file: db/changelog/system/005-system-role-permission.yaml
+  - include:
+      file: db/changelog/system/006-system-menu.yaml
+  - include:
+      file: db/changelog/system/007-system-role-menu.yaml
+  - include:
+      file: db/changelog/system/008-system-init-data.yaml

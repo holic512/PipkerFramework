@@ -1,6 +1,6 @@
 # Pipker Framework Frontend
 
-Pipker Framework 的 Vue 3 前端工程。它独立于 `backend/` 构建和部署，通过 HTTP API 与后端交互。
+Pipker Framework 的 Vue 3 管理端。前端不维护静态业务导航：SYSTEM 用户登录后，由后端 `GET /api/auth/me` 返回的数据库菜单树是动态页面路由的唯一来源。
 
 ## 技术基线
 
@@ -9,50 +9,102 @@ Pipker Framework 的 Vue 3 前端工程。它独立于 `backend/` 构建和部�
 | Vue | `3.5.42` | 视图层与组合式 API |
 | TypeScript | `6.0.3` | 应用与接口的静态类型检查 |
 | Vite | `8.2.2` | 开发服务器与生产构建 |
-| Vue Router | `5.3.0` | 浏览器 History 路由和页面边界 |
-| Pinia | `4.0.3` | 跨页面客户端状态 |
-| Axios | `1.20.0` | 统一 HTTP 客户端与拦截器扩展点 |
-| Element Plus | `2.14.5` | Vue 3 管理端组件库，按需导入 |
-| unplugin-vue-components | `32.1.0` | Vite 编译期组件按需导入 |
+| Vue Router | `5.3.0` | 登录、应用壳与动态页面路由 |
+| Pinia | `4.0.3` | 会话、授权与布局状态 |
+| Axios | `1.20.0` | Bearer 注入和统一响应解包 |
+| Element Plus | `2.14.5` | 按需导入的后台基础组件 |
 
-精确安装结果由 `package-lock.json` 固定；`package.json` 保留语义化版本范围，以便以后显式升级时接收同一主版本内的更新。
+精确安装结果由 `package-lock.json` 固定；`package.json` 保留同一主版本内的语义化范围。
 
-Element Plus 通过 Vite 的 `ElementPlusResolver` 按实际使用的组件和样式编译，不在 `main.ts` 全量注册。页面中可直接使用 `el-button`、`el-table` 等模板组件；新增组件会由构建插件自动解析。
-
-## 目录与模块边界
+## 目录与职责
 
 ```text
-frontend/
-├── src/
-│   ├── core/                    # 平台能力：运行时配置、HTTP 客户端
-│   │   ├── config/
-│   │   └── http/
-│   ├── router/                  # 路由组装、404 和导航副作用
-│   ├── layouts/                 # 跨业务模块的页面骨架
-│   ├── modules/                 # 按业务域拆分的前端模块
-│   │   └── overview/            # 当前的框架概览模块示例
-│   │       ├── pages/
-│   │       └── routes.ts
-│   ├── stores/                  # 只存放跨模块 UI / 会话状态
-│   ├── styles/                  # 全局设计令牌与基础样式
-│   ├── App.vue                  # 路由根节点
-│   └── main.ts                  # 应用启动和插件注册
-├── .env.example                 # 运行时 API 配置样例，不存放密钥
-└── vite.config.ts               # Vue 编译与构建配置
+src/
+├── core/
+│   ├── api/contracts.ts            # code/data/message、用户与菜单类型、业务错误
+│   ├── auth/sessionStorage.ts      # 当前浏览器会话的 Bearer token
+│   ├── config/runtime.ts            # API 前缀与超时配置
+│   └── http/client.ts               # Axios、认证头和统一解包
+├── layouts/AppLayout.vue            # 基于已授权菜单渲染的应用壳
+├── modules/
+│   ├── auth/                        # 登录 API 与登录页
+│   └── system/overview/index.vue    # 初始 componentKey 的实际页面入口
+├── router/index.ts                  # 动态路由注册、清理和登录守卫
+├── stores/
+│   ├── app.ts                       # 纯 UI 外壳状态
+│   └── session.ts                   # SYSTEM 会话、/auth/me 投影与动态路由生命周期
+└── main.ts                          # 先恢复会话和路由，再挂载应用
 ```
 
-新增业务功能时，以 `src/modules/<业务域>/` 为边界，优先把该领域的页面、API、局部 Store、类型和路由放在同一个模块中。中央 `router/` 只负责组装模块路由；`core/http/` 只处理传输层共性，不写业务 URL 或响应体规则。跨两个以上模块稳定复用的类型、组件或工具届时再提升到 `src/shared/`，避免过早建立“万能公共层”。这种分层对应后端的“Server 组装层 → Business 模块 → Common/Starter 基础设施”关系：入口负责装配，业务模块保持内聚，平台能力不反向依赖业务页面。
+`src/modules/overview/pages/OverviewPage.vue` 是系统概览的展示实现；`src/modules/system/overview/index.vue` 是数据库菜单 `componentKey = system/overview/index` 对应的稳定入口。
 
-## 请求契约
+## 会话与统一 API 契约
 
-`src/core/http/client.ts` 通过 `VITE_API_BASE_URL` 创建唯一 Axios 实例，默认前缀为 `/api`。已确认的最小接口是后端 `8080` 端口的 `GET /api/ping`，其返回纯文本；开发服务器会把 `/api` 代理到 `PIPKER_DEV_BACKEND_ORIGIN`（默认 `http://localhost:8080`），概览模块以此做连通性检查。
+后端所有已注册 API 返回 HTTP `200` 与：
 
-除该健康检查外，当前仍未发现统一响应包裹、认证、业务错误码或更多业务接口；因此未虚构 `data/code/message` 解包和鉴权拦截器。这些应在相应业务模块的 `api/` 目录中随已确认的接口契约实现。生产环境的反向代理还需同时处理 `/api` 转发，并为 Vue Router 的 History 模式把未知前端路径回退到 `index.html`。
+```json
+{ "code": 200, "data": {}, "message": "OK" }
+```
 
-## 运行
+`src/core/http/client.ts` 在每次请求时从 `sessionStorage` 读取 token 并写入：
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+响应中 `code !== 200` 时，请求层抛出 `ApiBusinessError`；认证相关状态码为 `401` 或 `403`。后端的 `CommonApiCode` 统一维护框架默认 code/message，业务模块也可返回自己的数值结果码，因此前端响应契约接受任意数值 `code`，并仅用 `API_CODE` 保存当前通用判断所需的已知常量。页面和 Store 不直接解析 Axios 原始响应，也不把 HTTP 200 误认为业务成功。
+
+令牌键为 `pipker.system.access-token`，只存于当前浏览器会话。刷新页面时，`main.ts` 先请求 `/api/auth/me`：
+
+- 请求成功：Pinia 写入用户、角色、权限和菜单，并注册动态路由。
+- 会话失效：清理 token、授权状态和动态路由，进入登录页。
+- 登录成功：同样先完成 `/api/auth/me` 和路由注册，再导航到原请求路径或第一个授权页面。
+
+## 数据库菜单与组件键
+
+`/api/auth/me` 的菜单树提供 `type`、`path`、`routeName`、`componentKey`、`permission` 与 `children`。路由器只处理满足下列条件的 `MENU` 节点：
+
+```text
+type === MENU
+path 非空
+routeName 非空
+componentKey 非空
+```
+
+路由器使用：
+
+```ts
+import.meta.glob('../modules/**/index.vue')
+```
+
+将 `componentKey` 映射为 `src/modules/<componentKey>.vue`。例如：
+
+```text
+system/overview/index  →  src/modules/system/overview/index.vue
+```
+
+未找到对应组件的菜单不会被伪造成静态页面：它会被跳过，并只在开发环境输出诊断。退出登录或授权刷新时，前一份数据库菜单注册的路由会被移除。要新增页面，应先增加 Vue 组件，再通过后端的 Liquibase 增量 changeset 增加菜单、角色菜单关系和所需权限；本期不提供管理端 CRUD 页面。
+
+`AppLayout` 仅渲染会话 Store 中的菜单，不再硬编码“系统概览”导航。
+
+## 开发 Route Manifest
+
+当后端显式设置 `pipker.dev.route-manifest.enabled=true` 时，匿名 `GET /api/_dev/routes` 返回当前菜单的最小路由投影：`path`、`name`、`componentKey`、`permission`。它是开发工具辅助接口，不是前端路由的来源；生产默认关闭，关闭时后端未注册该 Controller，访问结果是 HTTP 404。
+
+## 本地运行与构建
+
+先按根目录 [README](../README.md) 与后端 README 配置并启动后端数据库 Profile。前端开发服务器默认把 `/api` 代理到 `http://localhost:8080`；可在 `.env.example` 所示的 `VITE_API_BASE_URL`、`VITE_HTTP_TIMEOUT_MS` 和 `PIPKER_DEV_BACKEND_ORIGIN` 中按环境覆盖公开运行时配置。
 
 ```bash
 cd frontend
+npm install
 npm run dev
+```
+
+生产构建：
+
+```bash
 npm run build
 ```
+
+部署时，反向代理需要转发 `/api` 到后端，并为 Vue Router 的 History 模式将未知**前端**路径回退到 `index.html`。后端关闭的 `/api/_dev/routes` 仍应转发，让它保持服务端真实的 404 语义。

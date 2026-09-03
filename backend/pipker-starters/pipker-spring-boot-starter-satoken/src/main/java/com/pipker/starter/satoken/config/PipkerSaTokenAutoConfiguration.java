@@ -1,12 +1,12 @@
 /**
- * 文件：PipkerSaTokenAutoConfiguration.java
- * 项目：Pipker Framework
- * 模块：Pipker Spring Boot Starter Sa-Token
- * 说明：自动配置 Pipker 的 Sa-Token 会话门面、条件化 DAO 和 API 认证过滤器。
- * 处理逻辑：绑定 Sa-Token 与 Pipker 配置，将选定的持久化实现安装到 SaManager，保护配置的 API 路由，并将未认证请求渲染为 RFC 9457 问题详情。
- * 依赖：Sa-Token Spring Boot 4、Spring Boot 自动配置、Spring Web、Spring Data Redis
- * 检索关键词：starter、sa-token、自动配置、认证、过滤器、redis
- * 作者：holic512
+ * @file PipkerSaTokenAutoConfiguration.java
+ * @project Pipker Framework
+ * @module Pipker Sa-Token Starter
+ * @description Configures the default Sa-Token session facade, selected DAO, protected API filter, and unauthenticated response envelope.
+ * @logic Installs configuration and storage in SaManager, exempts explicit method/path routes, and returns AUTH_REQUIRED with HTTP 200 for registered API protection failures.
+ * @dependencies Sa-Token Spring Boot 4, Spring Boot AutoConfiguration, Spring Web, Spring Data Redis, ApiResponse
+ * @index_tags starter, sa-token, authentication, api-response, redis
+ * @author holic512
  */
 package com.pipker.starter.satoken.config;
 
@@ -17,6 +17,8 @@ import cn.dev33.satoken.dao.SaTokenDao;
 import cn.dev33.satoken.dao.SaTokenDaoDefaultImpl;
 import cn.dev33.satoken.filter.SaServletFilter;
 import cn.dev33.satoken.stp.StpUtil;
+import com.pipker.business.common.api.ApiResponse;
+import com.pipker.business.common.api.CommonApiCode;
 import com.pipker.starter.satoken.dao.PipkerRedisSaTokenDao;
 import com.pipker.starter.satoken.service.AuthSessionService;
 import com.pipker.starter.satoken.service.SaTokenAuthSessionService;
@@ -28,8 +30,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -43,7 +43,7 @@ import java.util.ArrayList;
 public class PipkerSaTokenAutoConfiguration {
 
     private static final String UNAUTHORIZED_JSON = """
-            {"type":"about:blank","title":"Unauthorized","status":401,"detail":"Authentication is required."}
+            {"code":401,"data":null,"message":"Authentication is required."}
             """.trim();
 
     /**
@@ -129,24 +129,20 @@ public class PipkerSaTokenAutoConfiguration {
                         StpUtil.checkLogin();
                     }
                 })
-                .setError(ignored -> unauthorizedProblemDetail());
+                .setError(ignored -> unauthorizedApiResponse());
     }
 
     /**
-     * 设置未认证响应状态和内容类型，并序列化 RFC 9457 Problem Detail。
+     * 设置统一未认证响应内容类型，并序列化 API 响应。
      */
-    private String unauthorizedProblemDetail() {
+    private String unauthorizedApiResponse() {
         SaHolder.getResponse()
-                .setStatus(HttpStatus.UNAUTHORIZED.value())
-                .setHeader("Content-Type", "application/problem+json;charset=UTF-8");
-
-        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.UNAUTHORIZED,
-                "Authentication is required."
-        );
-        problemDetail.setTitle("Unauthorized");
+                .setStatus(200)
+                .setHeader("Content-Type", "application/json;charset=UTF-8");
         try {
-            return JsonMapper.builder().build().writeValueAsString(problemDetail);
+            return JsonMapper.builder().build().writeValueAsString(
+                    ApiResponse.failure(CommonApiCode.AUTH_REQUIRED)
+            );
         } catch (JacksonException exception) {
             return UNAUTHORIZED_JSON;
         }

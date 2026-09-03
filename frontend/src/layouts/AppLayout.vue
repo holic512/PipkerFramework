@@ -1,26 +1,50 @@
 <!--
-  文件：AppLayout.vue
-  项目：Pipker Framework
-  模块：共享应用布局
-  说明：提供业务模块使用的持久导航和内容框架。
-  处理逻辑：从 Pinia 读取全局外壳状态，并在主要内容区域渲染当前模块路由。
-  依赖：Vue Router、Pinia、Element Plus
-  检索关键词：前端、布局、导航、Pinia、Element Plus
-  作者：holic512
+  @file AppLayout.vue
+  @project Pipker Framework
+  @module Frontend Application Layout
+  @description Renders the authenticated shell and database-authorized menu navigation.
+  @logic Flattens the current session menu tree for navigation without maintaining any static business menu or overview route.
+  @dependencies Vue, Vue Router, Pinia app store, Pinia session store, Element Plus
+  @index_tags layout, navigation, rbac, dynamic-routing
+  @author holic512
 -->
 <script setup lang="ts">
+import { computed } from 'vue'
+import type { SystemMenuNode } from '../core/api/contracts'
 import { useAppStore } from '../stores/app'
+import { useSessionStore } from '../stores/session'
 
 const appStore = useAppStore()
+const sessionStore = useSessionStore()
 
-const navigationItems = [
-  {
-    to: '/',
-    code: '01',
-    label: '系统概览',
-    description: '前端基线与模块状态',
-  },
-] as const
+const navigationItems = computed(() => flattenNavigation(sessionStore.menus))
+
+function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
+  id: number
+  path: string
+  code: string
+  label: string
+  description: string
+  depth: number
+}> {
+  return menus.flatMap((menu) => {
+    const children = flattenNavigation(menu.children, depth + 1)
+    if (menu.type !== 'MENU' || !menu.path) {
+      return children
+    }
+    return [
+      {
+        id: menu.id,
+        path: menu.path,
+        code: String(menu.id).padStart(2, '0'),
+        label: menu.name,
+        description: menu.permission ? `权限 · ${menu.permission}` : '已授权菜单',
+        depth,
+      },
+      ...children,
+    ]
+  })
+}
 </script>
 
 <template>
@@ -37,9 +61,10 @@ const navigationItems = [
       <nav class="navigation">
         <RouterLink
           v-for="item in navigationItems"
-          :key="item.to"
-          :to="item.to"
+          :key="item.id"
+          :to="item.path"
           class="navigation__item"
+          :style="{ '--navigation-depth': `${item.depth * 0.55}rem` }"
         >
           <span class="navigation__code">{{ item.code }}</span>
           <span v-show="!appStore.sidebarCollapsed" class="navigation__copy">
@@ -47,6 +72,9 @@ const navigationItems = [
             <small>{{ item.description }}</small>
           </span>
         </RouterLink>
+        <p v-if="navigationItems.length === 0" v-show="!appStore.sidebarCollapsed" class="navigation__empty">
+          当前账户没有可装载的菜单。
+        </p>
       </nav>
 
       <el-button
@@ -62,8 +90,13 @@ const navigationItems = [
 
     <main class="app-shell__main">
       <header class="app-shell__header">
-        <p>ENGINEERING PLATFORM / FRONTEND</p>
-        <el-tag effect="plain" type="success">基础设施已就绪</el-tag>
+        <p>SYSTEM / {{ sessionStore.user?.username ?? 'SESSION' }}</p>
+        <div class="app-shell__session-actions">
+          <el-tag effect="plain" type="success">
+            {{ sessionStore.roles.length }} 个角色 · {{ sessionStore.permissions.length }} 项权限
+          </el-tag>
+          <el-button text @click="sessionStore.logout">退出登录</el-button>
+        </div>
       </header>
       <section class="app-shell__content">
         <RouterView />
@@ -153,12 +186,19 @@ const navigationItems = [
   display: flex;
   align-items: center;
   gap: 0.8rem;
-  padding: 0.65rem 0.55rem;
+  padding: 0.65rem 0.55rem 0.65rem calc(0.55rem + var(--navigation-depth, 0rem));
   color: rgba(236, 240, 231, 0.66);
   border: 1px solid transparent;
   border-radius: 0.4rem;
   text-decoration: none;
   transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.navigation__empty {
+  margin: 0.8rem 0.55rem;
+  color: rgba(236, 240, 231, 0.5);
+  font-size: 0.73rem;
+  line-height: 1.6;
 }
 
 .navigation__item:hover,
@@ -226,6 +266,16 @@ const navigationItems = [
   letter-spacing: 0.095em;
 }
 
+.app-shell__session-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-shell__session-actions :deep(.el-button) {
+  color: var(--ink-muted);
+}
+
 .app-shell__content {
   max-width: 90rem;
   margin: 0 auto;
@@ -272,6 +322,10 @@ const navigationItems = [
   .app-shell__header {
     min-height: 4rem;
     padding: 0 1.25rem;
+  }
+
+  .app-shell__session-actions :deep(.el-tag) {
+    display: none;
   }
 }
 </style>

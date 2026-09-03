@@ -1,14 +1,22 @@
 # 文件：application.yml
 # 项目：Pipker Framework
 # 模块：Pipker Server
-# 说明：定义默认 Server 运行时、Bearer 令牌、内存会话和当前加密算法配置。
-# 处理逻辑：通过 profile 保持 Redis 可选，使用 Sa-Token 保护 API 路由，并要求从环境变量提供所选字段加密算法所需的密钥材料。
-# 依赖：Spring Boot、Pipker Sa-Token Starter、Pipker Security Starter
-# 检索关键词：server、配置、sa-token、安全、加密
+# 说明：定义默认 Server 运行时、数据库迁移、Bearer 令牌和当前加密算法配置。
+# 处理逻辑：默认选择 MySQL Profile；使用 Sa-Token 保护 API 路由，并由 Liquibase 初始化框架系统表。
+# 依赖：Spring Boot、Liquibase、Pipker Sa-Token Starter、Pipker Security Starter
+# 检索关键词：server、配置、liquibase、sa-token、安全、加密
 # 作者：holic512
 spring:
   application:
     name: pipker-server
+  profiles:
+    default: mysql
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
 
 server:
   port: 8080
@@ -35,6 +43,8 @@ pipker:
         - /api/**
       public-routes:
         - GET /api/ping
+        - POST /api/auth/login
+        - GET /api/_dev/routes
     crypto:
       password:
         algorithm: bcrypt
@@ -44,6 +54,9 @@ pipker:
         pbkdf2-hash-width: 256
       encryption:
         algorithm: aes-gcm
-        aes-gcm-key: ${PIPKER_SECURITY_AES_GCM_KEY:}
-        rsa-oaep-public-key: ${PIPKER_SECURITY_RSA_OAEP_PUBLIC_KEY:}
-        rsa-oaep-private-key: ${PIPKER_SECURITY_RSA_OAEP_PRIVATE_KEY:}
+        aes-gcm-key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+        rsa-oaep-public-key:
+        rsa-oaep-private-key:
+  dev:
+    route-manifest:
+      enabled: false

@@ -1,15 +1,16 @@
 /**
- * 文件：PingController.java
- * 项目：Pipker Framework
- * 模块：Pipker Server
- * 说明：提供用于确认 Server 正常运行的最小健康检查接口。
- * 处理逻辑：将 GET /api/ping 映射为稳定的纯文本响应，不引入额外依赖。
- * 依赖：Spring Web MVC
- * 检索关键词：api、ping、控制器、server
- * 作者：holic512
+ * @file PingController.java
+ * @project Pipker Framework
+ * @module Pipker Server
+ * @description Provides the anonymous HTTP liveness endpoint using the shared API response envelope.
+ * @logic Returns a stable health text in code/data/message form without depending on database or session infrastructure.
+ * @dependencies Spring Web MVC, ApiResponse
+ * @index_tags server, controller, ping, api-response
+ * @author holic512
  */
 package com.pipker.server.controller;
 
+import com.pipker.business.common.api.ApiResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,7 +28,7 @@ public class PingController {
      * @return Server 运行状态文本
      */
     @GetMapping("/ping")
-    public String ping() {
-        return "Pipker Server is running.";
+    public ApiResponse<String> ping() {
+        return ApiResponse.success("Pipker Server is running.");
     }
 }

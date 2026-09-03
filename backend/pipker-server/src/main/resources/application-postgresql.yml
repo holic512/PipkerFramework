@@ -1,0 +1,17 @@
+# 文件：application-postgresql.yml
+# 项目：Pipker Framework
+# 模块：Pipker Server
+# 说明：定义 PostgreSQL 作为框架系统表长期存储目标时的直接数据源配置。
+# 处理逻辑：使用者在首次初始化前填写 URL、用户名和密码；Liquibase 随 Server 启动执行 system_ 表迁移。
+# 依赖：Spring JDBC、PostgreSQL JDBC、Liquibase
+# 检索关键词：postgresql、datasource、liquibase、system
+# 作者：holic512
+spring:
+  config:
+    activate:
+      on-profile: postgresql
+  datasource:
+    url:
+    username:
+    password:
+    driver-class-name: org.postgresql.Driver

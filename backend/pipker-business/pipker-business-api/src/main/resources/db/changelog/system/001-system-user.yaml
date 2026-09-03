@@ -1,0 +1,61 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-system-user-create-table
+      author: holic512
+      changes:
+        - createTable:
+            tableName: system_user
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_system_user
+                    nullable: false
+              - column:
+                  name: username
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: password_hash
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: nickname
+                  type: VARCHAR(100)
+              - column:
+                  name: avatar
+                  type: VARCHAR(500)
+              - column:
+                  name: phone
+                  type: VARCHAR(32)
+              - column:
+                  name: email
+                  type: VARCHAR(255)
+              - column:
+                  name: status
+                  type: VARCHAR(16)
+                  defaultValue: ENABLED
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_login_time
+                  type: TIMESTAMP
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: system_user
+            columnNames: username
+            constraintName: uk_system_user_username

@@ -1,12 +1,12 @@
 <!--
-  文件：OverviewPage.vue
-  项目：Pipker Framework
-  模块：概览模块页面
-  说明：展示已确定的前端基线、模块边界和后端连接状态。
-  处理逻辑：渲染架构信息，并通过概览模块 API 调用已确认的健康检查接口，不假设尚未确认的响应封装。
-  依赖：Vue Composition API、Element Plus、概览健康检查 API
-  检索关键词：前端、模块、概览、页面、Element Plus
-  作者：holic512
+  @file OverviewPage.vue
+  @project Pipker Framework
+  @module System Overview
+  @description Renders the first database-menu page and its backend liveness check.
+  @logic Uses the shared API request layer to read the /api/ping data payload while keeping the page itself independent from route registration.
+  @dependencies Vue Composition API, Element Plus, overview health API
+  @index_tags system-overview, page, health, dynamic-route
+  @author holic512
 -->
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'

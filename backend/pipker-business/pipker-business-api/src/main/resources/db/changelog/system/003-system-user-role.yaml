@@ -1,0 +1,42 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-system-user-role-create-table
+      author: holic512
+      changes:
+        - createTable:
+            tableName: system_user_role
+            columns:
+              - column:
+                  name: user_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: role_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: system_user_role
+            columnNames: user_id, role_id
+            constraintName: pk_system_user_role
+        - addForeignKeyConstraint:
+            baseTableName: system_user_role
+            baseColumnNames: user_id
+            constraintName: fk_system_user_role_user
+            referencedTableName: system_user
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: system_user_role
+            baseColumnNames: role_id
+            constraintName: fk_system_user_role_role
+            referencedTableName: system_role
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            tableName: system_user_role
+            indexName: idx_system_user_role_role_id
+            columns:
+              - column:
+                  name: role_id

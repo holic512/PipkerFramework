@@ -1,0 +1,42 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-system-role-menu-create-table
+      author: holic512
+      changes:
+        - createTable:
+            tableName: system_role_menu
+            columns:
+              - column:
+                  name: role_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: menu_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: system_role_menu
+            columnNames: role_id, menu_id
+            constraintName: pk_system_role_menu
+        - addForeignKeyConstraint:
+            baseTableName: system_role_menu
+            baseColumnNames: role_id
+            constraintName: fk_system_role_menu_role
+            referencedTableName: system_role
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: system_role_menu
+            baseColumnNames: menu_id
+            constraintName: fk_system_role_menu_menu
+            referencedTableName: system_menu
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            tableName: system_role_menu
+            indexName: idx_system_role_menu_menu_id
+            columns:
+              - column:
+                  name: menu_id

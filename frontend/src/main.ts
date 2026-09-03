@@ -1,17 +1,35 @@
 /**
- * 文件：main.ts
- * 项目：Pipker Framework
- * 模块：前端启动
- * 说明：创建 Vue 应用，并在挂载前注册平台级插件。
- * 处理逻辑：加载全局样式，再安装 Pinia 和路由后挂载应用；Element Plus 组件在构建时按需注册。
- * 依赖：Vue、Vue Router、Pinia
- * 检索关键词：前端、启动、Vue、路由、Pinia
- * 作者：holic512
+ * @file main.ts
+ * @project Pipker Framework
+ * @module Frontend Bootstrap
+ * @description Creates the Vue application and restores the SYSTEM session before the initial router navigation.
+ * @logic Installs Pinia first, fetches /auth/me when a session token exists, registers database menu routes, then mounts the router-backed application.
+ * @dependencies Vue, Vue Router, Pinia, session store
+ * @index_tags frontend, bootstrap, authentication, dynamic-routing
+ * @author holic512
  */
 import { createApp } from 'vue'
 import App from './App.vue'
 import { router } from './router'
 import { pinia } from './stores'
+import { useSessionStore } from './stores/session'
 import './styles/base.css'
 
-createApp(App).use(pinia).use(router).mount('#app')
+async function bootstrap(): Promise<void> {
+  const application = createApp(App)
+  application.use(pinia)
+  const sessionStore = useSessionStore(pinia)
+  try {
+    await sessionStore.restoreSession()
+  } catch (error) {
+    sessionStore.clearSession()
+    if (import.meta.env.DEV) {
+      console.warn('[pipker] Session restoration failed; the user must sign in again.', error)
+    }
+  }
+  application.use(router)
+  await router.isReady()
+  application.mount('#app')
+}
+
+void bootstrap()

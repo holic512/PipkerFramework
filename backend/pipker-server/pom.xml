@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    文件：pom.xml
-    项目：Pipker Framework
-    模块：Pipker Server
-    说明：构建可执行 HTTP Server，并承载 Pipker 应用的启动、运行配置和集成测试。
-    处理逻辑：继承父工程默认配置，组装业务 API、Redis 和日志运行时能力，最后通过 Spring Boot 打包应用。
-    依赖：pipker-framework 父工程、pipker-business-api、Pipker Redis Starter、Pipker Log Starter、Liquibase、数据库驱动、Spring Boot Test
-    检索关键词：maven、模块、server、spring-boot
-    作者：holic512
+    @file pom.xml
+    @project Pipker Framework
+    @module Pipker Server
+    @description 构建可执行 HTTP Server，并承载 Pipker 应用的启动、运行配置和集成测试。
+    @logic 组装业务 API、Redis、日志、Liquibase 和多数据库运行时能力，最后通过 Spring Boot 打包应用。
+    @dependencies pipker-framework、pipker-business-api、Pipker Redis Starter、Pipker Log Starter、Liquibase、数据库驱动、Spring Boot Test
+    @index_tags maven、模块、server、spring-boot、sqlite、mysql、postgresql
+    @author holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -54,6 +54,11 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
@@ -75,6 +80,9 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <skip>false</skip>
+                </configuration>
             </plugin>
         </plugins>
     </build>

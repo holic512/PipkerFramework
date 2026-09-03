@@ -1,0 +1,27 @@
+# @file db/changelog/sqlite/system/002-system-role.yaml
+# @project Pipker Framework
+# @module Pipker Business API
+# @description SQLite 系统角色表结构。
+# @logic 在 SQLite 建表阶段声明主键和角色编码唯一约束。
+# @dependencies Liquibase、SQLite
+# @index_tags liquibase、sqlite、system_role
+# @author holic512
+databaseChangeLog:
+  - changeSet:
+      id: 002-system-role-create-table
+      author: holic512
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE TABLE system_role (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                role_code VARCHAR(64) NOT NULL,
+                role_name VARCHAR(100) NOT NULL,
+                description VARCHAR(500),
+                status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
+                sort INT NOT NULL DEFAULT 0,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                CONSTRAINT uk_system_role_role_code UNIQUE (role_code)
+              )

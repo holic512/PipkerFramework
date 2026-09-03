@@ -1,0 +1,11 @@
+# @file config/prod/application.yml
+# @project Pipker Framework
+# @module Pipker Server
+# @description 生产环境配置集合入口。
+# @logic 导入生产环境可选能力；生产启动必须额外指定 sqlite、mysql 或 postgresql Profile。
+# @dependencies Spring Boot Config Data、Pipker Redis Starter
+# @index_tags server、配置、prod、redis、profile、import
+# @author holic512
+spring:
+  config:
+    import: classpath:/config/prod/redis.yml

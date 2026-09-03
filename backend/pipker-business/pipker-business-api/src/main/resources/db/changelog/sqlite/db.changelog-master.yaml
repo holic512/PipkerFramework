@@ -1,0 +1,25 @@
+# @file db/changelog/sqlite/db.changelog-master.yaml
+# @project Pipker Framework
+# @module Pipker Business API
+# @description SQLite 专用系统表 Liquibase 主 changelog。
+# @logic 按依赖顺序加载 SQLite 兼容的系统表结构和初始数据 changeset。
+# @dependencies Liquibase、SQLite JDBC
+# @index_tags liquibase、sqlite、database、system
+# @author holic512
+databaseChangeLog:
+  - include:
+      file: db/changelog/sqlite/system/001-system-user.yaml
+  - include:
+      file: db/changelog/sqlite/system/002-system-role.yaml
+  - include:
+      file: db/changelog/sqlite/system/003-system-user-role.yaml
+  - include:
+      file: db/changelog/sqlite/system/004-system-permission.yaml
+  - include:
+      file: db/changelog/sqlite/system/005-system-role-permission.yaml
+  - include:
+      file: db/changelog/sqlite/system/006-system-menu.yaml
+  - include:
+      file: db/changelog/sqlite/system/007-system-role-menu.yaml
+  - include:
+      file: db/changelog/sqlite/system/008-system-init-data.yaml

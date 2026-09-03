@@ -1,0 +1,24 @@
+# @file config/dev/redis.yml
+# @project Pipker Framework
+# @module Pipker Server
+# @description 开发环境 Redis 连接和会话存储配置。
+# @logic 仅在 redis Profile 下生效；未启用 redis 时继续使用主配置中的内存会话存储。
+# @dependencies Spring Boot Data Redis、Pipker Sa-Token Starter
+# @index_tags server、配置、dev、redis、sa-token、profile
+# @author holic512
+spring:
+  config:
+    activate:
+      on-profile: redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      username:
+      password:
+
+pipker:
+  security:
+    auth:
+      session-store: redis

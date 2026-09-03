@@ -1,0 +1,30 @@
+# @file db/changelog/sqlite/system/001-system-user.yaml
+# @project Pipker Framework
+# @module Pipker Business API
+# @description SQLite 系统用户表结构。
+# @logic 在 SQLite 建表阶段声明主键和用户名唯一约束，避免后置约束变更。
+# @dependencies Liquibase、SQLite
+# @index_tags liquibase、sqlite、system_user
+# @author holic512
+databaseChangeLog:
+  - changeSet:
+      id: 001-system-user-create-table
+      author: holic512
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE TABLE system_user (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username VARCHAR(64) NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                nickname VARCHAR(100),
+                avatar VARCHAR(500),
+                phone VARCHAR(32),
+                email VARCHAR(255),
+                status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
+                last_login_time TIMESTAMP,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                CONSTRAINT uk_system_user_username UNIQUE (username)
+              )

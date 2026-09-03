@@ -1,0 +1,30 @@
+# @file db/changelog/sqlite/system/005-system-role-permission.yaml
+# @project Pipker Framework
+# @module Pipker Business API
+# @description SQLite 角色权限关联表结构。
+# @logic 在建表阶段声明联合主键和级联外键。
+# @dependencies Liquibase、SQLite、system_role、system_permission
+# @index_tags liquibase、sqlite、system_role_permission、foreign-key
+# @author holic512
+databaseChangeLog:
+  - changeSet:
+      id: 005-system-role-permission-create-table
+      author: holic512
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE TABLE system_role_permission (
+                role_id BIGINT NOT NULL,
+                permission_id BIGINT NOT NULL,
+                CONSTRAINT pk_system_role_permission PRIMARY KEY (role_id, permission_id),
+                CONSTRAINT fk_system_role_permission_role FOREIGN KEY (role_id)
+                  REFERENCES system_role (id) ON DELETE CASCADE,
+                CONSTRAINT fk_system_role_permission_permission FOREIGN KEY (permission_id)
+                  REFERENCES system_permission (id) ON DELETE CASCADE
+              )
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE INDEX idx_system_role_permission_permission_id
+                ON system_role_permission (permission_id)

@@ -1,0 +1,14 @@
+# @file config/base/application.yml
+# @project Pipker Framework
+# @module Pipker Server
+# @description 统一数据库配置入口。
+# @logic 导入所有可选数据库实现，由 sqlite、mysql 或 postgresql Profile 决定实际生效的数据源。
+# @dependencies Spring Boot Config Data、SQLite JDBC、MySQL Connector/J、PostgreSQL JDBC
+# @index_tags server、配置、base、database、datasource、profile
+# @author holic512
+spring:
+  config:
+    import:
+      - classpath:/config/base/database/sqlite.yml
+      - classpath:/config/base/database/mysql.yml
+      - classpath:/config/base/database/postgresql.yml

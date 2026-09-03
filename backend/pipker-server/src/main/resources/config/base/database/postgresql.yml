@@ -1,0 +1,17 @@
+# @file config/base/database/postgresql.yml
+# @project Pipker Framework
+# @module Pipker Server
+# @description PostgreSQL 数据源配置。
+# @logic 仅在 postgresql Profile 下生效，连接参数由外部环境变量提供，Liquibase 使用通用 changelog。
+# @dependencies Spring Boot JDBC、PostgreSQL JDBC、Liquibase
+# @index_tags server、配置、base、postgresql、datasource、liquibase
+# @author holic512
+spring:
+  config:
+    activate:
+      on-profile: postgresql
+  datasource:
+    url: ${PIPKER_DATABASE_URL:}
+    username: ${PIPKER_DATABASE_USERNAME:}
+    password: ${PIPKER_DATABASE_PASSWORD:}
+    driver-class-name: org.postgresql.Driver

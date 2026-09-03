@@ -1,0 +1,17 @@
+# @file config/base/database/mysql.yml
+# @project Pipker Framework
+# @module Pipker Server
+# @description MySQL 数据源配置。
+# @logic 仅在 mysql Profile 下生效，连接参数由外部环境变量提供，Liquibase 使用通用 changelog。
+# @dependencies Spring Boot JDBC、MySQL Connector/J、Liquibase
+# @index_tags server、配置、base、mysql、datasource、liquibase
+# @author holic512
+spring:
+  config:
+    activate:
+      on-profile: mysql
+  datasource:
+    url: ${PIPKER_DATABASE_URL:}
+    username: ${PIPKER_DATABASE_USERNAME:}
+    password: ${PIPKER_DATABASE_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver

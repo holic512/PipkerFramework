@@ -73,26 +73,74 @@ Liquibase 的 `DATABASECHANGELOG` 记录已执行 changeset；重复启动不会
 | `system_role_permission` | 角色与权限的联合主键关联 |
 | `system_role_menu` | 角色与菜单的联合主键关联 |
 
+MySQL、PostgreSQL 和 H2 使用上面的通用 changelog。SQLite 使用单独的 `db/changelog/sqlite/` changelog：它在建表阶段直接声明外键、联合主键、唯一约束和检查约束，以适配 SQLite 不支持后置 `addForeignKeyConstraint`、`addUniqueConstraint` 的限制。两套 changelog 保持相同的表结构和初始数据，已有 MySQL/PostgreSQL 数据库的 Liquibase 历史不受影响。
+
 初始数据只有 `SUPER_ADMIN`、`ADMIN`、最小框架权限、系统目录和 `system/overview/index` 菜单。不存在 `MERCHANT`、`USER` 或任何业务表。唯一初始管理员由 Liquibase 写入：`admin / admin123`，数据库只保存当前 `SecurityCryptoService` 可验证的 `{bcrypt}` 密码哈希。
 
 > 安全警告：默认管理员口令只可用于首次本地初始化。公开部署前必须立即更换为受控的 `{bcrypt}` 哈希；不要把 `admin123` 用于共享或生产数据库。首期没有密码重置、随机 Bootstrap 密码或 `system_bootstrap_state` 表。
 
 ### 选择部署数据库 Profile
 
-MySQL 与 PostgreSQL 是首次初始化前选择的长期目标，不提供已运行系统的跨数据库切换或迁移流程。两份配置均使用直接 Spring YAML 属性，故意将连接地址、用户名和密码留空：
+Server 配置采用“主配置 → 环境入口 → 环境目录”的结构。主配置保留公共运行参数，`application-dev.yml` 和 `application-prod.yml` 分别导入开发、生产目录；数据库统一由 `config/base/` 负责，并通过数据库 Profile 选择实际驱动：
 
-- [application-mysql.yml](pipker-server/src/main/resources/application-mysql.yml)
-- [application-postgresql.yml](pipker-server/src/main/resources/application-postgresql.yml)
-
-默认 Profile 是 `mysql`。在启动前填写选定文件的 `spring.datasource.url`、`username`、`password`；选择 PostgreSQL 时例如：
-
-```bash
-mvn -pl pipker-server -am spring-boot:run -Dspring-boot.run.profiles=postgresql
+```text
+pipker-server/src/main/resources/
+├── application.yml                         # 公共配置，默认 dev,sqlite
+├── application-dev.yml                     # dev 入口
+├── application-prod.yml                    # prod 入口
+└── config/
+    ├── base/
+    │   ├── application.yml                 # 数据库统一入口
+    │   └── database/
+    │       ├── sqlite.yml
+    │       ├── mysql.yml
+    │       └── postgresql.yml
+    ├── dev/
+    │   ├── application.yml                 # 开发配置
+    │   └── redis.yml                        # redis Profile 配置
+    └── prod/
+        ├── application.yml                 # 生产配置
+        └── redis.yml                        # redis Profile 配置
 ```
 
-`application-redis.yml` 使用直接的 `spring.data.redis.host`、`port`、`database`、`username`、`password`。启用 Redis 会话存储时组合 `redis` Profile；默认使用内存会话存储，适合单实例开发。
+无显式 Profile 时默认使用 `dev,sqlite`：
 
-主 [application.yml](pipker-server/src/main/resources/application.yml) 包含一个直接提交的本地 AES-GCM Base64 密钥，使 `SecurityCryptoService` 可以启动。它不是生产密钥，生产部署必须替换为受控的 32 字节 Base64 AES 密钥。所有 `application*.yml` 均不再依赖环境变量占位符。
+```bash
+mvn -pl pipker-server -am spring-boot:run
+```
+
+切换数据库时，在环境 Profile 后追加一个数据库 Profile：
+
+```bash
+# 开发环境 + SQLite
+mvn -pl pipker-server -am spring-boot:run -Dspring-boot.run.profiles=dev,sqlite
+
+# 开发环境 + PostgreSQL
+mvn -pl pipker-server -am spring-boot:run -Dspring-boot.run.profiles=dev,postgresql
+
+# 生产环境 + MySQL
+mvn -pl pipker-server -am spring-boot:run -Dspring-boot.run.profiles=prod,mysql
+
+# 生产环境 + PostgreSQL
+mvn -pl pipker-server -am spring-boot:run -Dspring-boot.run.profiles=prod,postgresql
+```
+
+每次启动必须选择一个环境 Profile（`dev` 或 `prod`）和一个数据库 Profile（`sqlite`、`mysql` 或 `postgresql`）。只启用 `prod` 不会回退到开发环境的 SQLite 默认值，因缺少数据源配置而快速失败。
+
+MySQL 和 PostgreSQL 的连接参数通过以下环境变量提供，避免开发和生产共用仓库内的连接信息：
+
+```text
+PIPKER_DATABASE_URL
+PIPKER_DATABASE_USERNAME
+PIPKER_DATABASE_PASSWORD
+PIPKER_SQLITE_PATH
+```
+
+SQLite 默认使用 `./data/pipker.db`，可以通过 `PIPKER_SQLITE_PATH` 指定其他文件路径。MySQL、PostgreSQL 与 SQLite 分别使用 `com.mysql.cj.jdbc.Driver`、`org.postgresql.Driver` 和 `org.sqlite.JDBC`。
+
+Redis 配置分别位于 `config/dev/redis.yml` 和 `config/prod/redis.yml`，使用 `spring.data.redis.host`、`port`、`database`、`username`、`password`。启用 Redis 会话存储时组合 `redis` Profile；默认使用内存会话存储，适合单实例开发。
+
+主 [application.yml](pipker-server/src/main/resources/application.yml) 包含一个直接提交的本地 AES-GCM Base64 密钥，使 `SecurityCryptoService` 可以启动。它不是生产密钥，生产部署必须替换为受控的 32 字节 Base64 AES 密钥。数据库连接参数使用环境变量占位符，不在仓库内保存真实凭据。
 
 ## 认证、授权与 API 契约
 
@@ -130,4 +178,4 @@ Sa-Token 显式放行 `GET /api/ping`、`POST /api/auth/login` 和 `GET /api/_de
 mvn clean test
 ```
 
-Server 集成测试使用 H2 空库，验证 Liquibase 建表与二次运行、`system_` 命名、种子管理员哈希、SYSTEM 登录域、Bearer 会话、角色/权限/菜单、`SUPER_ADMIN`、未认证/未授权业务编码以及 Route Manifest 的关闭、开启和实时数据库读取。H2 为兼容 `system_user` 标识符仅在测试连接中设置 `NON_KEYWORDS=SYSTEM_USER`；不影响 MySQL 与 PostgreSQL 的实际表名。
+Server 集成测试使用 H2 和 SQLite 空库：H2 回归验证通用 changelog、认证/RBAC、动态菜单和 Route Manifest；SQLite 验证 SQLite 专用 changelog、七张 `system_` 表、约束、种子数据以及重复执行幂等性。H2 为兼容 `system_user` 标识符仅在测试连接中设置 `NON_KEYWORDS=SYSTEM_USER`；不影响 MySQL、PostgreSQL 与 SQLite 的实际表名。

@@ -1,0 +1,43 @@
+# @file db/changelog/sqlite/system/006-system-menu.yaml
+# @project Pipker Framework
+# @module Pipker Business API
+# @description SQLite 系统菜单表结构。
+# @logic 在 SQLite 建表阶段声明路由唯一约束、自关联菜单外键和权限编码外键。
+# @dependencies Liquibase、SQLite、system_permission、system_menu
+# @index_tags liquibase、sqlite、system_menu、foreign-key、route
+# @author holic512
+databaseChangeLog:
+  - changeSet:
+      id: 006-system-menu-create-table
+      author: holic512
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE TABLE system_menu (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                parent_id BIGINT,
+                menu_name VARCHAR(100) NOT NULL,
+                menu_type VARCHAR(16) NOT NULL,
+                route_path VARCHAR(255),
+                route_name VARCHAR(100),
+                component_key VARCHAR(255),
+                icon VARCHAR(100),
+                sort INT NOT NULL DEFAULT 0,
+                visible BOOLEAN NOT NULL DEFAULT 1,
+                status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
+                permission_code VARCHAR(128),
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                CONSTRAINT uk_system_menu_route_path UNIQUE (route_path),
+                CONSTRAINT uk_system_menu_route_name UNIQUE (route_name),
+                CONSTRAINT fk_system_menu_parent FOREIGN KEY (parent_id)
+                  REFERENCES system_menu (id) ON DELETE CASCADE,
+                CONSTRAINT fk_system_menu_permission_code FOREIGN KEY (permission_code)
+                  REFERENCES system_permission (permission_code)
+              )
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE INDEX idx_system_menu_parent_id
+                ON system_menu (parent_id)

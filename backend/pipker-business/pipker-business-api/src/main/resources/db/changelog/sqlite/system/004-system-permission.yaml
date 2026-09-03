@@ -1,0 +1,29 @@
+# @file db/changelog/sqlite/system/004-system-permission.yaml
+# @project Pipker Framework
+# @module Pipker Business API
+# @description SQLite 系统权限表结构。
+# @logic 在 SQLite 建表阶段声明主键、权限编码唯一约束和权限类型检查约束。
+# @dependencies Liquibase、SQLite
+# @index_tags liquibase、sqlite、system_permission、constraint
+# @author holic512
+databaseChangeLog:
+  - changeSet:
+      id: 004-system-permission-create-table
+      author: holic512
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE TABLE system_permission (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                permission_code VARCHAR(128) NOT NULL,
+                permission_name VARCHAR(100) NOT NULL,
+                permission_type VARCHAR(16) NOT NULL,
+                description VARCHAR(500),
+                status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                CONSTRAINT uk_system_permission_code UNIQUE (permission_code),
+                CONSTRAINT ck_system_permission_type
+                  CHECK (permission_type IN ('API', 'BUTTON'))
+              )

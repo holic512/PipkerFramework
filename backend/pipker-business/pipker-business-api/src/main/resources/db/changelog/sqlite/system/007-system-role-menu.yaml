@@ -1,0 +1,30 @@
+# @file db/changelog/sqlite/system/007-system-role-menu.yaml
+# @project Pipker Framework
+# @module Pipker Business API
+# @description SQLite 角色菜单关联表结构。
+# @logic 在建表阶段声明联合主键和级联外键。
+# @dependencies Liquibase、SQLite、system_role、system_menu
+# @index_tags liquibase、sqlite、system_role_menu、foreign-key
+# @author holic512
+databaseChangeLog:
+  - changeSet:
+      id: 007-system-role-menu-create-table
+      author: holic512
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE TABLE system_role_menu (
+                role_id BIGINT NOT NULL,
+                menu_id BIGINT NOT NULL,
+                CONSTRAINT pk_system_role_menu PRIMARY KEY (role_id, menu_id),
+                CONSTRAINT fk_system_role_menu_role FOREIGN KEY (role_id)
+                  REFERENCES system_role (id) ON DELETE CASCADE,
+                CONSTRAINT fk_system_role_menu_menu FOREIGN KEY (menu_id)
+                  REFERENCES system_menu (id) ON DELETE CASCADE
+              )
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE INDEX idx_system_role_menu_menu_id
+                ON system_role_menu (menu_id)

@@ -1,0 +1,11 @@
+# @file config/dev/application.yml
+# @project Pipker Framework
+# @module Pipker Server
+# @description 开发环境配置集合入口。
+# @logic 导入开发环境可选能力；redis 文件仅在 redis Profile 激活时覆盖内存会话配置。
+# @dependencies Spring Boot Config Data、Pipker Redis Starter
+# @index_tags server、配置、dev、redis、profile、import
+# @author holic512
+spring:
+  config:
+    import: classpath:/config/dev/redis.yml

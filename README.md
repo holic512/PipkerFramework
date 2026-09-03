@@ -25,11 +25,10 @@ PipkerFramework/
 
 ## 快速开始（本地开发）
 
-前置条件：JDK 21、Maven 3.9+、Node.js 与 npm。首次启动后端前，先选择长期数据库目标并填写对应 Profile：
+前置条件：JDK 21、Maven 3.9+、Node.js 与 npm。后端默认使用 `dev,sqlite`，首次启动会在 `backend/data/pipker.db` 创建 SQLite 数据库并由 Liquibase 初始化系统表：
 
-1. 编辑 [application-mysql.yml](backend/pipker-server/src/main/resources/application-mysql.yml) 或 [application-postgresql.yml](backend/pipker-server/src/main/resources/application-postgresql.yml) 的 `url`、`username` 和 `password`。两者是部署前的替代方案，不支持已运行系统的跨库切换。
-2. 启动后端；Liquibase 会在空库中创建全部 `system_` 表并写入种子数据。
-3. 启动前端；开发服务器默认将 `/api` 代理到 `http://localhost:8080`。
+1. 启动后端；Liquibase 会在空库中创建全部 `system_` 表并写入种子数据。
+2. 启动前端；开发服务器默认将 `/api` 代理到 `http://localhost:8080`。
 
 ```bash
 cd backend
@@ -41,6 +40,27 @@ cd frontend
 npm install
 npm run dev
 ```
+
+选择其他数据库时，通过环境 Profile 组合切换。每次启动选择一个环境 Profile 和一个数据库 Profile：
+
+```bash
+# 开发环境 + PostgreSQL
+cd backend
+mvn -pl pipker-server -am spring-boot:run \
+  -Dspring-boot.run.profiles=dev,postgresql
+```
+
+```bash
+# 生产环境 + MySQL
+cd backend
+PIPKER_DATABASE_URL='jdbc:mysql://localhost:3306/pipker' \
+PIPKER_DATABASE_USERNAME='pipker' \
+PIPKER_DATABASE_PASSWORD='change-me' \
+mvn -pl pipker-server -am spring-boot:run \
+  -Dspring-boot.run.profiles=prod,mysql
+```
+
+可用数据库 Profile 为 `sqlite`、`mysql` 和 `postgresql`；生产环境必须显式指定数据库，不能只使用 `prod`。数据库连接信息使用 `PIPKER_DATABASE_URL`、`PIPKER_DATABASE_USERNAME` 和 `PIPKER_DATABASE_PASSWORD` 提供，SQLite 文件路径可通过 `PIPKER_SQLITE_PATH` 覆盖。不要把真实密码提交到配置文件或命令历史中。
 
 空数据库的初始账户是 `admin / admin123`。该口令仅用于首次本地初始化，绝不能用于公开部署；上线前必须使用与 `SecurityCryptoService` 兼容的 `{bcrypt}` 哈希替换它。主配置中提交的 AES-GCM Base64 密钥同样只是本地开发默认值，生产部署必须替换。
 

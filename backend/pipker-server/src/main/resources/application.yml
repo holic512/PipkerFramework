@@ -1,16 +1,18 @@
-# 文件：application.yml
-# 项目：Pipker Framework
-# 模块：Pipker Server
-# 说明：定义默认 Server 运行时、数据库迁移、Bearer 令牌和当前加密算法配置。
-# 处理逻辑：默认选择 MySQL Profile；使用 Sa-Token 保护 API 路由，并由 Liquibase 初始化框架系统表。
-# 依赖：Spring Boot、Liquibase、Pipker Sa-Token Starter、Pipker Security Starter
-# 检索关键词：server、配置、liquibase、sa-token、安全、加密
-# 作者：holic512
+# @file application.yml
+# @project Pipker Framework
+# @module Pipker Server
+# @description 定义 Server 的公共运行时配置、默认环境和基础配置导入入口。
+# @logic 无显式 Profile 时使用 dev + sqlite；公共配置导入 base，环境配置由 Spring Profile 文件继续导入。
+# @dependencies Spring Boot、Liquibase、Pipker Sa-Token Starter、Pipker Security Starter
+# @index_tags server、配置、profile、liquibase、sa-token、安全、加密
+# @author holic512
 spring:
   application:
     name: pipker-server
   profiles:
-    default: mysql
+    default: dev,sqlite
+  config:
+    import: classpath:/config/base/application.yml
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 

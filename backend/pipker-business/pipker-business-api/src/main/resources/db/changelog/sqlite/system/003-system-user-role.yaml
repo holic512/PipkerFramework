@@ -1,0 +1,30 @@
+# @file db/changelog/sqlite/system/003-system-user-role.yaml
+# @project Pipker Framework
+# @module Pipker Business API
+# @description SQLite 用户角色关联表结构。
+# @logic 在建表阶段声明联合主键和级联外键，保持用户或角色删除时关联数据同步清理。
+# @dependencies Liquibase、SQLite、system_user、system_role
+# @index_tags liquibase、sqlite、system_user_role、foreign-key
+# @author holic512
+databaseChangeLog:
+  - changeSet:
+      id: 003-system-user-role-create-table
+      author: holic512
+      changes:
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE TABLE system_user_role (
+                user_id BIGINT NOT NULL,
+                role_id BIGINT NOT NULL,
+                CONSTRAINT pk_system_user_role PRIMARY KEY (user_id, role_id),
+                CONSTRAINT fk_system_user_role_user FOREIGN KEY (user_id)
+                  REFERENCES system_user (id) ON DELETE CASCADE,
+                CONSTRAINT fk_system_user_role_role FOREIGN KEY (role_id)
+                  REFERENCES system_role (id) ON DELETE CASCADE
+              )
+        - sql:
+            splitStatements: false
+            sql: |
+              CREATE INDEX idx_system_user_role_role_id
+                ON system_user_role (role_id)

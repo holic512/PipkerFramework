@@ -1,0 +1,50 @@
+# @file db/changelog/sqlite/system/008-system-init-data.yaml
+# @project Pipker Framework
+# @module Pipker Business API
+# @description SQLite 系统初始化角色、权限、菜单和管理员数据。
+# @logic 按依赖顺序插入框架初始数据，内容与通用 changelog 保持一致并由 Liquibase 保证幂等执行。
+# @dependencies Liquibase、SQLite、system_user、system_role、system_permission、system_menu、关联表
+# @index_tags liquibase、sqlite、seed、system
+# @author holic512
+databaseChangeLog:
+  - changeSet:
+      id: 008-system-init-data
+      author: holic512
+      changes:
+        - sql:
+            splitStatements: true
+            sql: |
+              INSERT INTO system_role (role_code, role_name, description, status, sort, created_at, updated_at)
+              VALUES ('SUPER_ADMIN', '超级管理员', '拥有全部框架权限和菜单', 'ENABLED', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+              INSERT INTO system_role (role_code, role_name, description, status, sort, created_at, updated_at)
+              VALUES ('ADMIN', '系统管理员', '拥有框架基础管理读取权限', 'ENABLED', 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+              INSERT INTO system_permission (permission_code, permission_name, permission_type, description, status, created_at, updated_at)
+              VALUES ('system:authorization:read', '读取当前授权信息', 'API', '读取当前用户角色、权限和菜单', 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+              INSERT INTO system_permission (permission_code, permission_name, permission_type, description, status, created_at, updated_at)
+              VALUES ('system:menu:list', '读取系统菜单', 'API', '读取系统动态菜单和路由', 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+              INSERT INTO system_menu (parent_id, menu_name, menu_type, route_path, route_name, component_key, icon, sort, visible, status, permission_code, created_at, updated_at)
+              VALUES (NULL, '系统管理', 'DIRECTORY', '/system', 'System', NULL, 'Setting', 0, TRUE, 'ENABLED', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+              INSERT INTO system_menu (parent_id, menu_name, menu_type, route_path, route_name, component_key, icon, sort, visible, status, permission_code, created_at, updated_at)
+              SELECT id, '系统概览', 'MENU', '/system/overview', 'SystemOverview', 'system/overview/index', 'House', 10, TRUE, 'ENABLED', 'system:menu:list', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+              FROM system_menu WHERE route_name = 'System';
+
+              INSERT INTO system_user (username, password_hash, nickname, avatar, status, created_at, updated_at)
+              VALUES ('admin', '{bcrypt}$2a$12$jtnBe8ju./KkxopocsK1ku669f2qwfKcQ.HiHCM2Kwmb0dp0p9I82', 'Pipker 管理员', NULL, 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+              INSERT INTO system_user_role (user_id, role_id)
+              SELECT u.id, r.id FROM system_user u, system_role r
+              WHERE u.username = 'admin' AND r.role_code = 'SUPER_ADMIN';
+
+              INSERT INTO system_role_permission (role_id, permission_id)
+              SELECT r.id, p.id FROM system_role r, system_permission p
+              WHERE r.role_code IN ('SUPER_ADMIN', 'ADMIN')
+                AND p.permission_code IN ('system:authorization:read', 'system:menu:list');
+
+              INSERT INTO system_role_menu (role_id, menu_id)
+              SELECT r.id, m.id FROM system_role r, system_menu m
+              WHERE r.role_code IN ('SUPER_ADMIN', 'ADMIN');

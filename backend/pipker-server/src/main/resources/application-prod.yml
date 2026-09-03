@@ -1,0 +1,11 @@
+# @file application-prod.yml
+# @project Pipker Framework
+# @module Pipker Server
+# @description 生产环境配置入口。
+# @logic 当 prod Profile 生效时，导入 config/prod 目录下的生产配置；数据库必须同时显式选择。
+# @dependencies Spring Boot Config Data
+# @index_tags server、配置、prod、profile、import
+# @author holic512
+spring:
+  config:
+    import: classpath:/config/prod/application.yml

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    文件：pom.xml
-    项目：Pipker Framework
-    模块：父工程与聚合构建
-    说明：定义统一构建基线，并聚合 Starter、业务和 Server 模块。
-    处理逻辑：继承 Spring Boot 的依赖与插件管理，提供 Java 和编码默认配置，并为各模块统一管理内部业务构件与 Starter 的版本。
-    依赖：Spring Boot Maven 父工程
-    检索关键词：maven、父工程、聚合、java-21
-    作者：holic512
+    @file pom.xml
+    @project Pipker Framework
+    @module Parent and Aggregator
+    @description 定义统一构建基线，并聚合 Starter、业务和 Server 模块。
+    @logic 继承 Spring Boot 的依赖与插件管理；聚合执行 spring-boot:run 时跳过无主类模块，仅由 Server 模块启动应用。
+    @dependencies Spring Boot Maven 父工程、Spring Boot Maven Plugin
+    @index_tags maven、父工程、聚合、java-21、spring-boot、run
+    @author holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -91,6 +91,15 @@
             <plugins>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 
 </project>

@@ -1,0 +1,11 @@
+# @file application-dev.yml
+# @project Pipker Framework
+# @module Pipker Server
+# @description 开发环境配置入口。
+# @logic 当 dev Profile 生效时，导入 config/dev 目录下的开发配置。
+# @dependencies Spring Boot Config Data
+# @index_tags server、配置、dev、profile、import
+# @author holic512
+spring:
+  config:
+    import: classpath:/config/dev/application.yml

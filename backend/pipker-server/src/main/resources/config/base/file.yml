@@ -1,0 +1,14 @@
+# @file config/base/file.yml
+# @project Pipker Framework
+# @module Pipker Server
+# @description 定义默认本地文件持久化的开关、存储根目录和公开访问路径。
+# @logic 默认从 backend 运行目录下的 ./data/files 保存文件；只返回 /files/... 相对路径，不在配置或接口中拼接域名。
+# @dependencies Spring Boot Config Data、Pipker File Starter
+# @index_tags server、配置、base、file-storage、local、access-path
+# @author holic512
+pipker:
+  file:
+    enabled: ${PIPKER_FILE_ENABLED:true}
+    local:
+      root: ${PIPKER_FILE_LOCAL_ROOT:./data/files}
+    access-path: ${PIPKER_FILE_ACCESS_PATH:/files}

@@ -1,12 +1,12 @@
 /**
- * 文件：vite.config.ts
- * 项目：Pipker Framework
- * 模块：前端构建配置
- * 说明：为开发和生产构建配置 Vue 编译及 Element Plus 组件级导入。
- * 处理逻辑：使用 Element Plus 解析器仅引入实际渲染的组件，并在开发期间代理已确认的本地 /api 后端前缀。
- * 依赖：Vite、@vitejs/plugin-vue、unplugin-vue-components、Element Plus
- * 检索关键词：前端、Vite、构建、Element Plus、按需导入
- * 作者：holic512
+ * @file vite.config.ts
+ * @project Pipker Framework
+ * @module Frontend Build Configuration
+ * @description 为 Vite 构建及开发环境配置 Vue 编译、Element Plus 组件级导入与后端路径代理。
+ * @logic 使用 Element Plus 解析器仅引入实际渲染的组件，并在开发期间将 /api 与公开 /files 前缀转发到已配置后端。
+ * @dependencies Vite、@vitejs/plugin-vue、unplugin-vue-components、Element Plus
+ * @index_tags frontend、vite、proxy、api、file-storage、vue、element-plus
+ * @author holic512
  */
 import vue from '@vitejs/plugin-vue'
 import { defineConfig, loadEnv } from 'vite'
@@ -28,6 +28,10 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
+          target: backendOrigin,
+          changeOrigin: true,
+        },
+        '/files': {
           target: backendOrigin,
           changeOrigin: true,
         },

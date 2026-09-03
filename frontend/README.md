@@ -93,7 +93,7 @@ system/overview/index  →  src/modules/system/overview/index.vue
 
 ## 本地运行与构建
 
-先按根目录 [README](../README.md) 与后端 README 配置并启动后端数据库 Profile。前端开发服务器默认把 `/api` 代理到 `http://localhost:8080`；可在 `.env.example` 所示的 `VITE_API_BASE_URL`、`VITE_HTTP_TIMEOUT_MS` 和 `PIPKER_DEV_BACKEND_ORIGIN` 中按环境覆盖公开运行时配置。
+先按根目录 [README](../README.md) 与后端 README 配置并启动后端数据库 Profile。前端开发服务器默认把 `/api` 和公开文件路径 `/files` 代理到 `http://localhost:8080`；后端返回的文件引用保持 `/files/...` 根相对路径，浏览器会按当前开发域名访问。可在 `.env.example` 所示的 `VITE_API_BASE_URL`、`VITE_HTTP_TIMEOUT_MS` 和 `PIPKER_DEV_BACKEND_ORIGIN` 中按环境覆盖公开运行时配置。
 
 ```bash
 cd frontend
@@ -107,4 +107,4 @@ npm run dev
 npm run build
 ```
 
-部署时，反向代理需要转发 `/api` 到后端，并为 Vue Router 的 History 模式将未知**前端**路径回退到 `index.html`。后端关闭的 `/api/_dev/routes` 仍应转发，让它保持服务端真实的 404 语义。
+部署时，反向代理需要转发 `/api` 和 `/files/**` 到后端，并为 Vue Router 的 History 模式将未知**前端**路径回退到 `index.html`。后端关闭的 `/api/_dev/routes` 仍应转发，让它保持服务端真实的 404 语义。

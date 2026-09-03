@@ -1,0 +1,2 @@
+com.pipker.starter.file.config.PipkerFileAutoConfiguration
+com.pipker.starter.file.config.PipkerFileWebMvcAutoConfiguration

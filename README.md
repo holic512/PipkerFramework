@@ -9,6 +9,7 @@ Pipker Framework 是一个由 Spring Boot 后端与 Vue 前端组成的后台基
 - `POST /api/auth/login`、`GET /api/auth/me`、`GET /api/admin/authorization` 与受配置控制的开发 Route Manifest。
 - `{ code, data, message }` 统一响应，已注册 API 的业务失败保持 HTTP 200；关闭 Route Manifest 时，该 Controller 不注册并返回 HTTP 404。
 - 前端登录页、`sessionStorage` Bearer 令牌、授权恢复和由数据库菜单唯一驱动的 Vue 路由。
+- 默认启用的本地文件持久化：后端服务保存后获得不含域名的 `/files/...` 相对访问路径，公开读取接口不提供 HTTP 上传。
 
 本期明确**不提供**用户、角色、权限或菜单 CRUD API/页面，也不创建任何业务表。后续业务身份应通过新增 `system_role.role_code` 和新的 Liquibase 增量 changeset 演进。
 
@@ -25,10 +26,10 @@ PipkerFramework/
 
 ## 快速开始（本地开发）
 
-前置条件：JDK 21、Maven 3.9+、Node.js 与 npm。后端默认使用 `dev,sqlite`，首次启动会在 `backend/data/pipker.db` 创建 SQLite 数据库并由 Liquibase 初始化系统表：
+前置条件：JDK 21、Maven 3.9+、Node.js 与 npm。后端默认使用 `dev,sqlite`，首次启动会在 `backend/data/pipker.db` 创建 SQLite 数据库并由 Liquibase 初始化系统表；文件保存功能默认使用 `backend/data/files`，并在第一次通过文件服务写入时创建目录：
 
 1. 启动后端；Liquibase 会在空库中创建全部 `system_` 表并写入种子数据。
-2. 启动前端；开发服务器默认将 `/api` 代理到 `http://localhost:8080`。
+2. 启动前端；开发服务器默认将 `/api` 和 `/files` 代理到 `http://localhost:8080`。
 
 ```bash
 cd backend
@@ -60,7 +61,7 @@ mvn -pl pipker-server -am spring-boot:run \
   -Dspring-boot.run.profiles=prod,mysql
 ```
 
-可用数据库 Profile 为 `sqlite`、`mysql` 和 `postgresql`；生产环境必须显式指定数据库，不能只使用 `prod`。数据库连接信息使用 `PIPKER_DATABASE_URL`、`PIPKER_DATABASE_USERNAME` 和 `PIPKER_DATABASE_PASSWORD` 提供，SQLite 文件路径可通过 `PIPKER_SQLITE_PATH` 覆盖。不要把真实密码提交到配置文件或命令历史中。
+可用数据库 Profile 为 `sqlite`、`mysql` 和 `postgresql`；生产环境必须显式指定数据库，不能只使用 `prod`。数据库连接信息使用 `PIPKER_DATABASE_URL`、`PIPKER_DATABASE_USERNAME` 和 `PIPKER_DATABASE_PASSWORD` 提供，SQLite 文件路径可通过 `PIPKER_SQLITE_PATH` 覆盖。文件模块可用 `PIPKER_FILE_ENABLED`、`PIPKER_FILE_LOCAL_ROOT` 和 `PIPKER_FILE_ACCESS_PATH` 覆盖开关、物理目录和根相对读取前缀；文件服务返回 `/files/...` 一类的相对路径而不是完整 URL。不要把真实密码提交到配置文件或命令历史中。
 
 空数据库的初始账户是 `admin / admin123`。该口令仅用于首次本地初始化，绝不能用于公开部署；上线前必须使用与 `SecurityCryptoService` 兼容的 `{bcrypt}` 哈希替换它。主配置中提交的 AES-GCM Base64 密钥同样只是本地开发默认值，生产部署必须替换。
 

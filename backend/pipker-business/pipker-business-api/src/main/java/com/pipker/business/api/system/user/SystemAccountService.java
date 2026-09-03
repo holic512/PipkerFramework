@@ -3,15 +3,14 @@
  * @project Pipker Framework
  * @module Pipker Business API
  * @description 封装系统账户的认证读取和持久化更新，不依赖任何会话或密码算法实现。
- * @logic 为 Server 认证编排提供账户查询、登录时间和密码哈希升级操作，保持业务模块不依赖技术 Starter。
+ * @logic 为认证和授权功能提供账户查询、登录时间和密码哈希升级操作，不参与会话或密码算法编排。
  * @dependencies SystemUserMapper、SystemUser、Spring Framework
  * @index_tags system-user、service、authentication
  * @author holic512
  */
-package com.pipker.business.api.system.service;
+package com.pipker.business.api.system.user;
 
-import com.pipker.business.api.system.mapper.SystemUserMapper;
-import com.pipker.business.api.system.model.SystemUser;
+import com.pipker.business.api.common.model.SystemUser;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;

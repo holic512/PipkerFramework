@@ -12,19 +12,19 @@ backend/
 │   ├── pipker-spring-boot-starter-satoken/   # Bearer 会话与路由保护
 │   └── pipker-spring-boot-starter-security/  # 密码哈希与字段加密
 ├── pipker-business/
-│   ├── pipker-business-common/               # API 响应、登录身份契约
-│   └── pipker-business-api/                  # system_ Mapper、账户和授权服务、Liquibase changelog
-└── pipker-server/                             # Spring Boot HTTP 入口、Controller、StpInterface
+│   ├── pipker-business-common/               # API 响应、通用登录身份和公共异常契约
+│   └── pipker-business-api/                  # system 功能包、HTTP 接口、数据访问与 Liquibase changelog
+└── pipker-server/                             # Spring Boot 启动入口、运行配置和集成测试
 ```
 
 依赖方向固定如下：
 
-- `pipker-server` 组装 `pipker-business-api` 和技术 Starter。
-- `pipker-business-api` 可以依赖 `pipker-business-common`，不能依赖 Server。
+- `pipker-server` 启动 `pipker-business-api`，并承载数据库、Redis 和日志运行配置。
+- `pipker-business-api` 可以依赖 `pipker-business-common`、Sa-Token 与 Security Starter，不能依赖 Server。
 - `pipker-business-common` 不依赖业务 API、Server 或技术 Starter。
 - Sa-Token Starter 只提供会话与过滤器，不放置 User、Role、Mapper 或任何数据库授权逻辑。
 
-根 POM 管理 Spring Boot `4.1.1`、Java `21` 与内部模块版本。系统查询 Mapper 使用 MyBatis Spring Boot Starter `4.0.1`，由 `PipkerApplication` 的 `@MapperScan` 扫描。
+`pipker-business-api` 以业务功能而非分层目录组织：`system/auth` 负责认证和当前会话，`system/user` 负责账户，`system/authorization` 负责 RBAC 与菜单，`system/health` 负责存活检测；仅跨功能模型和 Web 异常映射位于 API 自身的 `common` 包。根 POM 管理 Spring Boot `4.1.1`、Java `21` 与内部模块版本。系统查询 Mapper 使用 MyBatis Spring Boot Starter `4.0.1`，由 `PipkerApplication` 的 `@MapperScan` 扫描。
 
 ## 系统身份与 RBAC
 
@@ -36,7 +36,7 @@ backend/
 | `system_role.role_code` | 如 `SUPER_ADMIN`、`ADMIN` | 授权分组 | 登录域或独立 StpLogic |
 | `LoginType` | 固定 `SYSTEM` | 编码 Sa-Token 登录身份 | 用户角色或菜单权限 |
 
-所有账户都使用默认 `StpUtil` 创建 `LoginIdentity(SYSTEM, userId)` 会话。Server 层的 `SystemStpInterface` 每次权限或角色检查都从数据库读取最新关联；没有按角色划分的 `StpLogic`，也没有首期缓存。
+所有账户都使用默认 `StpUtil` 创建 `LoginIdentity(SYSTEM, userId)` 会话。业务 API `system/auth` 中的 `SystemStpInterface` 每次权限或角色检查都从数据库读取最新关联；没有按角色划分的 `StpLogic`，也没有首期缓存。
 
 `SUPER_ADMIN` 的特殊语义只集中在 `SystemAuthorizationService`：拥有全部启用权限和可见菜单。普通账户通过用户角色关联合并权限和菜单。数据库直接修改权限、菜单或关联关系后，下一次请求即可生效。
 

@@ -1,19 +1,19 @@
 /**
  * @file AdminAuthorizationController.java
  * @project Pipker Framework
- * @module Pipker Server
+ * @module Pipker Business API
  * @description 提供受 system:authorization:read 保护的后台授权读取基线接口。
  * @logic 直接调用 Sa-Token 权限检查后返回同一份数据库实时授权快照，为后续 /api/admin/** 管理接口建立约定。
  * @dependencies Sa-Token、CurrentSystemAuthorizationService、Spring Web MVC
  * @index_tags controller、admin、rbac
  * @author holic512
  */
-package com.pipker.server.controller;
+package com.pipker.business.api.system.authorization;
 
 import cn.dev33.satoken.stp.StpUtil;
-import com.pipker.business.api.system.model.SystemAuthorizationSnapshot;
+import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
+import com.pipker.business.api.system.auth.CurrentSystemAuthorizationService;
 import com.pipker.business.common.api.ApiResponse;
-import com.pipker.server.auth.CurrentSystemAuthorizationService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;

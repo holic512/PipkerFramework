@@ -1,14 +1,14 @@
 /**
  * @file ApiBusinessException.java
  * @project Pipker Framework
- * @module Pipker Server
- * @description 表示能够安全映射为统一 API 响应的预期业务失败。
- * @logic 认证编排和当前会话解析使用 ApiCode 抛出该异常，默认消息由结果枚举统一维护，避免 Controller 依赖数据库异常细节。
+ * @module Pipker Business Common
+ * @description 表示能够安全映射为统一 API 响应的跨业务预期失败。
+ * @logic 业务模块使用 ApiCode 抛出该异常，默认消息由结果枚举统一维护，避免 HTTP 入口依赖数据库异常细节。
  * @dependencies ApiCode
  * @index_tags api、error、authentication
  * @author holic512
  */
-package com.pipker.server.error;
+package com.pipker.business.common.exception;
 
 import com.pipker.business.common.api.ApiCode;
 

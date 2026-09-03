@@ -8,9 +8,8 @@
  * @index_tags mybatis、rbac、system-menu
  * @author holic512
  */
-package com.pipker.business.api.system.mapper;
+package com.pipker.business.api.system.authorization;
 
-import com.pipker.business.api.system.model.SystemMenu;
 import org.apache.ibatis.annotations.Arg;
 import org.apache.ibatis.annotations.ConstructorArgs;
 import org.apache.ibatis.annotations.Mapper;

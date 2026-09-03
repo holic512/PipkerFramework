@@ -1,22 +1,21 @@
 /**
  * @file SystemAuthenticationService.java
  * @project Pipker Framework
- * @module Pipker Server
+ * @module Pipker Business API
  * @description 编排 system_user 凭证校验、密码升级和 Sa-Token 会话创建。
- * @logic Server 组合 SecurityCryptoService、系统账户服务和 AuthSessionService，保持 Starter 与业务持久化解耦。
+ * @logic 组合 SecurityCryptoService、系统账户服务和 AuthSessionService，完成凭证校验、密码升级与会话创建。
  * @dependencies SystemAccountService、SecurityCryptoService、AuthSessionService、SystemLoginTypes
  * @index_tags auth、login、security、session
  * @author holic512
  */
-package com.pipker.server.auth;
+package com.pipker.business.api.system.auth;
 
-import com.pipker.business.api.system.model.SystemUser;
-import com.pipker.business.api.system.model.SystemUserProfile;
-import com.pipker.business.api.system.service.SystemAccountService;
+import com.pipker.business.api.common.model.SystemUser;
+import com.pipker.business.api.common.model.SystemUserProfile;
+import com.pipker.business.api.system.user.SystemAccountService;
 import com.pipker.business.common.api.CommonApiCode;
 import com.pipker.business.common.auth.LoginIdentity;
-import com.pipker.business.common.auth.SystemLoginTypes;
-import com.pipker.server.error.ApiBusinessException;
+import com.pipker.business.common.exception.ApiBusinessException;
 import com.pipker.starter.satoken.service.AuthSessionService;
 import com.pipker.starter.satoken.service.AuthToken;
 import com.pipker.starter.security.service.SecurityCryptoService;

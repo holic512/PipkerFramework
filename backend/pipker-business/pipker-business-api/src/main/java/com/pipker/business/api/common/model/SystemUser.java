@@ -8,7 +8,7 @@
  * @index_tags system-user、rbac、persistence
  * @author holic512
  */
-package com.pipker.business.api.system.model;
+package com.pipker.business.api.common.model;
 
 import java.time.LocalDateTime;
 

@@ -8,15 +8,13 @@
  * @index_tags rbac、authorization、system-menu
  * @author holic512
  */
-package com.pipker.business.api.system.service;
+package com.pipker.business.api.system.authorization;
 
-import com.pipker.business.api.system.mapper.SystemAuthorizationMapper;
-import com.pipker.business.api.system.model.SystemAuthorizationSnapshot;
-import com.pipker.business.api.system.model.SystemMenu;
-import com.pipker.business.api.system.model.SystemMenuNode;
-import com.pipker.business.api.system.model.SystemRouteManifestItem;
-import com.pipker.business.api.system.model.SystemUser;
-import com.pipker.business.api.system.model.SystemUserProfile;
+import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
+import com.pipker.business.api.common.model.SystemMenuNode;
+import com.pipker.business.api.common.model.SystemUser;
+import com.pipker.business.api.common.model.SystemUserProfile;
+import com.pipker.business.api.system.user.SystemAccountService;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;

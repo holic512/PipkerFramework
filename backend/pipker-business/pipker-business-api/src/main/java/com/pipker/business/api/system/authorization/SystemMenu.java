@@ -8,7 +8,7 @@
  * @index_tags system-menu、route、rbac
  * @author holic512
  */
-package com.pipker.business.api.system.model;
+package com.pipker.business.api.system.authorization;
 
 import java.time.LocalDateTime;
 

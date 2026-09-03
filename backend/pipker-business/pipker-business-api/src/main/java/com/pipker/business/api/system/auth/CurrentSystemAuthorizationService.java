@@ -1,21 +1,20 @@
 /**
  * @file CurrentSystemAuthorizationService.java
  * @project Pipker Framework
- * @module Pipker Server
+ * @module Pipker Business API
  * @description 将当前 Sa-Token 会话身份解析为 system_user 的授权快照。
  * @logic 仅接受 SYSTEM 登录域和数字用户 ID，再委托实时授权服务获取角色、权限和菜单。
  * @dependencies AuthSessionService、SystemAuthorizationService、ApiBusinessException
  * @index_tags auth、rbac、current-user
  * @author holic512
  */
-package com.pipker.server.auth;
+package com.pipker.business.api.system.auth;
 
-import com.pipker.business.api.system.model.SystemAuthorizationSnapshot;
-import com.pipker.business.api.system.service.SystemAuthorizationService;
+import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
+import com.pipker.business.api.system.authorization.SystemAuthorizationService;
 import com.pipker.business.common.api.CommonApiCode;
 import com.pipker.business.common.auth.LoginIdentity;
-import com.pipker.business.common.auth.SystemLoginTypes;
-import com.pipker.server.error.ApiBusinessException;
+import com.pipker.business.common.exception.ApiBusinessException;
 import com.pipker.starter.satoken.service.AuthSessionService;
 import org.springframework.stereotype.Service;
 

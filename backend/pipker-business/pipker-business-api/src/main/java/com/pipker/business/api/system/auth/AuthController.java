@@ -1,21 +1,17 @@
 /**
  * @file AuthController.java
  * @project Pipker Framework
- * @module Pipker Server
+ * @module Pipker Business API
  * @description 提供系统用户登录和当前授权信息读取接口。
  * @logic 登录由匿名路由放行；当前信息通过 Sa-Token 会话解析并从数据库实时读取 RBAC 数据。
  * @dependencies SystemAuthenticationService、CurrentSystemAuthorizationService、Spring Web MVC
  * @index_tags controller、auth、rbac
  * @author holic512
  */
-package com.pipker.server.controller;
+package com.pipker.business.api.system.auth;
 
-import com.pipker.business.api.system.model.SystemAuthorizationSnapshot;
+import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
 import com.pipker.business.common.api.ApiResponse;
-import com.pipker.server.auth.CurrentSystemAuthorizationService;
-import com.pipker.server.auth.LoginRequest;
-import com.pipker.server.auth.LoginResponse;
-import com.pipker.server.auth.SystemAuthenticationService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;

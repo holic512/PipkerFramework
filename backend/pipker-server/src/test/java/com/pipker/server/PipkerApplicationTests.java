@@ -3,7 +3,7 @@ package com.pipker.server;
 import com.pipker.business.common.api.ApiCode;
 import com.pipker.business.common.api.ApiResponse;
 import com.pipker.business.common.api.CommonApiCode;
-import com.pipker.server.error.ApiBusinessException;
+import com.pipker.business.common.exception.ApiBusinessException;
 import com.pipker.starter.security.service.SecurityCryptoService;
 import liquibase.integration.spring.SpringLiquibase;
 import org.junit.jupiter.api.Test;

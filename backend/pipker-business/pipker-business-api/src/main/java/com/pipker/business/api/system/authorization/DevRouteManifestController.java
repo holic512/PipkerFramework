@@ -1,17 +1,15 @@
 /**
  * @file DevRouteManifestController.java
  * @project Pipker Framework
- * @module Pipker Server
+ * @module Pipker Business API
  * @description 在显式开发配置开启时暴露数据库动态路由的最小 Manifest。
  * @logic Controller 由 ConditionalOnProperty 整体控制注册，开启后只查询菜单路由并返回 path/name/componentKey/permission。
  * @dependencies SystemAuthorizationService、Spring Boot、Spring Web MVC
  * @index_tags controller、dev、route-manifest
  * @author holic512
  */
-package com.pipker.server.controller;
+package com.pipker.business.api.system.authorization;
 
-import com.pipker.business.api.system.model.SystemRouteManifestItem;
-import com.pipker.business.api.system.service.SystemAuthorizationService;
 import com.pipker.business.common.api.ApiResponse;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -3,9 +3,9 @@
     文件：pom.xml
     项目：Pipker Framework
     模块：Pipker Business API
-    说明：定义由 Server 组装的 Pipker 独立应用业务模块。
-    处理逻辑：继承统一构建约定，仅依赖公共业务能力；新增具体应用业务代码时无需耦合 Server。
-    依赖：pipker-framework 父工程、pipker-business-common
+    说明：定义可由 Server 启动的 Pipker 应用业务、HTTP 接口和数据访问能力。
+    处理逻辑：按系统功能聚合认证、用户、授权和健康检查，直接注入认证与安全 Starter 提供的公共服务，不依赖 Server 源码。
+    依赖：pipker-framework 父工程、pipker-business-common、Pipker Sa-Token Starter、Pipker Security Starter、MyBatis、Spring Web、Spring Validation
     检索关键词：maven、模块、业务、api
     作者：holic512
 -->
@@ -26,7 +26,7 @@
     <packaging>jar</packaging>
 
     <name>Pipker Business API</name>
-    <description>Dedicated application business module for Pipker Framework.</description>
+    <description>Feature-oriented application business and HTTP API module for Pipker Framework.</description>
 
     <dependencies>
         <dependency>
@@ -34,9 +34,25 @@
             <artifactId>pipker-business-common</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.pipker</groupId>
+            <artifactId>pipker-spring-boot-starter-satoken</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.pipker</groupId>
+            <artifactId>pipker-spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
             <version>${mybatis-spring-boot.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
     </dependencies>
 

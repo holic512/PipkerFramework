@@ -3,8 +3,8 @@
     文件：pom.xml
     项目：Pipker Framework
     模块：Pipker Business Common
-    说明：定义共享业务能力模块，以及面向 Pipker 应用的框架无关认证身份契约。
-    处理逻辑：继承统一构建约定，提供 LoginType、LoginIdentity 等可复用业务能力，不依赖独立业务模块、技术 Starter 或 Server。
+    说明：定义跨业务共享的响应、身份和异常契约。
+    处理逻辑：继承统一构建约定，提供 LoginType、LoginIdentity、结果码和公共异常，不依赖独立业务模块、技术 Starter 或 Server。
     依赖：pipker-framework 父工程
     检索关键词：maven、模块、业务、公共能力
     作者：holic512
@@ -26,6 +26,6 @@
     <packaging>jar</packaging>
 
     <name>Pipker Business Common</name>
-    <description>Shared business capability module for Pipker Framework applications.</description>
+    <description>Shared response, identity, and exception contracts for Pipker Framework applications.</description>
 
 </project>

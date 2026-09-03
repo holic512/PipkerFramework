@@ -1,19 +1,20 @@
 /**
  * @file ApiExceptionHandler.java
  * @project Pipker Framework
- * @module Pipker Server
+ * @module Pipker Business API
  * @description 将 Controller、参数校验与 Sa-Token 授权失败统一映射为 code/data/message 响应。
  * @logic 所有已注册 API 保持 HTTP 200，调用方根据稳定业务编码而非 HTTP 状态分支。
- * @dependencies ApiResponse、Sa-Token、Spring Web MVC
+ * @dependencies ApiResponse、ApiBusinessException、Sa-Token、Spring Web MVC
  * @index_tags api、exception、response
  * @author holic512
  */
-package com.pipker.server.error;
+package com.pipker.business.api.common.web;
 
 import cn.dev33.satoken.exception.NotPermissionException;
 import cn.dev33.satoken.exception.NotRoleException;
 import com.pipker.business.common.api.ApiResponse;
 import com.pipker.business.common.api.CommonApiCode;
+import com.pipker.business.common.exception.ApiBusinessException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.slf4j.Logger;

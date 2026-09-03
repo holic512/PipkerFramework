@@ -8,7 +8,7 @@
  * @index_tags system-user、api、profile
  * @author holic512
  */
-package com.pipker.business.api.system.model;
+package com.pipker.business.api.common.model;
 
 /**
  * 系统用户公开资料。

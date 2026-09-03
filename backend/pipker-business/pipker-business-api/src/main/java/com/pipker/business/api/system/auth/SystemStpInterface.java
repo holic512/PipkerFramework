@@ -1,21 +1,20 @@
 /**
  * @file SystemStpInterface.java
  * @project Pipker Framework
- * @module Pipker Server
+ * @module Pipker Business API
  * @description 将 Sa-Token 角色和权限请求接入 system_ 表的实时 RBAC 查询。
  * @logic 解码登录主体后仅处理 SYSTEM 域，调用授权服务返回最新角色和权限，不维护本地副本或缓存。
  * @dependencies Sa-Token、LoginIdentityCodec、SystemAuthorizationService
  * @index_tags satoken、rbac、permission
  * @author holic512
  */
-package com.pipker.server.auth;
+package com.pipker.business.api.system.auth;
 
 import cn.dev33.satoken.stp.StpInterface;
-import com.pipker.business.api.system.model.SystemAuthorizationSnapshot;
-import com.pipker.business.api.system.service.SystemAuthorizationService;
+import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
+import com.pipker.business.api.system.authorization.SystemAuthorizationService;
 import com.pipker.business.common.auth.LoginIdentity;
 import com.pipker.business.common.auth.LoginIdentityCodec;
-import com.pipker.business.common.auth.SystemLoginTypes;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

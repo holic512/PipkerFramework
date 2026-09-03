@@ -8,7 +8,7 @@
  * @index_tags dev、route-manifest、system-menu
  * @author holic512
  */
-package com.pipker.business.api.system.model;
+package com.pipker.business.api.system.authorization;
 
 /**
  * Route Manifest 路由项。

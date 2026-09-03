@@ -8,9 +8,9 @@
  * @index_tags mybatis、system-user、authentication
  * @author holic512
  */
-package com.pipker.business.api.system.mapper;
+package com.pipker.business.api.system.user;
 
-import com.pipker.business.api.system.model.SystemUser;
+import com.pipker.business.api.common.model.SystemUser;
 import org.apache.ibatis.annotations.Arg;
 import org.apache.ibatis.annotations.ConstructorArgs;
 import org.apache.ibatis.annotations.Mapper;

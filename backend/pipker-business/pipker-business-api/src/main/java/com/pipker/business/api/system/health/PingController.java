@@ -1,14 +1,14 @@
 /**
  * @file PingController.java
  * @project Pipker Framework
- * @module Pipker Server
- * @description Provides the anonymous HTTP liveness endpoint using the shared API response envelope.
- * @logic Returns a stable health text in code/data/message form without depending on database or session infrastructure.
- * @dependencies Spring Web MVC, ApiResponse
- * @index_tags server, controller, ping, api-response
+ * @module Pipker Business API
+ * @description 使用公共 API 响应契约提供匿名 HTTP 存活检测接口。
+ * @logic 返回稳定的 code/data/message 健康文本，不依赖数据库或会话基础设施。
+ * @dependencies Spring Web MVC、ApiResponse
+ * @index_tags system、health、controller、api-response
  * @author holic512
  */
-package com.pipker.server.controller;
+package com.pipker.business.api.system.health;
 
 import com.pipker.business.common.api.ApiResponse;
 import org.springframework.web.bind.annotation.GetMapping;

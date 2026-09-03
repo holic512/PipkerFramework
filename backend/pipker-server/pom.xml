@@ -3,9 +3,9 @@
     文件：pom.xml
     项目：Pipker Framework
     模块：Pipker Server
-    说明：构建可执行 HTTP Server，并组装 Pipker 独立业务模块与技术 Starter。
-    处理逻辑：继承父工程默认配置，将业务 API 与 Redis、日志、Sa-Token 认证和安全加密 Starter 组合，最后通过 Spring Boot 打包应用。
-    依赖：pipker-framework 父工程、pipker-business-api、Pipker Redis Starter、Pipker Log Starter、Pipker Sa-Token Starter、Pipker Security Starter、Spring Boot Web、Spring Boot Validation
+    说明：构建可执行 HTTP Server，并承载 Pipker 应用的启动、运行配置和集成测试。
+    处理逻辑：继承父工程默认配置，组装业务 API、Redis 和日志运行时能力，最后通过 Spring Boot 打包应用。
+    依赖：pipker-framework 父工程、pipker-business-api、Pipker Redis Starter、Pipker Log Starter、Liquibase、数据库驱动、Spring Boot Test
     检索关键词：maven、模块、server、spring-boot
     作者：holic512
 -->
@@ -38,22 +38,6 @@
         <dependency>
             <groupId>com.pipker</groupId>
             <artifactId>pipker-spring-boot-starter-log</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.pipker</groupId>
-            <artifactId>pipker-spring-boot-starter-satoken</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.pipker</groupId>
-            <artifactId>pipker-spring-boot-starter-security</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

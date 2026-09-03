@@ -7,6 +7,7 @@ Pipker Framework 的 Maven 后端工程。当前以 Starter 技术基础设施�
 ```text
 backend/
 ├── pipker-starters/
+│   ├── pipker-spring-boot-starter-common/    # 纯 JDK UUID、乱序标识符与本机信息工具
 │   ├── pipker-spring-boot-starter-redis/     # Redis 基础设施
 │   ├── pipker-spring-boot-starter-log/       # TraceId、日志与脱敏
 │   ├── pipker-spring-boot-starter-satoken/   # Bearer 会话与路由保护
@@ -22,6 +23,8 @@ backend/
 - `pipker-server` 启动 `pipker-business-api`，并承载数据库、Redis 和日志运行配置。
 - `pipker-business-api` 可以依赖 `pipker-business-common`、Sa-Token 与 Security Starter，不能依赖 Server。
 - `pipker-business-common` 不依赖业务 API、Server 或技术 Starter。
+- `pipker-spring-boot-starter-common` 只依赖 Java 标准库，提供 UUID、Base62 乱序标识符和按调用时采集的本机信息快照；不注册 Spring 自动配置，也不读取用户数据或认证信息。
+- `pipker-spring-boot-starter-log` 单向依赖 Common Starter 生成 TraceId；Common Starter 不依赖任何其他 Starter。
 - Sa-Token Starter 只提供会话与过滤器，不放置 User、Role、Mapper 或任何数据库授权逻辑。
 
 `pipker-business-api` 以业务功能而非分层目录组织：`system/auth` 负责认证和当前会话，`system/user` 负责账户，`system/authorization` 负责 RBAC 与菜单，`system/health` 负责存活检测；仅跨功能模型和 Web 异常映射位于 API 自身的 `common` 包。根 POM 管理 Spring Boot `4.1.1`、Java `21` 与内部模块版本。系统查询 Mapper 使用 MyBatis Spring Boot Starter `4.0.1`，由 `PipkerApplication` 的 `@MapperScan` 扫描。

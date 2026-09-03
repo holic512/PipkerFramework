@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    文件：pom.xml
+    项目：Pipker Framework
+    模块：Pipker Spring Boot Starter Common
+    说明：提供不依赖 Spring 的公共标识符和本机信息工具。
+    处理逻辑：继承统一构建约定；生产代码仅使用 Java 标准库，测试复用 Spring Boot 测试基线。
+    依赖：pipker-framework 父工程、测试范围 Spring Boot Test
+    检索关键词：maven、模块、starter、common、util
+    作者：holic512
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.pipker</groupId>
+        <artifactId>pipker-framework</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>pipker-spring-boot-starter-common</artifactId>
+
+    <name>Pipker Spring Boot Starter Common</name>
+    <description>Pure JDK common utility starter for Pipker Framework.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+</project>

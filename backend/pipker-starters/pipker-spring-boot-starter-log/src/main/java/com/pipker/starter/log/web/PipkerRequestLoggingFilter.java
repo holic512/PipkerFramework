@@ -3,13 +3,14 @@
  * @project Pipker Framework
  * @module Pipker Spring Boot Starter Log
  * @description 使用单一 Servlet Filter 管理 TraceId、请求 MDC、HTTP 日志与慢请求日志。
- * @logic 建立受控 MDC 作用域，安全包装可选 Body，按请求完成时间输出日志，并在异步完成回调中恢复快照。
- * @dependencies Spring Web、Jakarta Servlet、PipkerLogProperties、LogValueRenderer、SLF4J
+ * @logic 建立受控 MDC 作用域，使用公共 UUID 工具生成 TraceId，安全包装可选 Body，按请求完成时间输出日志，并在异步完成回调中恢复快照。
+ * @dependencies Pipker Common Starter、Spring Web、Jakarta Servlet、PipkerLogProperties、LogValueRenderer、SLF4J
  * @index_tags log、trace、mdc、http、slow-request
  * @author holic512
  */
 package com.pipker.starter.log.web;
 
+import com.pipker.starter.common.util.UuidUtils;
 import com.pipker.starter.log.config.PipkerLogProperties;
 import com.pipker.starter.log.context.LogContext;
 import com.pipker.starter.log.context.LogContextContributor;
@@ -40,7 +41,6 @@ import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * 在单个 Servlet Filter 中建立请求上下文，并输出 HTTP、慢请求和异常日志。
@@ -159,7 +159,7 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
             values.put(LogMdcKeys.TRACE_ID, resolveTraceId(request));
         }
         if (properties.getContext().isRequestIdEnabled()) {
-            values.put(LogMdcKeys.REQUEST_ID, randomId());
+            values.put(LogMdcKeys.REQUEST_ID, UuidUtils.randomUuidWithoutHyphens());
         }
         values.put(LogMdcKeys.SERVICE_NAME, resolveServiceName());
         if (properties.getContext().isClientIpEnabled()) {
@@ -419,7 +419,7 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
                 return upstream;
             }
         }
-        return randomId();
+        return UuidUtils.randomUuidWithoutHyphens();
     }
 
     /**
@@ -465,13 +465,6 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
      */
     private int bodyLimit() {
         return Math.max(1, properties.getRequest().getMaxBodyLength());
-    }
-
-    /**
-     * 生成不含连字符的随机请求标识。
-     */
-    private String randomId() {
-        return UUID.randomUUID().toString().replace("-", "");
     }
 
     /**

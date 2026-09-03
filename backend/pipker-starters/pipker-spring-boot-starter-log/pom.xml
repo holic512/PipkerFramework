@@ -4,8 +4,8 @@
     项目：Pipker Framework
     模块：Pipker Spring Boot Starter Log
     说明：为 Pipker 技术日志基础设施提供自动配置、MDC、HTTP 日志、操作日志和脱敏能力。
-    处理逻辑：组合 Spring Boot 日志、自动配置、Jackson 与 AOP 基础设施；Servlet MVC 依赖保持可选，使非 Web 应用可安全使用核心能力。
-    依赖：pipker-framework 父工程、Spring Boot Logging/AutoConfigure/Jackson/AOP Starter、可选 Spring Boot Web MVC
+    处理逻辑：组合公共标识符工具、Spring Boot 日志、自动配置、Jackson 与 AOP 基础设施；Servlet MVC 依赖保持可选，使非 Web 应用可安全使用核心能力。
+    依赖：pipker-framework 父工程、Pipker Common Starter、Spring Boot Logging/AutoConfigure/Jackson/AOP Starter、可选 Spring Boot Web MVC
     检索关键词：maven、模块、starter、日志、spring-boot
     作者：holic512
 -->
@@ -28,6 +28,10 @@
     <description>Technical logging infrastructure starter for Pipker Framework.</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.pipker</groupId>
+            <artifactId>pipker-spring-boot-starter-common</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-logging</artifactId>

@@ -2,10 +2,10 @@
  * @file SystemAuthorizationSnapshot.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 汇总当前系统用户实时查询得到的角色、权限和菜单。
- * @logic Controller 和 Sa-Token 授权适配器共享同一服务结果，确保 RBAC 数据来源唯一。
- * @dependencies SystemUserProfile、SystemMenuNode、Java 标准库
- * @index_tags rbac、authorization、api
+ * @description Aggregates a system user's cached database-derived roles, permissions, and page-menu tree.
+ * @logic Current-user endpoints and API-filter authorization share the same projection source while the cache owns its bounded refresh interval.
+ * @dependencies SystemUserProfile, SystemMenuNode, Java Standard Library
+ * @index_tags rbac, authorization, api, cache
  * @author holic512
  */
 package com.pipker.business.api.common.model;

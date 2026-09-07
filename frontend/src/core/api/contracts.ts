@@ -48,7 +48,7 @@ export interface SystemMenuNode {
   id: number
   parentId: number | null
   name: string
-  type: 'DIRECTORY' | 'MENU' | 'BUTTON'
+  type: 'DIRECTORY' | 'MENU'
   path: string | null
   routeName: string | null
   componentKey: string | null

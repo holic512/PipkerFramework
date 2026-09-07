@@ -62,13 +62,14 @@ Authorization: Bearer <accessToken>
 
 ## 数据库菜单与组件键
 
-`/api/auth/me` 的菜单树提供 `type`、`path`、`routeName`、`componentKey`、`permission` 与 `children`。路由器只处理满足下列条件的 `MENU` 节点：
+`/api/auth/me` 的菜单树提供 `type`、`path`、`routeName`、`componentKey`、`permission` 与 `children`。`permission` 固定为后端授予的 `PAGE` 权限。路由器只处理满足下列条件的 `MENU` 节点：
 
 ```text
 type === MENU
 path 非空
 routeName 非空
 componentKey 非空
+permission 非空
 ```
 
 路由器使用：
@@ -83,13 +84,9 @@ import.meta.glob('../modules/**/index.vue')
 system/overview/index  →  src/modules/system/overview/index.vue
 ```
 
-未找到对应组件的菜单不会被伪造成静态页面：它会被跳过，并只在开发环境输出诊断。退出登录或授权刷新时，前一份数据库菜单注册的路由会被移除。要新增页面，应先增加 Vue 组件，再通过后端的 Liquibase 增量 changeset 增加菜单、角色菜单关系和所需权限；本期不提供管理端 CRUD 页面。
+未找到对应组件的菜单不会被伪造成静态页面：它会被跳过，并只在开发环境输出诊断。退出登录或授权刷新时，前一份数据库菜单注册的路由会被移除；导航守卫还会检查路由的 `PAGE` 权限。要新增页面，应先增加 Vue 组件，再通过后端的 Liquibase 增量 changeset 增加菜单、`PAGE` 权限和角色权限关联；本期不提供管理端 CRUD 页面，也不实现按钮级权限控制。
 
-`AppLayout` 仅渲染会话 Store 中的菜单，不再硬编码“系统概览”导航。
-
-## 开发 Route Manifest
-
-当后端显式设置 `pipker.dev.route-manifest.enabled=true` 时，匿名 `GET /api/_dev/routes` 返回当前菜单的最小路由投影：`path`、`name`、`componentKey`、`permission`。它是开发工具辅助接口，不是前端路由的来源；生产默认关闭，关闭时后端未注册该 Controller，访问结果是 HTTP 404。
+`AppLayout` 仅渲染会话 Store 中的菜单，不再硬编码“系统概览”导航。后端不再提供开发 Route Manifest；页面数据唯一来自已登录用户的 `/api/auth/me`。
 
 ## 本地运行与构建
 
@@ -107,4 +104,4 @@ npm run dev
 npm run build
 ```
 
-部署时，反向代理需要转发 `/api` 和 `/files/**` 到后端，并为 Vue Router 的 History 模式将未知**前端**路径回退到 `index.html`。后端关闭的 `/api/_dev/routes` 仍应转发，让它保持服务端真实的 404 语义。
+部署时，反向代理需要转发 `/api` 和 `/files/**` 到后端，并为 Vue Router 的 History 模式将未知**前端**路径回退到 `index.html`。

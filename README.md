@@ -1,14 +1,15 @@
 # Pipker Framework
 
-Pipker Framework 是一个由 Spring Boot 后端与 Vue 前端组成的后台基础框架。当前第一阶段交付的是系统账户、实时 RBAC、Liquibase 数据库演进、Bearer 会话和数据库菜单驱动的动态路由；它刻意不包含商家、订单、商品、客户等业务实体。
+Pipker Framework 是一个由 Spring Boot 后端与 Vue 前端组成的后台基础框架。当前第一阶段交付的是系统账户、数据库驱动 RBAC、Liquibase 数据库演进、Bearer 会话和数据库菜单驱动的动态路由；它刻意不包含商家、订单、商品、客户等业务实体。
 
 ## 本期能力与边界
 
 - `system_` 前缀的 Liquibase 系统表，以及由 changeset 管理的唯一初始管理员。
-- 统一的 `SYSTEM` 登录域，实时查询的用户—角色—权限—菜单 RBAC 关系和 Sa-Token 权限校验。
-- `POST /api/auth/login`、`GET /api/auth/me`、`GET /api/admin/authorization` 与受配置控制的开发 Route Manifest。
-- `{ code, data, message }` 统一响应，已注册 API 的业务失败保持 HTTP 200；关闭 Route Manifest 时，该 Controller 不注册并返回 HTTP 404。
-- 前端登录页、`sessionStorage` Bearer 令牌、授权恢复和由数据库菜单唯一驱动的 Vue 路由。
+- 统一的 `SYSTEM` 登录域；用户—角色—权限 RBAC 由数据库裁决，`SUPER_ADMIN` 自动拥有全部启用权限。
+- `PAGE` 权限控制数据库菜单对应的页面路由，`API` 权限通过 `HTTP 方法 + MVC 路径模板` 的数据库资源映射控制后端接口。
+- Sa-Token Filter 统一执行认证和数据库 API 权限校验：匿名白名单以外的 `/api/**` 未登记或未授权即拒绝；用户快照和 API 规则使用本地 60 秒 TTL 缓存。
+- `POST /api/auth/login`、`GET /api/auth/me`、`GET /api/admin/authorization` 与 `{ code, data, message }` 统一响应；已注册 API 的业务失败保持 HTTP 200。
+- 前端登录页、`sessionStorage` Bearer 令牌、授权恢复和仅由已授权菜单生成的 Vue 页面路由；不提供按钮级权限控制。
 - 默认启用的本地文件持久化：后端服务保存后获得不含域名的 `/files/...` 相对访问路径，公开读取接口不提供 HTTP 上传。
 
 本期明确**不提供**用户、角色、权限或菜单 CRUD API/页面，也不创建任何业务表。后续业务身份应通过新增 `system_role.role_code` 和新的 Liquibase 增量 changeset 演进。
@@ -23,6 +24,7 @@ PipkerFramework/
 
 - 后端模块边界、数据库 Profile、API 契约和安全说明见 [backend/README.md](backend/README.md)。
 - 前端会话、动态组件键和本地运行方式见 [frontend/README.md](frontend/README.md)。
+- 角色、页面、接口资源与缓存生效规则见 [docs/2.权限配置说明.md](docs/2.权限配置说明.md)。
 
 ## 快速开始（本地开发）
 
@@ -77,4 +79,4 @@ cd frontend
 npm run build
 ```
 
-后端集成测试使用 H2 验证 Liquibase 空库初始化、种子幂等性、密码不以明文保存、认证/RBAC、动态菜单和 Route Manifest。MySQL 或 PostgreSQL 是实际部署数据库；Docker/Testcontainers 不是本项目测试前置条件。
+后端集成测试使用 H2 与 SQLite 验证 Liquibase 空库初始化、种子幂等性、密码不以明文保存、数据库 API 过滤器、页面菜单和本地授权缓存行为。MySQL 或 PostgreSQL 是实际部署数据库；Docker/Testcontainers 不是本项目测试前置条件。

@@ -41,9 +41,9 @@ backend/
 | `system_role.role_code` | 如 `SUPER_ADMIN`、`ADMIN` | 授权分组 | 登录域或独立 StpLogic |
 | `LoginType` | 固定 `SYSTEM` | 编码 Sa-Token 登录身份 | 用户角色或菜单权限 |
 
-所有账户都使用默认 `StpUtil` 创建 `LoginIdentity(SYSTEM, userId)` 会话。业务 API `system/auth` 中的 `SystemStpInterface` 每次权限或角色检查都从数据库读取最新关联；没有按角色划分的 `StpLogic`，也没有首期缓存。
+所有账户都使用默认 `StpUtil` 创建 `LoginIdentity(SYSTEM, userId)` 会话。Sa-Token Filter 对 `/api/**` 先执行登录校验，再把非匿名请求交给业务层的数据库 API 授权服务；项目不使用 `@SaCheck*` 注解、独立 `StpLogic` 或 Controller 内手写权限检查。
 
-`SUPER_ADMIN` 的特殊语义只集中在 `SystemAuthorizationService`：拥有全部启用权限和可见菜单。普通账户通过用户角色关联合并权限和菜单。数据库直接修改权限、菜单或关联关系后，下一次请求即可生效。
+`SUPER_ADMIN` 的特殊语义只集中在 `SystemAuthorizationService`：拥有全部**启用**的 `PAGE` 和 `API` 权限。普通账户合并其所有启用角色的显式权限。用户授权快照和全部启用 API 资源规则都使用 Caffeine 进程内 60 秒 TTL 缓存；直接改库后，变更会在每个实例的缓存到期后生效。详细配置见 [../docs/2.权限配置说明.md](../docs/2.权限配置说明.md)。
 
 ## 数据库与 Liquibase
 
@@ -60,7 +60,8 @@ pipker-business/pipker-business-api/src/main/resources/db/changelog/
     ├── 005-system-role-permission.yaml
     ├── 006-system-menu.yaml
     ├── 007-system-role-menu.yaml
-    └── 008-system-init-data.yaml
+    ├── 008-system-init-data.yaml
+    └── 009-system-database-rbac.yaml
 ```
 
 Liquibase 的 `DATABASECHANGELOG` 记录已执行 changeset；重复启动不会重复建表或写入种子数据。所有框架业务表均以 `system_` 开头：
@@ -69,15 +70,15 @@ Liquibase 的 `DATABASECHANGELOG` 记录已执行 changeset；重复启动不会
 | --- | --- |
 | `system_user` | 系统登录账户、`password_hash`、状态、最后登录时间及审计字段 |
 | `system_role` | 角色编码、名称、状态和排序 |
-| `system_permission` | `API` / `BUTTON` 类型权限编码 |
-| `system_menu` | 目录、菜单或按钮；自关联 `parent_id`、路由与逻辑 `component_key` |
+| `system_permission` | `PAGE` / `API` 类型权限编码 |
+| `system_menu` | 目录或页面菜单；自关联 `parent_id`、路由与逻辑 `component_key` |
 | `system_user_role` | 用户与角色的联合主键关联 |
 | `system_role_permission` | 角色与权限的联合主键关联 |
-| `system_role_menu` | 角色与菜单的联合主键关联 |
+| `system_api_resource` | `API` 权限与 `HTTP 方法 + MVC 路径模板` 的联合唯一映射 |
 
-MySQL、PostgreSQL 和 H2 使用上面的通用 changelog。SQLite 使用单独的 `db/changelog/sqlite/` changelog：它在建表阶段直接声明外键、联合主键、唯一约束和检查约束，以适配 SQLite 不支持后置 `addForeignKeyConstraint`、`addUniqueConstraint` 的限制。两套 changelog 保持相同的表结构和初始数据，已有 MySQL/PostgreSQL 数据库的 Liquibase 历史不受影响。
+MySQL、PostgreSQL 和 H2 使用上面的通用 changelog。SQLite 使用单独的 `db/changelog/sqlite/` changelog：它在建表阶段直接声明外键、联合主键、唯一约束和检查约束，以适配 SQLite 不支持后置 `addForeignKeyConstraint`、`addUniqueConstraint` 的限制。`009-system-database-rbac` 会删除历史 `system_role_menu` 和 `BUTTON` 数据，并在 SQLite 中重建受 CHECK 约束影响的表；两套 changelog 保持同一目标表结构，已有数据库只新增 009 之后的变化。
 
-初始数据只有 `SUPER_ADMIN`、`ADMIN`、最小框架权限、系统目录和 `system/overview/index` 菜单。不存在 `MERCHANT`、`USER` 或任何业务表。唯一初始管理员由 Liquibase 写入：`admin / admin123`，数据库只保存当前 `SecurityCryptoService` 可验证的 `{bcrypt}` 密码哈希。
+初始数据只有 `SUPER_ADMIN`、`ADMIN`、系统概览 `PAGE` 权限、当前授权与后台授权读取 `API` 权限、系统目录和 `system/overview/index` 菜单。`SUPER_ADMIN` 无需角色权限关联，`ADMIN` 显式拥有上述最小权限。不存在 `MERCHANT`、`USER` 或任何业务表。唯一初始管理员由 Liquibase 写入：`admin / admin123`，数据库只保存当前 `SecurityCryptoService` 可验证的 `{bcrypt}` 密码哈希。
 
 > 安全警告：默认管理员口令只可用于首次本地初始化。公开部署前必须立即更换为受控的 `{bcrypt}` 哈希；不要把 `admin123` 用于共享或生产数据库。首期没有密码重置、随机 Bootstrap 密码或 `system_bootstrap_state` 表。
 
@@ -199,11 +200,10 @@ Authorization: Bearer <accessToken>
 | --- | --- | --- |
 | `GET /api/ping` | 匿名 | 包装后的健康文本 |
 | `POST /api/auth/login` | 匿名 | `accessToken`、`tokenType: Bearer` 和不含密码/电话/邮箱的用户资料 |
-| `GET /api/auth/me` | 已登录 | 当前用户、角色编码、权限编码和数据库菜单树 |
-| `GET /api/admin/authorization` | 已登录且具备 `system:authorization:read` | 当前授权投影；`/api/admin/**` 权限保护基线 |
-| `GET /api/_dev/routes` | 仅开发开关启用时匿名 | 当前菜单的 `path`、`name`、`componentKey`、`permission` |
+| `GET /api/auth/me` | 已登录且具备 `system:auth:me` | 当前用户、角色编码、权限编码和数据库页面菜单树 |
+| `GET /api/admin/authorization` | 已登录且具备 `system:authorization:read` | 当前授权投影 |
 
-Sa-Token 显式放行 `GET /api/ping`、`POST /api/auth/login` 和 `GET /api/_dev/routes`。Route Manifest 由 `pipker.dev.route-manifest.enabled=true` 通过条件化 Controller 注册；关闭时 Controller 根本不存在，所以该 URL 保持标准 HTTP `404`，而不是统一业务错误。开启后它实时读取数据库，且绝不返回账户、令牌、密码、Redis 或加密数据。
+Sa-Token 只显式放行 `GET /api/ping` 和 `POST /api/auth/login`。其他 `/api/**` 请求必须先登录，并且必须唯一命中 `system_api_resource` 中的启用 `API` 资源映射；无映射、HTTP 方法不匹配、路径模板重叠或权限不足都返回 `AUTH_FORBIDDEN`。Filter 本身从不依赖 Controller 注解；开发 Route Manifest 已删除，前端唯一的页面路由来源是 `/api/auth/me`。
 
 ## 本地构建与测试
 
@@ -213,4 +213,4 @@ Sa-Token 显式放行 `GET /api/ping`、`POST /api/auth/login` 和 `GET /api/_de
 mvn clean test
 ```
 
-Server 集成测试使用 H2 和 SQLite 空库：H2 回归验证通用 changelog、认证/RBAC、动态菜单和 Route Manifest；SQLite 验证 SQLite 专用 changelog、七张 `system_` 表、约束、种子数据以及重复执行幂等性。H2 为兼容 `system_user` 标识符仅在测试连接中设置 `NON_KEYWORDS=SYSTEM_USER`；不影响 MySQL、PostgreSQL 与 SQLite 的实际表名。
+Server 集成测试使用 H2 和 SQLite 空库：H2 回归验证通用 changelog、数据库 API 过滤器、角色并集、页面菜单和本地缓存；SQLite 验证 SQLite 专用 changelog、七张目标 `system_` 表、约束、种子数据以及重复执行幂等性。H2 为兼容 `system_user` 标识符仅在测试连接中设置 `NON_KEYWORDS=SYSTEM_USER`；不影响 MySQL、PostgreSQL 与 SQLite 的实际表名。

@@ -1,0 +1,141 @@
+# @file db/changelog/sqlite/system/009-system-database-rbac.yaml
+# @project Pipker Framework
+# @module Pipker Business API
+# @description SQLite migration that replaces button and role-menu authorization with PAGE permissions and database API resources.
+# @logic Rebuilds the two CHECK-constrained tables while foreign keys are disabled, removes obsolete authorization data, then seeds page/API permissions and MVC resource mappings.
+# @dependencies Liquibase, SQLite, system_permission, system_menu, system_role_permission
+# @index_tags liquibase, sqlite, rbac, api-resource, migration
+# @author holic512
+databaseChangeLog:
+  - changeSet:
+      id: 009-system-database-rbac-sqlite
+      author: holic512
+      runInTransaction: false
+      changes:
+        - sql:
+            splitStatements: true
+            sql: |
+              PRAGMA foreign_keys = OFF;
+
+              DROP TABLE system_role_menu;
+
+              DELETE FROM system_role_permission
+              WHERE permission_id IN (
+                SELECT id FROM system_permission WHERE permission_type = 'BUTTON'
+              );
+
+              CREATE TABLE system_permission_replacement (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                permission_code VARCHAR(128) NOT NULL,
+                permission_name VARCHAR(100) NOT NULL,
+                permission_type VARCHAR(16) NOT NULL,
+                description VARCHAR(500),
+                status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                CONSTRAINT uk_system_permission_code UNIQUE (permission_code),
+                CONSTRAINT ck_system_permission_type CHECK (permission_type IN ('API', 'PAGE'))
+              );
+
+              INSERT INTO system_permission_replacement (
+                id, permission_code, permission_name, permission_type, description, status, created_at, updated_at
+              )
+              SELECT id, permission_code, permission_name, permission_type, description, status, created_at, updated_at
+              FROM system_permission
+              WHERE permission_type <> 'BUTTON';
+
+              CREATE TABLE system_menu_replacement (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                parent_id BIGINT,
+                menu_name VARCHAR(100) NOT NULL,
+                menu_type VARCHAR(16) NOT NULL,
+                route_path VARCHAR(255),
+                route_name VARCHAR(100),
+                component_key VARCHAR(255),
+                icon VARCHAR(100),
+                sort INT NOT NULL DEFAULT 0,
+                visible BOOLEAN NOT NULL DEFAULT 1,
+                status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
+                permission_code VARCHAR(128),
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL,
+                CONSTRAINT uk_system_menu_route_path UNIQUE (route_path),
+                CONSTRAINT uk_system_menu_route_name UNIQUE (route_name),
+                CONSTRAINT ck_system_menu_type CHECK (menu_type IN ('DIRECTORY', 'MENU')),
+                CONSTRAINT fk_system_menu_parent FOREIGN KEY (parent_id)
+                  REFERENCES system_menu (id) ON DELETE CASCADE,
+                CONSTRAINT fk_system_menu_permission_code FOREIGN KEY (permission_code)
+                  REFERENCES system_permission (permission_code)
+              );
+
+              INSERT INTO system_menu_replacement (
+                id, parent_id, menu_name, menu_type, route_path, route_name, component_key, icon,
+                sort, visible, status, permission_code, created_at, updated_at
+              )
+              SELECT id, parent_id, menu_name, menu_type, route_path, route_name, component_key, icon,
+                     sort, visible, status, permission_code, created_at, updated_at
+              FROM system_menu
+              WHERE menu_type <> 'BUTTON'
+                AND (permission_code IS NULL OR permission_code NOT IN (
+                  SELECT permission_code FROM system_permission WHERE permission_type = 'BUTTON'
+                ));
+
+              DROP TABLE system_menu;
+              ALTER TABLE system_menu_replacement RENAME TO system_menu;
+
+              DROP TABLE system_permission;
+              ALTER TABLE system_permission_replacement RENAME TO system_permission;
+
+              CREATE INDEX idx_system_menu_parent_id ON system_menu (parent_id);
+
+              INSERT OR IGNORE INTO system_permission (permission_code, permission_name, permission_type, description, status, created_at, updated_at)
+              VALUES ('system:overview:page', '访问系统概览', 'PAGE', '访问系统概览页面路由', 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+              UPDATE system_menu
+              SET permission_code = 'system:overview:page'
+              WHERE permission_code = 'system:menu:list';
+
+              DELETE FROM system_role_permission
+              WHERE permission_id IN (
+                SELECT id FROM system_permission WHERE permission_code = 'system:menu:list'
+              );
+
+              DELETE FROM system_permission
+              WHERE permission_code = 'system:menu:list';
+
+              INSERT OR IGNORE INTO system_permission (permission_code, permission_name, permission_type, description, status, created_at, updated_at)
+              VALUES ('system:auth:me', '读取当前授权信息', 'API', '读取当前登录用户的角色、权限和页面菜单', 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+              DELETE FROM system_role_permission
+              WHERE role_id IN (SELECT id FROM system_role WHERE role_code = 'SUPER_ADMIN');
+
+              INSERT OR IGNORE INTO system_role_permission (role_id, permission_id)
+              SELECT r.id, p.id
+              FROM system_role r
+              JOIN system_permission p ON p.permission_code IN (
+                'system:overview:page', 'system:auth:me', 'system:authorization:read'
+              )
+              WHERE r.role_code = 'ADMIN';
+
+              CREATE TABLE system_api_resource (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                permission_id BIGINT NOT NULL,
+                http_method VARCHAR(16) NOT NULL,
+                path_pattern VARCHAR(255) NOT NULL,
+                CONSTRAINT uk_system_api_resource_method_path UNIQUE (http_method, path_pattern),
+                CONSTRAINT fk_system_api_resource_permission FOREIGN KEY (permission_id)
+                  REFERENCES system_permission (id) ON DELETE CASCADE
+              );
+
+              CREATE INDEX idx_system_api_resource_permission_id
+                ON system_api_resource (permission_id);
+
+              INSERT INTO system_api_resource (permission_id, http_method, path_pattern)
+              SELECT id, 'GET', '/api/auth/me'
+              FROM system_permission WHERE permission_code = 'system:auth:me';
+
+              INSERT INTO system_api_resource (permission_id, http_method, path_pattern)
+              SELECT id, 'GET', '/api/admin/authorization'
+              FROM system_permission WHERE permission_code = 'system:authorization:read';
+
+              PRAGMA foreign_keys = ON;

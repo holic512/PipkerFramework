@@ -6,8 +6,3 @@ spring:
     driver-class-name: org.h2.Driver
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
-
-pipker:
-  dev:
-    route-manifest:
-      enabled: false

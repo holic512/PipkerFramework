@@ -46,7 +46,9 @@ pipker:
       public-routes:
         - GET /api/ping
         - POST /api/auth/login
-        - GET /api/_dev/routes
+      database-authorization-required: true
+      authorization-cache-ttl: 60s
+      authorization-cache-maximum-size: 10000
     crypto:
       password:
         algorithm: bcrypt
@@ -59,6 +61,3 @@ pipker:
         aes-gcm-key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
         rsa-oaep-public-key:
         rsa-oaep-private-key:
-  dev:
-    route-manifest:
-      enabled: false

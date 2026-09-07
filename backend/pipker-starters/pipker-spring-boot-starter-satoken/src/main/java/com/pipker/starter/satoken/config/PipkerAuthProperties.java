@@ -1,12 +1,12 @@
 /**
- * 文件：PipkerAuthProperties.java
- * 项目：Pipker Framework
- * 模块：Pipker Spring Boot Starter Sa-Token
- * 说明：从外部配置绑定 Pipker 的认证路由和会话存储设置。
- * 处理逻辑：选择唯一的会话后端，定义受保护路径集合以及按 HTTP 方法区分的匿名 API 路由。
- * 依赖：Spring Boot Configuration Properties、Jakarta Validation
- * 检索关键词：starter、sa-token、配置、认证、路由
- * 作者：holic512
+ * @file PipkerAuthProperties.java
+ * @project Pipker Framework
+ * @module Pipker Sa-Token Starter
+ * @description Binds session, route authentication, database-authorization, and local-cache settings.
+ * @logic Selects one session store, identifies protected and anonymous routes, and opts applications into database-backed API authorization.
+ * @dependencies Spring Boot Configuration Properties, Jakarta Validation
+ * @index_tags starter, sa-token, configuration, authentication, authorization, cache
+ * @author holic512
  */
 package com.pipker.starter.satoken.config;
 
@@ -15,6 +15,7 @@ import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -42,6 +43,22 @@ public class PipkerAuthProperties {
      * 按 {@code METHOD path} 格式声明的匿名路由。
      */
     private List<String> publicRoutes = new ArrayList<>(List.of("GET /api/ping"));
+
+    /**
+     * 是否要求业务层为已认证 API 提供数据库授权判定。
+     */
+    private boolean databaseAuthorizationRequired;
+
+    /**
+     * 数据库 API 规则和用户授权快照的本地缓存有效期。
+     */
+    @NotNull
+    private Duration authorizationCacheTtl = Duration.ofSeconds(60);
+
+    /**
+     * 每个本地授权缓存允许保留的最大条目数。
+     */
+    private long authorizationCacheMaximumSize = 10_000;
 
     /**
      * 返回会话存储后端。
@@ -95,6 +112,60 @@ public class PipkerAuthProperties {
      */
     public void setPublicRoutes(List<String> publicRoutes) {
         this.publicRoutes = publicRoutes;
+    }
+
+    /**
+     * 返回是否强制启用数据库 API 授权。
+     *
+     * @return 启用时必须提供授权服务
+     */
+    public boolean isDatabaseAuthorizationRequired() {
+        return databaseAuthorizationRequired;
+    }
+
+    /**
+     * 设置是否强制启用数据库 API 授权。
+     *
+     * @param databaseAuthorizationRequired 是否强制启用
+     */
+    public void setDatabaseAuthorizationRequired(boolean databaseAuthorizationRequired) {
+        this.databaseAuthorizationRequired = databaseAuthorizationRequired;
+    }
+
+    /**
+     * 返回本地授权缓存有效期。
+     *
+     * @return 本地缓存有效期
+     */
+    public Duration getAuthorizationCacheTtl() {
+        return authorizationCacheTtl;
+    }
+
+    /**
+     * 设置本地授权缓存有效期。
+     *
+     * @param authorizationCacheTtl 本地缓存有效期
+     */
+    public void setAuthorizationCacheTtl(Duration authorizationCacheTtl) {
+        this.authorizationCacheTtl = authorizationCacheTtl;
+    }
+
+    /**
+     * 返回每个授权缓存的最大条目数。
+     *
+     * @return 最大条目数
+     */
+    public long getAuthorizationCacheMaximumSize() {
+        return authorizationCacheMaximumSize;
+    }
+
+    /**
+     * 设置每个授权缓存的最大条目数。
+     *
+     * @param authorizationCacheMaximumSize 最大条目数
+     */
+    public void setAuthorizationCacheMaximumSize(long authorizationCacheMaximumSize) {
+        this.authorizationCacheMaximumSize = authorizationCacheMaximumSize;
     }
 
     /**

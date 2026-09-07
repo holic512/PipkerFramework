@@ -2,10 +2,10 @@
  * @file AuthController.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 提供系统用户登录和当前授权信息读取接口。
- * @logic 登录由匿名路由放行；当前信息通过 Sa-Token 会话解析并从数据库实时读取 RBAC 数据。
- * @dependencies SystemAuthenticationService、CurrentSystemAuthorizationService、Spring Web MVC
- * @index_tags controller、auth、rbac
+ * @description Provides system-user login and current authorization projection endpoints.
+ * @logic Login is explicitly anonymous; the protected current-user endpoint resolves the database RBAC snapshot through the shared local authorization cache.
+ * @dependencies SystemAuthenticationService, CurrentSystemAuthorizationService, Spring Web MVC
+ * @index_tags controller, auth, rbac, cache
  * @author holic512
  */
 package com.pipker.business.api.system.auth;

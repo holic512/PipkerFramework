@@ -56,7 +56,7 @@ async function submit(): Promise<void> {
       <p class="login-page__eyebrow">PIPKER / SYSTEM ACCESS</p>
       <h1 id="login-heading">让授权来自<br />正在运行的系统。</h1>
       <p class="login-page__copy">
-        登录后，服务端会实时返回当前账户的角色、权限与可见菜单。前端只装载这些已授权的页面。
+        登录后，服务端会返回当前账户的角色、权限与可见菜单。前端只装载这些已授权的页面。
       </p>
       <dl class="login-page__principles">
         <div>
@@ -65,7 +65,7 @@ async function submit(): Promise<void> {
         </div>
         <div>
           <dt>02</dt>
-          <dd>数据库实时 RBAC</dd>
+          <dd>数据库驱动 RBAC</dd>
         </div>
         <div>
           <dt>03</dt>

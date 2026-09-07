@@ -2,16 +2,14 @@
  * @file ApiExceptionHandler.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 将 Controller、参数校验与 Sa-Token 授权失败统一映射为 code/data/message 响应。
- * @logic 所有已注册 API 保持 HTTP 200，调用方根据稳定业务编码而非 HTTP 状态分支。
- * @dependencies ApiResponse、ApiBusinessException、Sa-Token、Spring Web MVC
- * @index_tags api、exception、response
+ * @description Maps controller and request-validation failures to the code/data/message response envelope.
+ * @logic Registered controller APIs keep HTTP 200 for business failures; Sa-Token filter authorization failures are rendered before controller dispatch.
+ * @dependencies ApiResponse, ApiBusinessException, Spring Web MVC
+ * @index_tags api, exception, response
  * @author holic512
  */
 package com.pipker.business.api.common.web;
 
-import cn.dev33.satoken.exception.NotPermissionException;
-import cn.dev33.satoken.exception.NotRoleException;
 import com.pipker.business.common.api.ApiResponse;
 import com.pipker.business.common.api.CommonApiCode;
 import com.pipker.business.common.exception.ApiBusinessException;
@@ -73,17 +71,6 @@ public class ApiExceptionHandler {
     })
     public ResponseEntity<ApiResponse<Void>> handleRequestValidation(Exception exception) {
         return ResponseEntity.ok(ApiResponse.failure(CommonApiCode.VALIDATION_FAILED));
-    }
-
-    /**
-     * 返回 Sa-Token 权限和角色校验失败。
-     *
-     * @param exception Sa-Token 授权异常
-     * @return 统一失败响应
-     */
-    @ExceptionHandler({NotPermissionException.class, NotRoleException.class})
-    public ResponseEntity<ApiResponse<Void>> handleForbidden(RuntimeException exception) {
-        return ResponseEntity.ok(ApiResponse.failure(CommonApiCode.AUTH_FORBIDDEN));
     }
 
     /**

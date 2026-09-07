@@ -78,7 +78,7 @@ class SqliteDatabaseConfigurationTests {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM databasechangelog",
                 Integer.class
-        )).isEqualTo(8);
+        )).isEqualTo(9);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM system_user WHERE username = 'admin'",
                 Integer.class
@@ -92,6 +92,14 @@ class SqliteDatabaseConfigurationTests {
                 .contains("PRIMARY KEY (user_id, role_id)")
                 .contains("FOREIGN KEY (user_id)")
                 .contains("FOREIGN KEY (role_id)");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'system_role_menu'",
+                Integer.class
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'system_api_resource'",
+                Integer.class
+        )).isEqualTo(1);
     }
 
     @Test
@@ -101,7 +109,7 @@ class SqliteDatabaseConfigurationTests {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM databasechangelog",
                 Integer.class
-        )).isEqualTo(8);
+        )).isEqualTo(9);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM system_user WHERE username = 'admin'",
                 Integer.class

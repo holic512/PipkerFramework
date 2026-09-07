@@ -2,10 +2,10 @@
  * @file CurrentSystemAuthorizationService.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 将当前 Sa-Token 会话身份解析为 system_user 的授权快照。
- * @logic 仅接受 SYSTEM 登录域和数字用户 ID，再委托实时授权服务获取角色、权限和菜单。
- * @dependencies AuthSessionService、SystemAuthorizationService、ApiBusinessException
- * @index_tags auth、rbac、current-user
+ * @description Resolves the current Sa-Token identity into the system user's cached database authorization snapshot.
+ * @logic Accepts only the SYSTEM login domain and numeric user IDs, then delegates to the shared authorization cache-backed service.
+ * @dependencies AuthSessionService, SystemAuthorizationService, ApiBusinessException
+ * @index_tags auth, rbac, current-user, cache
  * @author holic512
  */
 package com.pipker.business.api.system.auth;

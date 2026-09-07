@@ -2,10 +2,10 @@
  * @file SystemAuthorizationService.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 聚合系统用户的实时角色、权限、菜单和开发路由数据。
- * @logic 普通用户读取关联授权，SUPER_ADMIN 集中读取全部启用权限和菜单，并将扁平菜单组装为有序树。
- * @dependencies SystemAccountService、SystemAuthorizationMapper、SystemMenu、Spring Framework
- * @index_tags rbac、authorization、system-menu
+ * @description Aggregates the cached role, permission, and page-menu projection for a system user.
+ * @logic Gives SUPER_ADMIN all enabled permissions, unions enabled roles for other users, filters page menus by PAGE permissions, and retains each selected page's visible parent directories.
+ * @dependencies SystemAccountService, SystemAuthorizationMapper, SystemAuthorizationCache, SystemMenu
+ * @index_tags rbac, authorization, system-menu, cache
  * @author holic512
  */
 package com.pipker.business.api.system.authorization;
@@ -20,8 +20,10 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 系统 RBAC 授权查询服务。
@@ -36,19 +38,23 @@ public class SystemAuthorizationService {
 
     private final SystemAccountService systemAccountService;
     private final SystemAuthorizationMapper systemAuthorizationMapper;
+    private final SystemAuthorizationCache systemAuthorizationCache;
 
     /**
      * 创建授权服务。
      *
      * @param systemAccountService 系统账户服务
      * @param systemAuthorizationMapper 授权关联 Mapper
+     * @param systemAuthorizationCache 授权本地缓存
      */
     public SystemAuthorizationService(
             SystemAccountService systemAccountService,
-            SystemAuthorizationMapper systemAuthorizationMapper
+            SystemAuthorizationMapper systemAuthorizationMapper,
+            SystemAuthorizationCache systemAuthorizationCache
     ) {
         this.systemAccountService = systemAccountService;
         this.systemAuthorizationMapper = systemAuthorizationMapper;
+        this.systemAuthorizationCache = systemAuthorizationCache;
     }
 
     /**
@@ -58,6 +64,16 @@ public class SystemAuthorizationService {
      * @return 授权投影；账户不存在或禁用时返回 {@code null}
      */
     public SystemAuthorizationSnapshot findSnapshot(long userId) {
+        return systemAuthorizationCache.getSnapshot(userId, this::loadSnapshot);
+    }
+
+    /**
+     * 从数据库加载单个用户的授权快照，由本地缓存负责复用和过期。
+     *
+     * @param userId 用户主键
+     * @return 授权投影；账户不存在或禁用时返回 {@code null}
+     */
+    private SystemAuthorizationSnapshot loadSnapshot(long userId) {
         SystemUser user = systemAccountService.findById(userId);
         if (user == null || !user.isEnabled()) {
             return null;
@@ -68,32 +84,42 @@ public class SystemAuthorizationService {
         List<String> permissions = superAdmin
                 ? systemAuthorizationMapper.findAllEnabledPermissionCodes()
                 : systemAuthorizationMapper.findPermissionCodesByUserId(userId);
-        List<SystemMenu> menus = superAdmin
-                ? systemAuthorizationMapper.findAllVisibleMenus()
-                : systemAuthorizationMapper.findVisibleMenusByUserId(userId);
 
         return new SystemAuthorizationSnapshot(
                 SystemUserProfile.from(user),
                 roles,
                 List.copyOf(permissions),
-                buildMenuTree(menus)
+                buildMenuTree(findMenusForPermissions(permissions))
         );
     }
 
     /**
-     * 查询框架当前全部可装载的动态路由。
+     * 根据 PAGE 权限选出页面菜单，并将每个页面的可见父目录补入菜单树。
      *
-     * @return 开发辅助路由列表
+     * @param permissionCodes 当前用户全部权限编码
+     * @return 已授权页面与其父目录的扁平菜单
      */
-    public List<SystemRouteManifestItem> findRouteManifest() {
-        return systemAuthorizationMapper.findAllVisibleMenus().stream()
-                .filter(SystemMenu::isRouteMenu)
-                .map(menu -> new SystemRouteManifestItem(
-                        menu.routePath(),
-                        menu.routeName(),
-                        menu.componentKey(),
-                        menu.permissionCode()
-                ))
+    private List<SystemMenu> findMenusForPermissions(List<String> permissionCodes) {
+        if (permissionCodes.isEmpty()) {
+            return List.of();
+        }
+        List<SystemMenu> allVisibleMenus = systemAuthorizationMapper.findAllVisibleMenus();
+        Map<Long, SystemMenu> menusById = new HashMap<>();
+        for (SystemMenu menu : allVisibleMenus) {
+            menusById.put(menu.id(), menu);
+        }
+
+        Set<Long> includedMenuIds = new HashSet<>();
+        for (SystemMenu pageMenu : systemAuthorizationMapper
+                .findVisiblePageMenusByPermissionCodes(permissionCodes)) {
+            SystemMenu current = pageMenu;
+            while (current != null && includedMenuIds.add(current.id())) {
+                Long parentId = current.parentId();
+                current = parentId == null ? null : menusById.get(parentId);
+            }
+        }
+        return allVisibleMenus.stream()
+                .filter(menu -> includedMenuIds.contains(menu.id()))
                 .toList();
     }
 

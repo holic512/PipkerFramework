@@ -4,6 +4,7 @@ import com.pipker.business.common.api.ApiCode;
 import com.pipker.business.common.api.ApiResponse;
 import com.pipker.business.common.api.CommonApiCode;
 import com.pipker.business.common.exception.ApiBusinessException;
+import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
 import com.pipker.starter.security.service.SecurityCryptoService;
 import liquibase.integration.spring.SpringLiquibase;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,9 @@ class PipkerApplicationTests {
     @Autowired
     private SpringLiquibase springLiquibase;
 
+    @Autowired
+    private SystemAuthorizationCache systemAuthorizationCache;
+
     @Test
     void liquibaseCreatesOnlyFrameworkSystemTablesAndExecutesChangesetsOnce() throws Exception {
         Set<String> tableNames = jdbcTemplate.queryForList(
@@ -59,7 +63,7 @@ class PipkerApplicationTests {
                 "system_permission",
                 "system_role_permission",
                 "system_menu",
-                "system_role_menu"
+                "system_api_resource"
         );
         assertThat(tableNames).allMatch(name -> name.startsWith("system_"));
         int executedChangesets = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM databasechangelog", Integer.class);
@@ -146,7 +150,7 @@ class PipkerApplicationTests {
     }
 
     @Test
-    void multipleRolesAreReportedAndRoleWithoutPermissionCannotReadAdminAuthorization() throws Exception {
+    void databaseApiAuthorizationRequiresAnExplicitPermissionAndRefreshesAfterLocalCacheInvalidation() throws Exception {
         insertUser("ordinary", "ordinary-password");
         insertRole("NO_PERMISSION", 300);
         jdbcTemplate.update("""
@@ -165,6 +169,14 @@ class PipkerApplicationTests {
                 SELECT r.id, p.id FROM system_role r, system_permission p
                 WHERE r.role_code = 'NO_PERMISSION' AND p.permission_code = 'system:authorization:read'
                 """);
+        mockMvc.perform(get("/api/admin/authorization").header(AUTHORIZATION, "Bearer " + ordinaryToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(CommonApiCode.AUTH_FORBIDDEN.getCode()));
+
+        long ordinaryUserId = jdbcTemplate.queryForObject(
+                "SELECT id FROM system_user WHERE username = 'ordinary'", Long.class
+        );
+        systemAuthorizationCache.invalidateSnapshot(ordinaryUserId);
         mockMvc.perform(get("/api/admin/authorization").header(AUTHORIZATION, "Bearer " + ordinaryToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(CommonApiCode.SUCCESS.getCode()));
@@ -187,14 +199,20 @@ class PipkerApplicationTests {
     }
 
     @Test
-    void pingUsesTheUnifiedEnvelopeAndDisabledRouteManifestIsNotRegistered() throws Exception {
+    void anonymousRoutesAreExplicitAndUnmappedProtectedRoutesAreForbidden() throws Exception {
         mockMvc.perform(get("/api/ping"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(CommonApiCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data").value("Pipker Server is running."));
 
-        mockMvc.perform(get("/api/_dev/routes"))
-                .andExpect(status().isNotFound());
+        String token = login("admin", "admin123");
+        mockMvc.perform(get("/api/admin/not-configured").header(AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(CommonApiCode.AUTH_FORBIDDEN.getCode()));
+
+        mockMvc.perform(post("/api/auth/me").header(AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(CommonApiCode.AUTH_FORBIDDEN.getCode()));
     }
 
     @SuppressWarnings("unchecked")

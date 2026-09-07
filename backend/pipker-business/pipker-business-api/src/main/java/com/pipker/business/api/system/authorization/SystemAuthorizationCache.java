@@ -94,6 +94,13 @@ public class SystemAuthorizationCache {
     }
 
     /**
+     * 清除本实例内全部用户授权快照，供角色级菜单配置保存后立即刷新受影响用户。
+     */
+    public void invalidateAllSnapshots() {
+        snapshotCache.invalidateAll();
+    }
+
+    /**
      * 清除本实例缓存的 API 资源规则，供未来受控资源写入流程在本实例内立即生效。
      */
     public void invalidateApiRouteRules() {

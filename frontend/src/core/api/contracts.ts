@@ -54,7 +54,6 @@ export interface SystemMenuNode {
   componentKey: string | null
   icon: string | null
   sort: number | null
-  permission: string | null
   children: SystemMenuNode[]
 }
 
@@ -63,6 +62,25 @@ export interface SystemAuthorizationSnapshot {
   roles: string[]
   permissions: string[]
   menus: SystemMenuNode[]
+}
+
+export interface RoleMenuConfigurationRole {
+  id: number
+  code: string
+  name: string
+  sort: number | null
+  allMenus: boolean
+  menuIds: number[]
+}
+
+export interface RoleMenuConfiguration {
+  roles: RoleMenuConfigurationRole[]
+  menus: SystemMenuNode[]
+}
+
+export interface RoleMenuUpdateResult {
+  roleId: number
+  menuIds: number[]
 }
 
 export interface LoginResponse {

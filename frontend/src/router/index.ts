@@ -21,7 +21,7 @@ const APP_LAYOUT_ROUTE_NAME = 'app-layout'
 const LOGIN_ROUTE_NAME = 'login'
 const pageModules = import.meta.glob<Component>('../modules/**/index.vue')
 const databaseRouteNames = new Set<string>()
-const authorizedPagePermissions = new Set<string>()
+const authorizedPageMenuIds = new Set<number>()
 let defaultAuthorizedPath: string | null = null
 
 const routes: RouteRecordRaw[] = [
@@ -61,8 +61,8 @@ router.beforeEach((to) => {
   if (hasAccessToken && to.name === APP_LAYOUT_ROUTE_NAME && defaultAuthorizedPath) {
     return defaultAuthorizedPath
   }
-  const requiredPermission = typeof to.meta.permission === 'string' ? to.meta.permission : null
-  if (hasAccessToken && requiredPermission && !authorizedPagePermissions.has(requiredPermission)) {
+  const requiredMenuId = typeof to.meta.menuId === 'number' ? to.meta.menuId : null
+  if (hasAccessToken && requiredMenuId !== null && !authorizedPageMenuIds.has(requiredMenuId)) {
     return defaultAuthorizedPath ?? { name: APP_LAYOUT_ROUTE_NAME }
   }
   return true
@@ -103,12 +103,12 @@ export function replaceDatabaseRoutes(menus: SystemMenuNode[]): void {
       component,
       meta: {
         title: menu.name,
-        permission: menu.permission,
+        menuId: menu.id,
         componentKey: menu.componentKey,
       },
     })
     databaseRouteNames.add(menu.routeName)
-    authorizedPagePermissions.add(menu.permission)
+    authorizedPageMenuIds.add(menu.id)
     defaultAuthorizedPath ??= menu.path
   })
 }
@@ -118,7 +118,7 @@ export function clearDatabaseRoutes(): void {
     router.removeRoute(routeName)
   }
   databaseRouteNames.clear()
-  authorizedPagePermissions.clear()
+  authorizedPageMenuIds.clear()
   defaultAuthorizedPath = null
 }
 
@@ -138,7 +138,6 @@ function isPageMenu(menu: SystemMenuNode): menu is SystemMenuNode & {
   path: string
   routeName: string
   componentKey: string
-  permission: string
 } {
   return menu.type === 'MENU'
     && typeof menu.path === 'string'
@@ -147,8 +146,6 @@ function isPageMenu(menu: SystemMenuNode): menu is SystemMenuNode & {
     && menu.routeName.length > 0
     && typeof menu.componentKey === 'string'
     && menu.componentKey.length > 0
-    && typeof menu.permission === 'string'
-    && menu.permission.length > 0
 }
 
 function toChildPath(path: string): string {

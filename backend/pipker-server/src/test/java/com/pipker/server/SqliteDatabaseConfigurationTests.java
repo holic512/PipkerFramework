@@ -74,11 +74,11 @@ class SqliteDatabaseConfigurationTests {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'system_%'",
                 Integer.class
-        )).isEqualTo(7);
+        )).isEqualTo(8);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM databasechangelog",
                 Integer.class
-        )).isEqualTo(9);
+        )).isEqualTo(10);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM system_user WHERE username = 'admin'",
                 Integer.class
@@ -95,11 +95,19 @@ class SqliteDatabaseConfigurationTests {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'system_role_menu'",
                 Integer.class
-        )).isZero();
+        )).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'system_api_resource'",
                 Integer.class
         )).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM pragma_table_info('system_menu') WHERE name = 'permission_code'",
+                Integer.class
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system_permission WHERE permission_type = 'PAGE'",
+                Integer.class
+        )).isZero();
     }
 
     @Test
@@ -109,7 +117,7 @@ class SqliteDatabaseConfigurationTests {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM databasechangelog",
                 Integer.class
-        )).isEqualTo(9);
+        )).isEqualTo(10);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM system_user WHERE username = 'admin'",
                 Integer.class

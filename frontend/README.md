@@ -62,14 +62,13 @@ Authorization: Bearer <accessToken>
 
 ## 数据库菜单与组件键
 
-`/api/auth/me` 的菜单树提供 `type`、`path`、`routeName`、`componentKey`、`permission` 与 `children`。`permission` 固定为后端授予的 `PAGE` 权限。路由器只处理满足下列条件的 `MENU` 节点：
+`/api/auth/me` 的菜单树提供 `id`、`type`、`path`、`routeName`、`componentKey` 与 `children`。菜单来自当前用户全部启用角色的页面菜单关联。路由器只处理满足下列条件的 `MENU` 节点：
 
 ```text
 type === MENU
 path 非空
 routeName 非空
 componentKey 非空
-permission 非空
 ```
 
 路由器使用：
@@ -84,7 +83,7 @@ import.meta.glob('../modules/**/index.vue')
 system/overview/index  →  src/modules/system/overview/index.vue
 ```
 
-未找到对应组件的菜单不会被伪造成静态页面：它会被跳过，并只在开发环境输出诊断。退出登录或授权刷新时，前一份数据库菜单注册的路由会被移除；导航守卫还会检查路由的 `PAGE` 权限。要新增页面，应先增加 Vue 组件，再通过后端的 Liquibase 增量 changeset 增加菜单、`PAGE` 权限和角色权限关联；本期不提供管理端 CRUD 页面，也不实现按钮级权限控制。
+未找到对应组件的菜单不会被伪造成静态页面：它会被跳过，并只在开发环境输出诊断。退出登录或授权刷新时，前一份数据库菜单注册的路由会被移除；导航守卫还会检查路由的菜单 ID 是否仍在当前授权菜单集合中。要新增页面，应先增加 Vue 组件，再通过后端的 Liquibase 增量 changeset 增加菜单并为角色配置菜单关联；页面调用 API 所需权限仍通过独立 API 权限配置。`SUPER_ADMIN` 可通过“角色路由”页面为普通角色勾选页面菜单，本期不实现按钮级权限控制。
 
 `AppLayout` 仅渲染会话 Store 中的菜单，不再硬编码“系统概览”导航。后端不再提供开发 Route Manifest；页面数据唯一来自已登录用户的 `/api/auth/me`。
 

@@ -43,7 +43,7 @@ backend/
 
 所有账户都使用默认 `StpUtil` 创建 `LoginIdentity(SYSTEM, userId)` 会话。Sa-Token Filter 对 `/api/**` 先执行登录校验，再把非匿名请求交给业务层的数据库 API 授权服务；项目不使用 `@SaCheck*` 注解、独立 `StpLogic` 或 Controller 内手写权限检查。
 
-`SUPER_ADMIN` 的特殊语义只集中在 `SystemAuthorizationService`：拥有全部**启用**的 `PAGE` 和 `API` 权限。普通账户合并其所有启用角色的显式权限。用户授权快照和全部启用 API 资源规则都使用 Caffeine 进程内 60 秒 TTL 缓存；直接改库后，变更会在每个实例的缓存到期后生效。详细配置见 [../docs/2.权限配置说明.md](../docs/2.权限配置说明.md)。
+`SUPER_ADMIN` 的特殊语义只集中在 `SystemAuthorizationService`：拥有全部**启用可见**菜单和全部启用 `API` 权限。普通账户合并其所有启用角色的页面菜单及 API 权限。用户授权快照和全部启用 API 资源规则都使用 Caffeine 进程内 60 秒 TTL 缓存；角色路由页面保存后会清空本实例快照，直接改库后仍会在每个实例的缓存到期后生效。详细配置见 [../docs/2.权限配置说明.md](../docs/2.权限配置说明.md)。
 
 ## 数据库与 Liquibase
 
@@ -61,7 +61,8 @@ pipker-business/pipker-business-api/src/main/resources/db/changelog/
     ├── 006-system-menu.yaml
     ├── 007-system-role-menu.yaml
     ├── 008-system-init-data.yaml
-    └── 009-system-database-rbac.yaml
+    ├── 009-system-database-rbac.yaml
+    └── 010-system-role-route-menu.yaml
 ```
 
 Liquibase 的 `DATABASECHANGELOG` 记录已执行 changeset；重复启动不会重复建表或写入种子数据。所有框架业务表均以 `system_` 开头：
@@ -70,15 +71,16 @@ Liquibase 的 `DATABASECHANGELOG` 记录已执行 changeset；重复启动不会
 | --- | --- |
 | `system_user` | 系统登录账户、`password_hash`、状态、最后登录时间及审计字段 |
 | `system_role` | 角色编码、名称、状态和排序 |
-| `system_permission` | `PAGE` / `API` 类型权限编码 |
+| `system_permission` | `API` 权限编码 |
 | `system_menu` | 目录或页面菜单；自关联 `parent_id`、路由与逻辑 `component_key` |
 | `system_user_role` | 用户与角色的联合主键关联 |
 | `system_role_permission` | 角色与权限的联合主键关联 |
+| `system_role_menu` | 角色与可访问页面菜单的联合主键关联 |
 | `system_api_resource` | `API` 权限与 `HTTP 方法 + MVC 路径模板` 的联合唯一映射 |
 
-MySQL、PostgreSQL 和 H2 使用上面的通用 changelog。SQLite 使用单独的 `db/changelog/sqlite/` changelog：它在建表阶段直接声明外键、联合主键、唯一约束和检查约束，以适配 SQLite 不支持后置 `addForeignKeyConstraint`、`addUniqueConstraint` 的限制。`009-system-database-rbac` 会删除历史 `system_role_menu` 和 `BUTTON` 数据，并在 SQLite 中重建受 CHECK 约束影响的表；两套 changelog 保持同一目标表结构，已有数据库只新增 009 之后的变化。
+MySQL、PostgreSQL 和 H2 使用上面的通用 changelog。SQLite 使用单独的 `db/changelog/sqlite/` changelog：它在建表阶段直接声明外键、联合主键、唯一约束和检查约束，以适配 SQLite 不支持后置 `addForeignKeyConstraint`、`addUniqueConstraint` 的限制。`009-system-database-rbac` 删除按钮和旧菜单关系；`010-system-role-route-menu` 恢复角色菜单关系，并在 SQLite 中重建去除 `PAGE`/`permission_code` 的表。两套 changelog 保持同一目标表结构，已有数据库只新增后续 changeset。
 
-初始数据只有 `SUPER_ADMIN`、`ADMIN`、系统概览 `PAGE` 权限、当前授权与后台授权读取 `API` 权限、系统目录和 `system/overview/index` 菜单。`SUPER_ADMIN` 无需角色权限关联，`ADMIN` 显式拥有上述最小权限。不存在 `MERCHANT`、`USER` 或任何业务表。唯一初始管理员由 Liquibase 写入：`admin / admin123`，数据库只保存当前 `SecurityCryptoService` 可验证的 `{bcrypt}` 密码哈希。
+初始数据包含 `SUPER_ADMIN`、`ADMIN`、系统概览与角色路由菜单、当前授权/后台授权读取/角色路由管理 API 权限。`SUPER_ADMIN` 不需要任何显式角色关联；`ADMIN` 初始拥有当前授权和后台授权读取 API 权限，以及系统概览菜单。不存在 `MERCHANT`、`USER` 或任何业务表。唯一初始管理员由 Liquibase 写入：`admin / admin123`，数据库只保存当前 `SecurityCryptoService` 可验证的 `{bcrypt}` 密码哈希。
 
 > 安全警告：默认管理员口令只可用于首次本地初始化。公开部署前必须立即更换为受控的 `{bcrypt}` 哈希；不要把 `admin123` 用于共享或生产数据库。首期没有密码重置、随机 Bootstrap 密码或 `system_bootstrap_state` 表。
 

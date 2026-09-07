@@ -25,7 +25,6 @@ public record SystemMenuNode(
         String componentKey,
         String icon,
         Integer sort,
-        String permission,
         List<SystemMenuNode> children
 ) {
 }

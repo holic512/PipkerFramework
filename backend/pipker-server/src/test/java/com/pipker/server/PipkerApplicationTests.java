@@ -25,6 +25,7 @@ import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,6 +64,7 @@ class PipkerApplicationTests {
                 "system_permission",
                 "system_role_permission",
                 "system_menu",
+                "system_role_menu",
                 "system_api_resource"
         );
         assertThat(tableNames).allMatch(name -> name.startsWith("system_"));
@@ -74,6 +76,14 @@ class PipkerApplicationTests {
                 .isEqualTo(executedChangesets);
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM system_user WHERE username = 'admin'", Integer.class))
                 .isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'SYSTEM_MENU' AND column_name = 'PERMISSION_CODE'",
+                Integer.class
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM system_permission WHERE permission_type = 'PAGE'",
+                Integer.class
+        )).isZero();
     }
 
     @Test
@@ -109,7 +119,8 @@ class PipkerApplicationTests {
                 .andExpect(jsonPath("$.data.user.username").value("admin"))
                 .andExpect(jsonPath("$.data.roles[0]").value("SUPER_ADMIN"))
                 .andExpect(jsonPath("$.data.permissions").isArray())
-                .andExpect(jsonPath("$.data.menus[0].children[0].componentKey").value("system/overview/index"));
+                .andExpect(jsonPath("$.data.menus[0].children[0].componentKey").value("system/overview/index"))
+                .andExpect(jsonPath("$.data.menus[0].children[1].componentKey").value("system/role-menu/index"));
 
         mockMvc.perform(get("/api/admin/authorization").header(AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
@@ -188,6 +199,16 @@ class PipkerApplicationTests {
                 SELECT u.id, r.id FROM system_user u, system_role r
                 WHERE u.username = 'multi' AND r.role_code IN ('ADMIN', 'SECONDARY')
                 """);
+        jdbcTemplate.update("""
+                INSERT INTO system_menu (parent_id, menu_name, menu_type, route_path, route_name, component_key, icon, sort, visible, status, created_at, updated_at)
+                SELECT id, '第二角色页面', 'MENU', '/system/secondary-test', 'SystemSecondaryTest', 'system/overview/index', 'CopyDocument', 30, TRUE, 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                FROM system_menu WHERE route_name = 'System'
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO system_role_menu (role_id, menu_id)
+                SELECT r.id, m.id FROM system_role r, system_menu m
+                WHERE r.role_code = 'SECONDARY' AND m.route_name = 'SystemSecondaryTest'
+                """);
 
         String multiToken = login("multi", "multi-password");
         mockMvc.perform(get("/api/auth/me").header(AUTHORIZATION, "Bearer " + multiToken))
@@ -195,7 +216,8 @@ class PipkerApplicationTests {
                 .andExpect(jsonPath("$.code").value(CommonApiCode.SUCCESS.getCode()))
                 .andExpect(jsonPath("$.data.roles.length()").value(2))
                 .andExpect(jsonPath("$.data.permissions").isArray())
-                .andExpect(jsonPath("$.data.menus[0].name").value("系统管理"));
+                .andExpect(jsonPath("$.data.menus[0].name").value("系统管理"))
+                .andExpect(jsonPath("$.data.menus[0].children.length()").value(2));
     }
 
     @Test
@@ -213,6 +235,124 @@ class PipkerApplicationTests {
         mockMvc.perform(post("/api/auth/me").header(AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(CommonApiCode.AUTH_FORBIDDEN.getCode()));
+    }
+
+    @Test
+    void roleMenuConfigurationIsSuperAdminOnlyAndRefreshingItsAssignmentsInvalidatesLocalSnapshots() throws Exception {
+        insertUser("route-reader", "route-reader-password");
+        insertRole("ROUTE_READER", 320);
+        jdbcTemplate.update("""
+                INSERT INTO system_user_role (user_id, role_id)
+                SELECT u.id, r.id FROM system_user u, system_role r
+                WHERE u.username = 'route-reader' AND r.role_code = 'ROUTE_READER'
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO system_role_permission (role_id, permission_id)
+                SELECT r.id, p.id FROM system_role r, system_permission p
+                WHERE r.role_code = 'ROUTE_READER' AND p.permission_code = 'system:auth:me'
+                """);
+
+        String routeReaderToken = login("route-reader", "route-reader-password");
+        mockMvc.perform(get("/api/auth/me").header(AUTHORIZATION, "Bearer " + routeReaderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(CommonApiCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data.menus").isEmpty());
+
+        mockMvc.perform(get("/api/admin/role-menu-config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(CommonApiCode.AUTH_REQUIRED.getCode()));
+        mockMvc.perform(get("/api/admin/role-menu-config").header(AUTHORIZATION, "Bearer " + routeReaderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(CommonApiCode.AUTH_FORBIDDEN.getCode()));
+
+        String superAdminToken = login("admin", "admin123");
+        mockMvc.perform(get("/api/admin/role-menu-config").header(AUTHORIZATION, "Bearer " + superAdminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(CommonApiCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data.roles[0].code").value("SUPER_ADMIN"))
+                .andExpect(jsonPath("$.data.roles[0].allMenus").value(true));
+
+        long routeReaderRoleId = jdbcTemplate.queryForObject(
+                "SELECT id FROM system_role WHERE role_code = 'ROUTE_READER'", Long.class
+        );
+        long overviewMenuId = jdbcTemplate.queryForObject(
+                "SELECT id FROM system_menu WHERE route_name = 'SystemOverview'", Long.class
+        );
+        long superAdminRoleId = jdbcTemplate.queryForObject(
+                "SELECT id FROM system_role WHERE role_code = 'SUPER_ADMIN'", Long.class
+        );
+
+        mockMvc.perform(put("/api/admin/role-menu-config/{roleId}", superAdminRoleId)
+                        .header(AUTHORIZATION, "Bearer " + superAdminToken)
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"menuIds\":[]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(CommonApiCode.VALIDATION_FAILED.getCode()));
+        mockMvc.perform(put("/api/admin/role-menu-config/{roleId}", routeReaderRoleId)
+                        .header(AUTHORIZATION, "Bearer " + superAdminToken)
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"menuIds\":[" + overviewMenuId + "]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(CommonApiCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data.menuIds[0]").value(overviewMenuId));
+
+        mockMvc.perform(get("/api/auth/me").header(AUTHORIZATION, "Bearer " + routeReaderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(CommonApiCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data.menus[0].name").value("系统管理"))
+                .andExpect(jsonPath("$.data.menus[0].children[0].routeName").value("SystemOverview"));
+
+        mockMvc.perform(put("/api/admin/role-menu-config/{roleId}", routeReaderRoleId)
+                        .header(AUTHORIZATION, "Bearer " + superAdminToken)
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"menuIds\":[999999]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(CommonApiCode.VALIDATION_FAILED.getCode()));
+    }
+
+    @Test
+    void disabledRolesAndHiddenOrDisabledMenusDoNotEnterThePageRouteProjection() throws Exception {
+        insertUser("visibility-reader", "visibility-reader-password");
+        insertRole("VISIBILITY_ENABLED", 330);
+        insertRole("VISIBILITY_DISABLED", 340, "DISABLED");
+        jdbcTemplate.update("""
+                INSERT INTO system_user_role (user_id, role_id)
+                SELECT u.id, r.id FROM system_user u, system_role r
+                WHERE u.username = 'visibility-reader'
+                  AND r.role_code IN ('VISIBILITY_ENABLED', 'VISIBILITY_DISABLED')
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO system_role_permission (role_id, permission_id)
+                SELECT r.id, p.id FROM system_role r, system_permission p
+                WHERE r.role_code = 'VISIBILITY_ENABLED' AND p.permission_code = 'system:auth:me'
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO system_menu (parent_id, menu_name, menu_type, route_path, route_name, component_key, icon, sort, visible, status, created_at, updated_at)
+                SELECT id, '隐藏页面', 'MENU', '/system/hidden-test', 'SystemHiddenTest', 'system/overview/index', 'Hide', 40, FALSE, 'ENABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                FROM system_menu WHERE route_name = 'System'
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO system_menu (parent_id, menu_name, menu_type, route_path, route_name, component_key, icon, sort, visible, status, created_at, updated_at)
+                SELECT id, '停用页面', 'MENU', '/system/disabled-test', 'SystemDisabledTest', 'system/overview/index', 'CircleClose', 50, TRUE, 'DISABLED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                FROM system_menu WHERE route_name = 'System'
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO system_role_menu (role_id, menu_id)
+                SELECT r.id, m.id FROM system_role r, system_menu m
+                WHERE r.role_code = 'VISIBILITY_ENABLED'
+                  AND m.route_name IN ('SystemHiddenTest', 'SystemDisabledTest')
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO system_role_menu (role_id, menu_id)
+                SELECT r.id, m.id FROM system_role r, system_menu m
+                WHERE r.role_code = 'VISIBILITY_DISABLED' AND m.route_name = 'SystemOverview'
+                """);
+
+        String visibilityReaderToken = login("visibility-reader", "visibility-reader-password");
+        mockMvc.perform(get("/api/auth/me").header(AUTHORIZATION, "Bearer " + visibilityReaderToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(CommonApiCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data.menus").isEmpty());
     }
 
     @SuppressWarnings("unchecked")
@@ -247,12 +387,17 @@ class PipkerApplicationTests {
     }
 
     private void insertRole(String roleCode, int sort) {
+        insertRole(roleCode, sort, "ENABLED");
+    }
+
+    private void insertRole(String roleCode, int sort, String status) {
         jdbcTemplate.update("""
                         INSERT INTO system_role (role_code, role_name, status, sort, created_at, updated_at)
-                        VALUES (?, ?, 'ENABLED', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                         """,
                 roleCode,
                 roleCode,
+                status,
                 sort
         );
     }

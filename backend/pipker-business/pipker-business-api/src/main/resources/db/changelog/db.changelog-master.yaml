@@ -17,3 +17,5 @@ databaseChangeLog:
       file: db/changelog/system/008-system-init-data.yaml
   - include:
       file: db/changelog/system/009-system-database-rbac.yaml
+  - include:
+      file: db/changelog/system/010-system-role-route-menu.yaml

@@ -38,7 +38,7 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
         path: menu.path,
         code: String(menu.id).padStart(2, '0'),
         label: menu.name,
-        description: menu.permission ? `权限 · ${menu.permission}` : '已授权菜单',
+        description: '角色授权菜单',
         depth,
       },
       ...children,

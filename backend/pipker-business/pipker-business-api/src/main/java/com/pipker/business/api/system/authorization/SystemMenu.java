@@ -27,7 +27,6 @@ public record SystemMenu(
         Integer sort,
         boolean visible,
         String status,
-        String permissionCode,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

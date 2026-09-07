@@ -2,8 +2,8 @@
  * @file SystemAuthorizationService.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description Aggregates the cached role, permission, and page-menu projection for a system user.
- * @logic Gives SUPER_ADMIN all enabled permissions, unions enabled roles for other users, filters page menus by PAGE permissions, and retains each selected page's visible parent directories.
+ * @description Aggregates the cached API permissions and role-owned page-menu projection for a system user.
+ * @logic Gives SUPER_ADMIN every enabled API permission and visible menu, while ordinary users union API permissions and MENU assignments across their enabled roles.
  * @dependencies SystemAccountService, SystemAuthorizationMapper, SystemAuthorizationCache, SystemMenu
  * @index_tags rbac, authorization, system-menu, cache
  * @author holic512
@@ -89,30 +89,39 @@ public class SystemAuthorizationService {
                 SystemUserProfile.from(user),
                 roles,
                 List.copyOf(permissions),
-                buildMenuTree(findMenusForPermissions(permissions))
+                buildMenuTree(findMenusForUser(userId, superAdmin))
         );
     }
 
     /**
-     * 根据 PAGE 权限选出页面菜单，并将每个页面的可见父目录补入菜单树。
+     * 返回全部启用且可见的菜单树，供角色路由配置页展示。
      *
-     * @param permissionCodes 当前用户全部权限编码
+     * @return 可配置的完整菜单树
+     */
+    public List<SystemMenuNode> findAllVisibleMenuTree() {
+        return buildMenuTree(systemAuthorizationMapper.findAllVisibleMenus());
+    }
+
+    /**
+     * 按角色菜单关联选出页面菜单，并将每个页面的可见父目录补入菜单树。
+     *
+     * @param userId 当前用户主键
+     * @param superAdmin 是否自动拥有全部页面菜单
      * @return 已授权页面与其父目录的扁平菜单
      */
-    private List<SystemMenu> findMenusForPermissions(List<String> permissionCodes) {
-        if (permissionCodes.isEmpty()) {
-            return List.of();
-        }
+    private List<SystemMenu> findMenusForUser(long userId, boolean superAdmin) {
         List<SystemMenu> allVisibleMenus = systemAuthorizationMapper.findAllVisibleMenus();
         Map<Long, SystemMenu> menusById = new HashMap<>();
         for (SystemMenu menu : allVisibleMenus) {
             menusById.put(menu.id(), menu);
         }
 
+        List<SystemMenu> pageMenus = superAdmin
+                ? allVisibleMenus.stream().filter(menu -> "MENU".equals(menu.menuType())).toList()
+                : systemAuthorizationMapper.findVisiblePageMenusByUserId(userId);
         Set<Long> includedMenuIds = new HashSet<>();
-        for (SystemMenu pageMenu : systemAuthorizationMapper
-                .findVisiblePageMenusByPermissionCodes(permissionCodes)) {
-            SystemMenu current = pageMenu;
+        for (SystemMenu selectedPageMenu : pageMenus) {
+            SystemMenu current = menusById.get(selectedPageMenu.id());
             while (current != null && includedMenuIds.add(current.id())) {
                 Long parentId = current.parentId();
                 current = parentId == null ? null : menusById.get(parentId);
@@ -176,7 +185,6 @@ public class SystemAuthorizationService {
                     menu.componentKey(),
                     menu.icon(),
                     menu.sort(),
-                    menu.permissionCode(),
                     immutableChildren
             );
         }

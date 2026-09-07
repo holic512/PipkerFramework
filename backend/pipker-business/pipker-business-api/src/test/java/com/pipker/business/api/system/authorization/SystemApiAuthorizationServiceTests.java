@@ -98,8 +98,36 @@ class SystemApiAuthorizationServiceTests {
         }
 
         @Override
-        public List<SystemMenu> findVisiblePageMenusByPermissionCodes(List<String> permissionCodes) {
+        public List<SystemMenu> findVisiblePageMenusByUserId(long userId) {
             return List.of();
+        }
+
+        @Override
+        public List<SystemRole> findAllEnabledRoles() {
+            return List.of();
+        }
+
+        @Override
+        public SystemRole findRoleById(long roleId) {
+            return null;
+        }
+
+        @Override
+        public List<SystemRoleMenuAssignment> findAllEnabledRoleMenuAssignments() {
+            return List.of();
+        }
+
+        @Override
+        public List<Long> findEnabledVisiblePageMenuIds(List<Long> menuIds) {
+            return List.of();
+        }
+
+        @Override
+        public void deleteRoleMenuAssignments(long roleId) {
+        }
+
+        @Override
+        public void insertRoleMenuAssignments(long roleId, List<Long> menuIds) {
         }
 
         @Override

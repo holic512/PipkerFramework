@@ -63,7 +63,7 @@ function toggleMenu(menuId: number, event: Event): void {
   </ul>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .role-menu-tree {
   display: grid;
   gap: 0.5rem;
@@ -74,7 +74,7 @@ function toggleMenu(menuId: number, event: Event): void {
 
 .role-menu-tree__node > .role-menu-tree {
   margin-top: 0.45rem;
-  border-left: 1px solid var(--line-subtle);
+  border-left: 1px solid var(--color-line-subtle);
 }
 
 .role-menu-tree__directory,
@@ -83,7 +83,7 @@ function toggleMenu(menuId: number, event: Event): void {
 }
 
 .role-menu-tree__directory {
-  color: var(--ink-muted);
+  color: var(--color-ink-muted);
   font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -97,14 +97,14 @@ function toggleMenu(menuId: number, event: Event): void {
   min-height: 2.55rem;
   padding: 0.45rem 0.65rem;
   cursor: pointer;
-  background: #fbfcf8;
-  border: 1px solid var(--line-subtle);
-  border-radius: 0.36rem;
+  background: var(--color-surface-base);
+  border: 1px solid var(--color-line-subtle);
+  border-radius: var(--radius-small);
 }
 
 .role-menu-tree__page:has(input:checked) {
-  background: #f0f7eb;
-  border-color: #b9d4ad;
+  background: color-mix(in srgb, var(--color-accent-primary) 10%, var(--color-surface-base));
+  border-color: var(--color-accent-primary);
 }
 
 .role-menu-tree__page span {
@@ -114,12 +114,12 @@ function toggleMenu(menuId: number, event: Event): void {
 }
 
 .role-menu-tree__page small {
-  color: var(--ink-soft);
-  font-family: var(--font-mono);
+  color: var(--color-ink-soft);
+  font-family: var(--font-family);
   font-size: 0.64rem;
 }
 
-@media (max-width: 40rem) {
+@include at-most('phone') {
   .role-menu-tree__page {
     grid-template-columns: auto minmax(0, 1fr);
   }

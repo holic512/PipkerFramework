@@ -2,15 +2,16 @@
   @file AppLayout.vue
   @project Pipker Framework
   @module Frontend Application Layout
-  @description Renders the authenticated shell and database-authorized menu navigation.
-  @logic Flattens the current session menu tree for navigation without maintaining any static business menu or overview route.
-  @dependencies Vue, Vue Router, Pinia app store, Pinia session store, Element Plus
-  @index_tags layout, navigation, rbac, dynamic-routing
+  @description Renders the authenticated shell, shared visual-theme selector, and database-authorized menu navigation.
+  @logic Flattens the current session menu tree for navigation without maintaining any static business menu or overview route, while delegating visual choices to the global theme state.
+  @dependencies Vue, Vue Router, Pinia app store, Pinia session store, ThemeSwitcher, Element Plus
+  @index_tags layout, navigation, rbac, dynamic-routing, theme
   @author holic512
 -->
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { SystemMenuNode } from '../core/api/contracts'
+import ThemeSwitcher from '../components/ThemeSwitcher.vue'
 import { useAppStore } from '../stores/app'
 import { useSessionStore } from '../stores/session'
 
@@ -92,6 +93,7 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
       <header class="app-shell__header">
         <p>SYSTEM / {{ sessionStore.user?.username ?? 'SESSION' }}</p>
         <div class="app-shell__session-actions">
+          <ThemeSwitcher />
           <el-tag effect="plain" type="success">
             {{ sessionStore.roles.length }} 个角色 · {{ sessionStore.permissions.length }} 项权限
           </el-tag>
@@ -105,17 +107,17 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .app-shell {
   min-height: 100svh;
   display: grid;
-  grid-template-columns: 17.25rem minmax(0, 1fr);
-  background: var(--surface-base);
+  grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr);
+  background: var(--color-surface-page);
   transition: grid-template-columns 180ms ease;
 }
 
 .app-shell--compact {
-  grid-template-columns: 5rem minmax(0, 1fr);
+  grid-template-columns: var(--layout-sidebar-collapsed-width) minmax(0, 1fr);
 }
 
 .app-shell__sidebar {
@@ -124,13 +126,11 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
   height: 100svh;
   display: flex;
   flex-direction: column;
-  padding: 1.4rem 0.8rem 1.25rem;
+  padding: 0.9rem 0.5rem 0.75rem;
   box-sizing: border-box;
-  color: #ecf0e7;
-  background:
-    linear-gradient(150deg, rgba(179, 220, 146, 0.09), transparent 32%),
-    linear-gradient(180deg, #13211e 0%, #0d1715 100%);
-  border-right: 1px solid rgba(216, 234, 203, 0.12);
+  color: var(--color-sidebar-ink);
+  background: var(--color-sidebar-surface);
+  border-right: 1px solid var(--color-sidebar-line);
 }
 
 .brand {
@@ -148,13 +148,13 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
   height: 2.15rem;
   display: grid;
   place-items: center;
-  color: #13211e;
-  background: #d8edc5;
+  color: var(--color-accent-on-primary);
+  background: var(--color-accent-primary);
   font-family: var(--font-display);
   font-size: 1.3rem;
   font-weight: 800;
-  border-radius: 0.35rem;
-  box-shadow: 0 0 0 1px rgba(216, 237, 197, 0.3), 0 0.6rem 2rem rgba(0, 0, 0, 0.24);
+  border-radius: var(--radius-small);
+  box-shadow: var(--shadow-panel);
 }
 
 .brand__name {
@@ -170,13 +170,13 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
 }
 
 .brand__name span {
-  color: rgba(236, 240, 231, 0.54);
+  color: var(--color-sidebar-muted);
   font-size: 0.59rem;
   font-weight: 700;
 }
 
 .navigation {
-  margin-top: 3.25rem;
+  margin-top: 2rem;
   display: grid;
   gap: 0.35rem;
 }
@@ -187,30 +187,35 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
   align-items: center;
   gap: 0.8rem;
   padding: 0.65rem 0.55rem 0.65rem calc(0.55rem + var(--navigation-depth, 0rem));
-  color: rgba(236, 240, 231, 0.66);
+  color: var(--color-sidebar-muted);
   border: 1px solid transparent;
-  border-radius: 0.4rem;
+  border-radius: var(--radius-control);
   text-decoration: none;
   transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
 }
 
 .navigation__empty {
   margin: 0.8rem 0.55rem;
-  color: rgba(236, 240, 231, 0.5);
+  color: var(--color-sidebar-muted);
   font-size: 0.73rem;
   line-height: 1.6;
 }
 
-.navigation__item:hover,
+.navigation__item:hover {
+  color: var(--color-sidebar-ink);
+  background: var(--color-sidebar-hover);
+  border-color: var(--color-sidebar-line);
+}
+
 .navigation__item.router-link-exact-active {
-  color: #f7faf2;
-  background: rgba(216, 237, 197, 0.1);
-  border-color: rgba(216, 237, 197, 0.17);
+  color: var(--color-sidebar-active-ink);
+  background: var(--color-sidebar-active);
+  border-color: var(--color-sidebar-active);
 }
 
 .navigation__code {
   flex: 0 0 1.7rem;
-  color: #bed8a9;
+  color: currentColor;
   font-family: var(--font-mono);
   font-size: 0.68rem;
 }
@@ -227,7 +232,8 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
 }
 
 .navigation__copy small {
-  color: rgba(236, 240, 231, 0.48);
+  color: inherit;
+  opacity: 0.68;
   font-size: 0.7rem;
 }
 
@@ -236,12 +242,12 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
   margin-top: auto;
   justify-content: flex-start;
   gap: 0.75rem;
-  color: rgba(236, 240, 231, 0.68);
+  color: var(--color-sidebar-muted);
   font-size: 0.73rem;
 }
 
 .collapse-control:hover {
-  color: #f7faf2;
+  color: var(--color-sidebar-ink);
 }
 
 .app-shell__main {
@@ -249,17 +255,18 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
 }
 
 .app-shell__header {
-  min-height: 4.9rem;
+  min-height: var(--layout-header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 3.2rem;
-  border-bottom: 1px solid var(--line-subtle);
+  background: var(--color-surface-page);
+  border-bottom: 1px solid var(--color-line-subtle);
 }
 
 .app-shell__header p {
   margin: 0;
-  color: var(--ink-muted);
+  color: var(--color-ink-muted);
   font-family: var(--font-mono);
   font-size: 0.67rem;
   font-weight: 700;
@@ -273,7 +280,7 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
 }
 
 .app-shell__session-actions :deep(.el-button) {
-  color: var(--ink-muted);
+  color: var(--color-ink-muted);
 }
 
 .app-shell__content {
@@ -282,7 +289,7 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
   padding: clamp(2rem, 5vw, 5rem) clamp(1.25rem, 5vw, 4.5rem);
 }
 
-@media (max-width: 52rem) {
+@include at-most('tablet') {
   .app-shell,
   .app-shell--compact {
     display: block;

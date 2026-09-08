@@ -1,0 +1,62 @@
+/*
+ * @file _element-plus.scss
+ * @project Pipker Framework
+ * @module Element Plus Theme Bridge
+ * @description Maps Element Plus runtime CSS variables and state-color variants to Pipker semantic design tokens.
+ * @logic Lets the library inherit the active Claude or Element palette without component-level color overrides, including neutralized Claude tag and button status variants.
+ * @dependencies Element Plus CSS variables, frontend theme tokens
+ * @index_tags element-plus, sass, theme-tokens, dark-mode
+ * @author holic512
+ */
+
+:root {
+  --el-font-family: var(--font-family);
+  --el-color-primary: var(--color-accent-primary);
+  --el-color-primary-rgb: var(--color-accent-primary-rgb);
+  --el-color-success: var(--color-accent-success);
+  --el-color-success-rgb: var(--color-accent-success-rgb);
+  --el-color-warning: var(--color-accent-warning);
+  --el-color-warning-rgb: var(--color-accent-warning-rgb);
+  --el-color-danger: var(--color-accent-danger);
+  --el-color-danger-rgb: var(--color-accent-danger-rgb);
+  --el-color-error: var(--color-accent-danger);
+  --el-color-error-rgb: var(--color-accent-danger-rgb);
+  --el-color-info: var(--color-accent-info);
+  --el-color-info-rgb: var(--color-accent-info-rgb);
+  --el-text-color-primary: var(--color-ink-strong);
+  --el-text-color-regular: var(--color-ink-muted);
+  --el-text-color-secondary: var(--color-ink-soft);
+  --el-border-color: var(--color-line-subtle);
+  --el-border-color-light: var(--color-line-subtle);
+  --el-border-color-lighter: var(--color-line-subtle);
+  --el-fill-color: var(--color-surface-muted);
+  --el-fill-color-light: var(--color-surface-raised);
+  --el-fill-color-blank: var(--color-surface-base);
+  --el-bg-color: var(--color-surface-base);
+  --el-bg-color-page: var(--color-surface-page);
+  --el-bg-color-overlay: var(--color-surface-raised);
+  --el-mask-color: rgba(0, 0, 0, 0.55);
+  --el-border-radius-base: var(--radius-control);
+  --el-border-radius-small: var(--radius-small);
+  --el-border-radius-round: var(--radius-pill);
+  --el-border-radius-circle: 50%;
+  --el-box-shadow-light: var(--shadow-panel);
+  --el-box-shadow: var(--shadow-floating);
+}
+
+@each $type in primary, success, warning, danger, error, info {
+  $source: $type;
+
+  @if $type == error {
+    $source: danger;
+  }
+
+  :root {
+    --el-color-#{$type}-light-3: color-mix(in srgb, var(--color-accent-#{$source}) 70%, var(--color-surface-base));
+    --el-color-#{$type}-light-5: color-mix(in srgb, var(--color-accent-#{$source}) 50%, var(--color-surface-base));
+    --el-color-#{$type}-light-7: color-mix(in srgb, var(--color-accent-#{$source}) 30%, var(--color-surface-base));
+    --el-color-#{$type}-light-8: color-mix(in srgb, var(--color-accent-#{$source}) 20%, var(--color-surface-base));
+    --el-color-#{$type}-light-9: color-mix(in srgb, var(--color-accent-#{$source}) 10%, var(--color-surface-base));
+    --el-color-#{$type}-dark-2: color-mix(in srgb, var(--color-accent-#{$source}) 80%, var(--color-surface-contrast));
+  }
+}

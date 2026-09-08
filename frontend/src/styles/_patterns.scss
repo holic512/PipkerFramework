@@ -1,0 +1,207 @@
+/*
+ * @file _patterns.scss
+ * @project Pipker Framework
+ * @module Frontend Global Patterns
+ * @description Provides global resets and reusable semantic display patterns for pages, panels, labels, and code text.
+ * @logic Applies only semantic tokens so the same reusable classes adapt across every design language and color scheme.
+ * @dependencies frontend theme tokens
+ * @index_tags sass, global-styles, patterns, typography, accessibility
+ * @author holic512
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-width: 0;
+  min-height: 100%;
+  margin: 0;
+}
+
+html {
+  background: var(--color-surface-page);
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+body {
+  min-height: 100svh;
+  color: var(--color-ink-strong);
+  background: var(--color-surface-page);
+  font-family: var(--font-family);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::selection {
+  color: var(--color-accent-on-primary);
+  background: var(--color-accent-primary);
+}
+
+.ui-page-frame {
+  width: min(100%, 78rem);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.ui-eyebrow {
+  margin: 0;
+  color: var(--color-accent-primary);
+  font-family: var(--font-family);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+}
+
+.ui-panel {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-line-subtle);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.ui-code {
+  padding: 0.12rem 0.35rem;
+  color: var(--color-ink-strong);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-small);
+  font-family: var(--font-family);
+  font-size: 0.88em;
+}
+
+.ui-focusable:focus-visible,
+.theme-switcher summary:focus-visible,
+.theme-switcher button:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 0.25rem;
+}
+
+.theme-switcher {
+  position: relative;
+  z-index: 8;
+  color: var(--color-ink-strong);
+  font-size: 0.72rem;
+}
+
+.theme-switcher summary {
+  min-height: 2.35rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.62rem;
+  color: var(--color-ink-strong);
+  cursor: pointer;
+  list-style: none;
+  background: var(--color-surface-translucent);
+  border: 1px solid var(--color-line-subtle);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(0.8rem);
+}
+
+.theme-switcher summary::-webkit-details-marker {
+  display: none;
+}
+
+.theme-switcher summary::after {
+  margin-left: 0.12rem;
+  color: var(--color-ink-soft);
+  content: '⌄';
+  transition: transform 160ms ease;
+}
+
+.theme-switcher[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.theme-switcher__mark {
+  width: 1.2rem;
+  height: 1.2rem;
+  display: grid;
+  place-items: center;
+  color: var(--color-accent-on-primary);
+  background: var(--color-accent-primary);
+  border-radius: var(--radius-small);
+  font-size: 0.72rem;
+}
+
+.theme-switcher__label {
+  font-weight: 750;
+}
+
+.theme-switcher__panel {
+  width: min(17rem, calc(100vw - 2rem));
+  position: absolute;
+  top: calc(100% + 0.55rem);
+  right: 0;
+  display: grid;
+  gap: 0.72rem;
+  padding: 0.85rem;
+  background: var(--color-surface-base);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-floating);
+}
+
+.theme-switcher__group {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.theme-switcher__caption {
+  color: var(--color-ink-soft);
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
+.theme-switcher__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--color-line-subtle);
+  border-radius: var(--radius-control);
+}
+
+.theme-switcher__options button {
+  min-height: 2rem;
+  padding: 0.35rem 0.5rem;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  background: var(--color-surface-raised);
+  border: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.theme-switcher__options button + button {
+  border-left: 1px solid var(--color-line-subtle);
+}
+
+.theme-switcher__options button:hover,
+.theme-switcher__options button[aria-pressed='true'] {
+  color: var(--color-accent-on-primary);
+  background: var(--color-accent-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

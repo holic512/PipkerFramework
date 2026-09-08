@@ -67,11 +67,11 @@ onMounted(() => {
 <template>
   <div class="overview-page">
     <section class="intro-section">
-      <p class="eyebrow">PIPKER / FOUNDATION 01</p>
+      <p class="eyebrow ui-eyebrow">PIPKER / FOUNDATION 01</p>
       <h1>前端不是一组页面，<br />而是一条清晰的交付链路。</h1>
       <p class="intro-section__copy">
         Vue、路由、状态和请求层已经建立独立边界。第一个业务模块可以从
-        <code>src/modules</code> 开始，而不需要改动平台基础设施。
+        <code class="ui-code">src/modules</code> 开始，而不需要改动平台基础设施。
       </p>
       <div class="intro-section__tags" aria-label="已启用的技术">
         <el-tag v-for="capability in platformCapabilities" :key="capability.label" effect="plain">
@@ -103,7 +103,7 @@ onMounted(() => {
     <section class="health-check" aria-label="后端连通性检查">
       <div>
         <p>BACKEND HEALTH / CONFIRMED CONTRACT</p>
-        <h2>GET <code>/api/ping</code></h2>
+      <h2>GET <code class="ui-code">/api/ping</code></h2>
         <small>{{ backendMessage }}</small>
       </div>
       <div class="health-check__action">
@@ -121,7 +121,7 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .overview-page {
   display: grid;
   gap: 1.5rem;
@@ -134,12 +134,7 @@ onMounted(() => {
 }
 
 .eyebrow {
-  margin: 0 0 1.2rem;
-  color: var(--accent-strong);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.13em;
+  margin-bottom: 1.2rem;
 }
 
 h1 {
@@ -159,15 +154,6 @@ h1 {
   color: var(--ink-muted);
   font-size: 1rem;
   line-height: 1.8;
-}
-
-code {
-  padding: 0.12rem 0.35rem;
-  color: var(--ink-strong);
-  background: var(--surface-tinted);
-  border-radius: 0.18rem;
-  font-family: var(--font-mono);
-  font-size: 0.88em;
 }
 
 .intro-section__tags {
@@ -192,9 +178,11 @@ code {
   align-items: center;
   padding: 0 1.35rem;
   overflow-x: auto;
-  background: #182825;
-  border-radius: 0.55rem;
-  box-shadow: inset 0 1px rgba(226, 242, 213, 0.09), 0 1.25rem 2.5rem rgba(21, 36, 33, 0.08);
+  color: var(--color-ink-on-contrast);
+  background: var(--color-surface-contrast);
+  border: 1px solid var(--color-line-contrast);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
 }
 
 .flow-strip__step {
@@ -205,7 +193,7 @@ code {
 }
 
 .flow-strip__step span {
-  color: #9ac784;
+  color: var(--color-accent-secondary);
   font-family: var(--font-mono);
   font-size: 0.62rem;
   font-weight: 700;
@@ -213,7 +201,7 @@ code {
 }
 
 .flow-strip__step strong {
-  color: #edf5e8;
+  color: var(--color-ink-on-contrast);
   font-family: var(--font-display);
   font-size: 1rem;
   font-weight: 600;
@@ -223,7 +211,7 @@ code {
   flex: 0 0 3.25rem;
   height: 1px;
   margin-right: 1rem;
-  background: linear-gradient(90deg, rgba(188, 222, 164, 0.62), rgba(188, 222, 164, 0.08));
+  background: linear-gradient(90deg, var(--color-accent-secondary), transparent);
 }
 
 .capability-grid {
@@ -238,14 +226,14 @@ code {
   display: flex;
   flex-direction: column;
   padding: 1.35rem;
-  background: var(--surface-base);
+  background: var(--color-surface-base);
   border-right: 1px solid var(--line-subtle);
   border-bottom: 1px solid var(--line-subtle);
   transition: background 180ms ease, transform 180ms ease;
 }
 
 .capability-card:hover {
-  background: var(--surface-tinted);
+  background: var(--color-surface-muted);
   transform: translateY(-0.22rem);
 }
 
@@ -293,14 +281,14 @@ code {
   gap: 1.25rem;
   margin-top: 0.8rem;
   padding: 1.25rem 1.35rem;
-  border: 1px solid #bfd5cc;
-  border-radius: 0.38rem;
-  background: #f1f7f2;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
 }
 
 .health-check p {
   margin: 0;
-  color: #67826f;
+  color: var(--color-accent-secondary);
   font-family: var(--font-mono);
   font-size: 0.62rem;
   font-weight: 700;
@@ -309,7 +297,7 @@ code {
 
 .health-check h2 {
   margin: 0.45rem 0 0;
-  color: #24423a;
+  color: var(--color-ink-strong);
   font-family: var(--font-display);
   font-size: 1.2rem;
   font-weight: 700;
@@ -319,7 +307,7 @@ code {
   display: block;
   max-width: 38rem;
   margin-top: 0.52rem;
-  color: #5c7067;
+  color: var(--color-ink-muted);
   font-size: 0.78rem;
   line-height: 1.65;
 }
@@ -337,8 +325,8 @@ code {
 }
 
 .health-check__action :deep(.el-button) {
-  color: #355940;
-  border-color: #9db8a3;
+  color: var(--color-accent-primary);
+  border-color: var(--color-line-strong);
   background: transparent;
 }
 
@@ -354,13 +342,13 @@ code {
   }
 }
 
-@media (max-width: 70rem) {
+@include at-most('desktop') {
   .capability-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 38rem) {
+@include at-most('phone') {
   .intro-section {
     padding-top: 0.75rem;
   }

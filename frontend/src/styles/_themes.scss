@@ -1,0 +1,306 @@
+/*
+ * @file _themes.scss
+ * @project Pipker Framework
+ * @module Frontend Theme Tokens
+ * @description Emits the monochrome Claude and Element visual-language tokens for light and dark color schemes.
+ * @logic Generates semantic CSS custom properties from one Sass theme matrix so every page responds to the same HTML theme attributes, with Claude deliberately restricted to a single neutral ink scale and all standard surfaces sharing a low-radius scale.
+ * @dependencies Sass map module, frontend style abstracts
+ * @index_tags sass, themes, claude, element-plus, dark-mode
+ * @author holic512
+ */
+
+@use 'sass:map';
+@use 'abstracts' as *;
+
+$claude-light: (
+  surface-page: #f7f6f3,
+  surface-base: #fdfcf9,
+  surface-raised: #fbfaf7,
+  surface-muted: #f0efeb,
+  surface-contrast: #191918,
+  surface-contrast-raised: #10100f,
+  surface-inverse: #191918,
+  surface-inverse-raised: #10100f,
+  surface-translucent: rgba(253, 252, 249, 0.88),
+  ink-strong: #181817,
+  ink-muted: #6d6c68,
+  ink-soft: #96948e,
+  ink-inverse: #f6f5f0,
+  ink-inverse-muted: rgba(246, 245, 240, 0.64),
+  ink-on-contrast: #f6f5f0,
+  ink-on-contrast-muted: rgba(246, 245, 240, 0.64),
+  line-subtle: #e2e0da,
+  line-strong: #cdcbc4,
+  line-inverse: rgba(255, 255, 255, 0.14),
+  line-contrast: rgba(255, 255, 255, 0.14),
+  accent-primary: #181817,
+  accent-primary-rgb: (24, 24, 23),
+  accent-primary-hover: #373632,
+  accent-secondary: #54534e,
+  accent-success: #45443f,
+  accent-success-rgb: (69, 68, 63),
+  accent-warning: #5c5b55,
+  accent-warning-rgb: (92, 91, 85),
+  accent-danger: #2d2d2a,
+  accent-danger-rgb: (45, 45, 42),
+  accent-info: #74736e,
+  accent-info-rgb: (116, 115, 110),
+  accent-on-primary: #fdfcf9,
+  accent-on-secondary: #fdfcf9,
+  focus-ring: rgba(24, 24, 23, 0.42),
+  glow-primary: rgba(24, 24, 23, 0.045),
+  glow-secondary: rgba(24, 24, 23, 0.035),
+  panel-overlay: rgba(255, 255, 252, 0.06),
+  panel-overlay-hover: rgba(255, 255, 252, 0.12),
+  panel-shadow: rgba(24, 24, 23, 0.04),
+  sidebar-surface: #fbfaf7,
+  sidebar-raised: #f4f3ef,
+  sidebar-hover: #efeee9,
+  sidebar-active: #181817,
+  sidebar-ink: #24231f,
+  sidebar-muted: #77756e,
+  sidebar-active-ink: #fdfcf9,
+  sidebar-line: #e1dfd8,
+  layout-sidebar-width: 11.25rem,
+  layout-sidebar-collapsed-width: 3.5rem,
+  layout-header-height: 3rem,
+  radius-small: 0.25rem,
+  radius-control: 0.375rem,
+  radius-panel: 0.5rem,
+  radius-pill: 999px,
+  shadow-panel: 0 0.2rem 0.8rem rgba(24, 24, 23, 0.025),
+  shadow-floating: 0 1rem 2.5rem rgba(24, 24, 23, 0.1),
+);
+
+$claude-dark: (
+  surface-page: #171716,
+  surface-base: #1c1c1b,
+  surface-raised: #222221,
+  surface-muted: #2b2b29,
+  surface-contrast: #0d0d0c,
+  surface-contrast-raised: #111110,
+  surface-inverse: #f4f3ed,
+  surface-inverse-raised: #e9e8e1,
+  surface-translucent: rgba(28, 28, 27, 0.9),
+  ink-strong: #f0efe9,
+  ink-muted: #b2b0a8,
+  ink-soft: #85837c,
+  ink-inverse: #191918,
+  ink-inverse-muted: rgba(25, 25, 24, 0.64),
+  ink-on-contrast: #f4f3ed,
+  ink-on-contrast-muted: rgba(244, 243, 237, 0.64),
+  line-subtle: #393937,
+  line-strong: #555552,
+  line-inverse: rgba(255, 255, 255, 0.14),
+  line-contrast: rgba(255, 255, 255, 0.14),
+  accent-primary: #f0efe9,
+  accent-primary-rgb: (240, 239, 233),
+  accent-primary-hover: #ffffff,
+  accent-secondary: #c2c0b8,
+  accent-success: #d2d0c8,
+  accent-success-rgb: (210, 208, 200),
+  accent-warning: #bbb9b1,
+  accent-warning-rgb: (187, 185, 177),
+  accent-danger: #e0ded6,
+  accent-danger-rgb: (224, 222, 214),
+  accent-info: #aaa8a0,
+  accent-info-rgb: (170, 168, 160),
+  accent-on-primary: #191918,
+  accent-on-secondary: #191918,
+  focus-ring: rgba(240, 239, 233, 0.5),
+  glow-primary: rgba(240, 239, 233, 0.045),
+  glow-secondary: rgba(240, 239, 233, 0.03),
+  panel-overlay: rgba(255, 255, 252, 0.08),
+  panel-overlay-hover: rgba(255, 255, 252, 0.14),
+  panel-shadow: rgba(0, 0, 0, 0.24),
+  sidebar-surface: #151514,
+  sidebar-raised: #1d1d1c,
+  sidebar-hover: #2a2a28,
+  sidebar-active: #f0efe9,
+  sidebar-ink: #f0efe9,
+  sidebar-muted: #aaa8a0,
+  sidebar-active-ink: #171716,
+  sidebar-line: #353533,
+  layout-sidebar-width: 11.25rem,
+  layout-sidebar-collapsed-width: 3.5rem,
+  layout-header-height: 3rem,
+  radius-small: 0.25rem,
+  radius-control: 0.375rem,
+  radius-panel: 0.5rem,
+  radius-pill: 999px,
+  shadow-panel: 0 0.2rem 0.8rem rgba(0, 0, 0, 0.15),
+  shadow-floating: 0 1rem 2.5rem rgba(0, 0, 0, 0.32),
+);
+
+$element-light: (
+  surface-page: #f5f7fa,
+  surface-base: #ffffff,
+  surface-raised: #f8fafc,
+  surface-muted: #edf2f7,
+  surface-contrast: #303133,
+  surface-contrast-raised: #202124,
+  surface-inverse: #303133,
+  surface-inverse-raised: #202124,
+  surface-translucent: rgba(255, 255, 255, 0.82),
+  ink-strong: #303133,
+  ink-muted: #606266,
+  ink-soft: #909399,
+  ink-inverse: #f4f4f5,
+  ink-inverse-muted: rgba(244, 244, 245, 0.68),
+  ink-on-contrast: #f4f4f5,
+  ink-on-contrast-muted: rgba(244, 244, 245, 0.68),
+  line-subtle: #dcdfe6,
+  line-strong: #c0c4cc,
+  line-inverse: rgba(255, 255, 255, 0.16),
+  line-contrast: rgba(255, 255, 255, 0.16),
+  accent-primary: #409eff,
+  accent-primary-rgb: (64, 158, 255),
+  accent-primary-hover: #66b1ff,
+  accent-secondary: #909399,
+  accent-success: #67c23a,
+  accent-success-rgb: (103, 194, 58),
+  accent-warning: #e6a23c,
+  accent-warning-rgb: (230, 162, 60),
+  accent-danger: #f56c6c,
+  accent-danger-rgb: (245, 108, 108),
+  accent-info: #909399,
+  accent-info-rgb: (144, 147, 153),
+  accent-on-primary: #ffffff,
+  accent-on-secondary: #ffffff,
+  focus-ring: rgba(64, 158, 255, 0.4),
+  glow-primary: rgba(64, 158, 255, 0.16),
+  glow-secondary: rgba(103, 194, 58, 0.13),
+  panel-overlay: rgba(58, 62, 69, 0.88),
+  panel-overlay-hover: rgba(48, 49, 51, 0.98),
+  panel-shadow: rgba(31, 35, 41, 0.1),
+  sidebar-surface: #303133,
+  sidebar-raised: #202124,
+  sidebar-hover: #3c3f45,
+  sidebar-active: #409eff,
+  sidebar-ink: #f4f4f5,
+  sidebar-muted: rgba(244, 244, 245, 0.68),
+  sidebar-active-ink: #ffffff,
+  sidebar-line: rgba(255, 255, 255, 0.16),
+  layout-sidebar-width: 17.25rem,
+  layout-sidebar-collapsed-width: 5rem,
+  layout-header-height: 4.9rem,
+  radius-small: 0.25rem,
+  radius-control: 0.375rem,
+  radius-panel: 0.5rem,
+  radius-pill: 999px,
+  shadow-panel: 0 0.5rem 1.25rem rgba(31, 35, 41, 0.08),
+  shadow-floating: 0 1.2rem 3.6rem rgba(31, 35, 41, 0.16),
+);
+
+$element-dark: (
+  surface-page: #141414,
+  surface-base: #1d1e1f,
+  surface-raised: #242526,
+  surface-muted: #2d2e30,
+  surface-contrast: #101010,
+  surface-contrast-raised: #1a1a1a,
+  surface-inverse: #f2f3f5,
+  surface-inverse-raised: #e5e7eb,
+  surface-translucent: rgba(36, 37, 38, 0.86),
+  ink-strong: #e5eaf3,
+  ink-muted: #a3a6ad,
+  ink-soft: #7d8087,
+  ink-inverse: #303133,
+  ink-inverse-muted: rgba(48, 49, 51, 0.66),
+  ink-on-contrast: #f2f3f5,
+  ink-on-contrast-muted: rgba(229, 234, 243, 0.66),
+  line-subtle: #4c4d4f,
+  line-strong: #686a70,
+  line-inverse: rgba(48, 49, 51, 0.18),
+  line-contrast: rgba(255, 255, 255, 0.16),
+  accent-primary: #409eff,
+  accent-primary-rgb: (64, 158, 255),
+  accent-primary-hover: #79bbff,
+  accent-secondary: #a6a9ad,
+  accent-success: #85ce61,
+  accent-success-rgb: (133, 206, 97),
+  accent-warning: #e6a23c,
+  accent-warning-rgb: (230, 162, 60),
+  accent-danger: #f78989,
+  accent-danger-rgb: (247, 137, 137),
+  accent-info: #a6a9ad,
+  accent-info-rgb: (166, 169, 173),
+  accent-on-primary: #101722,
+  accent-on-secondary: #1d1e1f,
+  focus-ring: rgba(64, 158, 255, 0.5),
+  glow-primary: rgba(64, 158, 255, 0.16),
+  glow-secondary: rgba(133, 206, 97, 0.13),
+  panel-overlay: rgba(242, 243, 245, 0.93),
+  panel-overlay-hover: #ffffff,
+  panel-shadow: rgba(0, 0, 0, 0.34),
+  sidebar-surface: #101010,
+  sidebar-raised: #1a1a1a,
+  sidebar-hover: #2a2a2a,
+  sidebar-active: #409eff,
+  sidebar-ink: #f2f3f5,
+  sidebar-muted: rgba(242, 243, 245, 0.66),
+  sidebar-active-ink: #ffffff,
+  sidebar-line: rgba(255, 255, 255, 0.16),
+  layout-sidebar-width: 17.25rem,
+  layout-sidebar-collapsed-width: 5rem,
+  layout-header-height: 4.9rem,
+  radius-small: 0.25rem,
+  radius-control: 0.375rem,
+  radius-panel: 0.5rem,
+  radius-pill: 999px,
+  shadow-panel: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.24),
+  shadow-floating: 0 1.2rem 3.6rem rgba(0, 0, 0, 0.36),
+);
+
+$themes: (
+  claude: (
+    light: $claude-light,
+    dark: $claude-dark,
+  ),
+  element: (
+    light: $element-light,
+    dark: $element-dark,
+  ),
+);
+
+@mixin emit-theme($tokens) {
+  --font-family: #{$font-family};
+  --font-body: var(--font-family);
+  --font-display: var(--font-family);
+  --font-mono: var(--font-family);
+
+  @each $name, $value in $tokens {
+    --color-#{$name}: #{$value};
+  }
+
+  --surface-base: var(--color-surface-base);
+  --surface-tinted: var(--color-surface-muted);
+  --ink-strong: var(--color-ink-strong);
+  --ink-muted: var(--color-ink-muted);
+  --ink-soft: var(--color-ink-soft);
+  --accent-strong: var(--color-accent-secondary);
+  --line-subtle: var(--color-line-subtle);
+  --line-strong: var(--color-line-strong);
+  --radius-small: var(--color-radius-small);
+  --radius-control: var(--color-radius-control);
+  --radius-panel: var(--color-radius-panel);
+  --radius-pill: var(--color-radius-pill);
+  --shadow-panel: var(--color-shadow-panel);
+  --shadow-floating: var(--color-shadow-floating);
+  --layout-sidebar-width: var(--color-layout-sidebar-width);
+  --layout-sidebar-collapsed-width: var(--color-layout-sidebar-collapsed-width);
+  --layout-header-height: var(--color-layout-header-height);
+}
+
+:root {
+  @include emit-theme($claude-light);
+}
+
+@each $design, $schemes in $themes {
+  @each $scheme, $tokens in $schemes {
+    html[data-design-theme='#{$design}'][data-color-scheme='#{$scheme}'] {
+      @include emit-theme($tokens);
+      color-scheme: $scheme;
+    }
+  }
+}

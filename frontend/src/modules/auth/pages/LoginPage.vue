@@ -2,10 +2,10 @@
   @file LoginPage.vue
   @project Pipker Framework
   @module Frontend Authentication
-  @description Provides the SYSTEM-domain sign-in surface for all system_user accounts.
-  @logic Submits credentials through the session store, refreshes database authorization, then redirects only after dynamic routes are registered.
-  @dependencies Vue, Vue Router, Pinia session store, Element Plus
-  @index_tags login, authentication, rbac, session
+  @description Provides the SYSTEM-domain sign-in surface and shared visual-theme selection for all system_user accounts.
+  @logic Submits credentials through the session store, refreshes database authorization, then redirects only after dynamic routes are registered; visual choices are persisted by ThemeSwitcher.
+  @dependencies Vue, Vue Router, Pinia session store, ThemeSwitcher, Element Plus
+  @index_tags login, authentication, rbac, session, theme
   @author holic512
 -->
 <script setup lang="ts">
@@ -14,6 +14,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ApiBusinessError } from '../../../core/api/contracts'
 import { getDefaultAuthorizedPath } from '../../../router'
 import { useSessionStore } from '../../../stores/session'
+import ThemeSwitcher from '../../../components/ThemeSwitcher.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -52,8 +53,9 @@ async function submit(): Promise<void> {
 
 <template>
   <main class="login-page">
+    <ThemeSwitcher class="login-page__theme-switcher" />
     <section class="login-page__brief" aria-labelledby="login-heading">
-      <p class="login-page__eyebrow">PIPKER / SYSTEM ACCESS</p>
+      <p class="login-page__eyebrow ui-eyebrow">PIPKER / SYSTEM ACCESS</p>
       <h1 id="login-heading">让授权来自<br />正在运行的系统。</h1>
       <p class="login-page__copy">
         登录后，服务端会返回当前账户的角色、权限与可见菜单。前端只装载这些已授权的页面。
@@ -74,7 +76,7 @@ async function submit(): Promise<void> {
       </dl>
     </section>
 
-    <section class="login-panel" aria-label="系统登录表单">
+    <section class="login-panel ui-panel" aria-label="系统登录表单">
       <div class="login-panel__header">
         <span class="login-panel__mark">P</span>
         <div>
@@ -110,8 +112,9 @@ async function submit(): Promise<void> {
   </main>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .login-page {
+  position: relative;
   min-height: 100svh;
   display: grid;
   grid-template-columns: minmax(0, 1.18fr) minmax(22rem, 0.82fr);
@@ -120,13 +123,19 @@ async function submit(): Promise<void> {
   padding: clamp(1.5rem, 6vw, 6rem);
   overflow: hidden;
   background:
-    radial-gradient(circle at 16% 18%, rgba(180, 215, 156, 0.36), transparent 26rem),
-    linear-gradient(115deg, #15231f 0%, #10201b 58%, #e9f0e5 58%, #f8faf6 100%);
+    radial-gradient(circle at 16% 18%, var(--color-glow-secondary), transparent 26rem),
+    linear-gradient(115deg, var(--color-surface-contrast) 0%, var(--color-surface-contrast-raised) 58%, var(--color-surface-muted) 58%, var(--color-surface-page) 100%);
+}
+
+.login-page__theme-switcher {
+  position: absolute;
+  top: clamp(1rem, 2vw, 1.8rem);
+  right: clamp(1rem, 2vw, 2rem);
 }
 
 .login-page__brief {
   max-width: 44rem;
-  color: #eff7eb;
+  color: var(--color-ink-on-contrast);
   animation: rise-in 540ms both cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -141,7 +150,7 @@ async function submit(): Promise<void> {
 }
 
 .login-page__eyebrow {
-  color: #b6d69c;
+  color: var(--color-accent-secondary);
 }
 
 .login-page h1 {
@@ -156,7 +165,7 @@ async function submit(): Promise<void> {
 .login-page__copy {
   max-width: 35rem;
   margin: 1.8rem 0 0;
-  color: rgba(239, 247, 235, 0.72);
+  color: var(--color-ink-on-contrast-muted);
   font-size: 1rem;
   line-height: 1.85;
 }
@@ -171,12 +180,12 @@ async function submit(): Promise<void> {
 .login-page__principles div {
   min-width: 10.5rem;
   padding: 0.85rem 1rem;
-  border: 1px solid rgba(215, 239, 196, 0.18);
-  background: rgba(6, 22, 17, 0.15);
+  border: 1px solid var(--color-line-contrast);
+  background: color-mix(in srgb, var(--color-surface-contrast-raised) 62%, transparent);
 }
 
 .login-page__principles dt {
-  color: #b6d69c;
+  color: var(--color-accent-secondary);
   font-family: var(--font-mono);
   font-size: 0.66rem;
 }
@@ -190,11 +199,11 @@ async function submit(): Promise<void> {
   width: min(100%, 28rem);
   justify-self: end;
   padding: clamp(1.5rem, 4vw, 3rem);
-  color: var(--ink-strong);
-  background: rgba(253, 255, 251, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  border-radius: 0.65rem;
-  box-shadow: 0 2.5rem 6rem rgba(8, 24, 18, 0.2);
+  color: var(--color-ink-strong);
+  background: var(--color-surface-translucent);
+  border-color: var(--color-line-subtle);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-floating);
   backdrop-filter: blur(1rem);
   animation: rise-in 560ms 90ms both cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -210,16 +219,16 @@ async function submit(): Promise<void> {
   height: 2.65rem;
   display: grid;
   place-items: center;
-  color: #f2faee;
-  background: #1e3830;
+  color: var(--color-accent-on-primary);
+  background: var(--color-accent-primary);
   font-family: var(--font-display);
   font-size: 1.45rem;
   font-weight: 800;
-  border-radius: 0.32rem;
+  border-radius: var(--radius-small);
 }
 
 .login-panel__header p {
-  color: var(--accent-strong);
+  color: var(--color-accent-primary);
 }
 
 .login-panel__header h2 {
@@ -238,23 +247,23 @@ async function submit(): Promise<void> {
 .login-form label {
   display: grid;
   gap: 0.48rem;
-  color: var(--ink-muted);
+  color: var(--color-ink-muted);
   font-size: 0.75rem;
   font-weight: 700;
 }
 
 .login-form :deep(.el-input__wrapper) {
   min-height: 2.8rem;
-  box-shadow: 0 0 0 1px var(--line-strong) inset;
+  box-shadow: 0 0 0 1px var(--color-line-strong) inset;
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--accent-strong) inset;
+  box-shadow: 0 0 0 1px var(--color-accent-primary) inset;
 }
 
 .login-form__error {
   margin: -0.25rem 0 0;
-  color: #a73a34;
+  color: var(--color-accent-danger);
   font-size: 0.8rem;
   line-height: 1.55;
 }
@@ -262,10 +271,6 @@ async function submit(): Promise<void> {
 .login-form__submit {
   width: 100%;
   margin-top: 0.4rem;
-  --el-button-bg-color: #1f4637;
-  --el-button-border-color: #1f4637;
-  --el-button-hover-bg-color: #2f614d;
-  --el-button-hover-border-color: #2f614d;
 }
 
 .login-panel__note {
@@ -286,11 +291,11 @@ async function submit(): Promise<void> {
   }
 }
 
-@media (max-width: 52rem) {
+@include at-most('tablet') {
   .login-page {
     grid-template-columns: 1fr;
     gap: 2.5rem;
-    background: linear-gradient(155deg, #14251f 0%, #1d3930 48%, #edf4e9 48%, #f8faf6 100%);
+    background: linear-gradient(155deg, var(--color-surface-contrast) 0%, var(--color-surface-contrast-raised) 48%, var(--color-surface-muted) 48%, var(--color-surface-page) 100%);
   }
 
   .login-page__brief {

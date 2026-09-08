@@ -82,10 +82,10 @@ function readableError(error: unknown, fallback: string): string {
 </script>
 
 <template>
-  <main class="role-menu-page">
+  <main class="role-menu-page ui-page-frame">
     <header class="role-menu-page__header">
       <div>
-        <p class="role-menu-page__eyebrow">SYSTEM / ROLE ROUTES</p>
+        <p class="role-menu-page__eyebrow ui-eyebrow">SYSTEM / ROLE ROUTES</p>
         <h1>角色路由</h1>
         <p>从角色出发配置可装载的页面菜单。接口权限仍由独立的 API 权限配置控制。</p>
       </div>
@@ -96,8 +96,8 @@ function readableError(error: unknown, fallback: string): string {
     <p v-if="feedback" class="role-menu-page__notice role-menu-page__notice--success">{{ feedback }}</p>
 
     <section v-if="configuration" class="role-menu-page__workspace">
-      <aside class="role-menu-page__roles" aria-label="角色选择">
-        <p class="role-menu-page__caption">启用角色</p>
+      <aside class="role-menu-page__roles ui-panel" aria-label="角色选择">
+        <p class="role-menu-page__caption ui-eyebrow">启用角色</p>
         <button
           v-for="role in configuration.roles"
           :key="role.id"
@@ -115,11 +115,11 @@ function readableError(error: unknown, fallback: string): string {
         </button>
       </aside>
 
-      <section class="role-menu-page__editor" aria-live="polite">
+      <section class="role-menu-page__editor ui-panel" aria-live="polite">
         <template v-if="selectedRole">
           <div class="role-menu-page__editor-heading">
             <div>
-              <p class="role-menu-page__caption">页面菜单</p>
+              <p class="role-menu-page__caption ui-eyebrow">页面菜单</p>
               <h2>{{ selectedRole.name }}</h2>
               <p>{{ selectedRole.allMenus ? 'SUPER_ADMIN 自动拥有全部启用菜单，不能手工收窄。' : '仅勾选可访问页面；目录只用于组织菜单树。' }}</p>
             </div>
@@ -148,10 +148,8 @@ function readableError(error: unknown, fallback: string): string {
   </main>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .role-menu-page {
-  width: min(100%, 78rem);
-  margin: 0 auto;
   padding: clamp(1.5rem, 4vw, 3.5rem);
 }
 
@@ -165,23 +163,13 @@ function readableError(error: unknown, fallback: string): string {
 
 .role-menu-page__header {
   padding-bottom: 2rem;
-  border-bottom: 1px solid var(--line-subtle);
-}
-
-.role-menu-page__eyebrow,
-.role-menu-page__caption {
-  margin: 0;
-  color: var(--accent-strong);
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.11em;
+  border-bottom: 1px solid var(--color-line-subtle);
 }
 
 .role-menu-page h1,
 .role-menu-page h2 {
-  color: var(--ink-strong);
-  font-family: var(--font-display);
+  color: var(--color-ink-strong);
+  font-family: var(--font-family);
 }
 
 .role-menu-page h1 {
@@ -198,7 +186,7 @@ function readableError(error: unknown, fallback: string): string {
 .role-menu-page__editor-heading p:not(.role-menu-page__caption) {
   max-width: 41rem;
   margin: 0;
-  color: var(--ink-muted);
+  color: var(--color-ink-muted);
   font-size: 0.88rem;
   line-height: 1.75;
 }
@@ -206,18 +194,21 @@ function readableError(error: unknown, fallback: string): string {
 .role-menu-page__notice {
   margin: 1rem 0 0;
   padding: 0.8rem 1rem;
-  border-radius: 0.4rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
   font-size: 0.84rem;
 }
 
 .role-menu-page__notice--error {
-  color: #8a2424;
-  background: #fff1f0;
+  color: var(--color-accent-danger);
+  background: color-mix(in srgb, var(--color-accent-danger) 12%, var(--color-surface-base));
+  border-color: color-mix(in srgb, var(--color-accent-danger) 30%, var(--color-line-subtle));
 }
 
 .role-menu-page__notice--success {
-  color: #315a2d;
-  background: #edf7e9;
+  color: var(--color-accent-success);
+  background: color-mix(in srgb, var(--color-accent-success) 12%, var(--color-surface-base));
+  border-color: color-mix(in srgb, var(--color-accent-success) 30%, var(--color-line-subtle));
 }
 
 .role-menu-page__workspace {
@@ -230,9 +221,6 @@ function readableError(error: unknown, fallback: string): string {
 .role-menu-page__roles,
 .role-menu-page__editor {
   padding: 1.25rem;
-  background: #f5f8f2;
-  border: 1px solid var(--line-subtle);
-  border-radius: 0.55rem;
 }
 
 .role-menu-page__roles {
@@ -248,18 +236,23 @@ function readableError(error: unknown, fallback: string): string {
   gap: 0.65rem;
   width: 100%;
   padding: 0.75rem;
-  color: var(--ink-strong);
+  color: var(--color-ink-strong);
   text-align: left;
   cursor: pointer;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 0.36rem;
+  border-radius: var(--radius-small);
 }
 
 .role-option:hover,
 .role-option--active {
-  background: #fbfcf8;
-  border-color: #c5d8bc;
+  background: var(--color-surface-base);
+  border-color: var(--color-line-strong);
+}
+
+.role-option--active {
+  background: color-mix(in srgb, var(--color-accent-primary) 10%, var(--color-surface-base));
+  border-color: var(--color-accent-primary);
 }
 
 .role-option span {
@@ -273,17 +266,17 @@ function readableError(error: unknown, fallback: string): string {
 
 .role-option small,
 .role-option em {
-  color: var(--ink-soft);
-  font-family: var(--font-mono);
+  color: var(--color-ink-soft);
+  font-family: var(--font-family);
   font-size: 0.62rem;
   font-style: normal;
 }
 
 .role-option em {
   padding: 0.2rem 0.36rem;
-  color: var(--accent-strong);
-  background: #eaf3e4;
-  border-radius: 999px;
+  color: var(--color-accent-primary);
+  background: color-mix(in srgb, var(--color-accent-primary) 11%, var(--color-surface-base));
+  border-radius: var(--radius-pill);
 }
 
 .role-menu-page__editor {
@@ -296,7 +289,7 @@ function readableError(error: unknown, fallback: string): string {
 
 .role-menu-page__empty,
 .role-menu-page__loading {
-  color: var(--ink-muted);
+  color: var(--color-ink-muted);
   font-size: 0.9rem;
 }
 
@@ -304,7 +297,7 @@ function readableError(error: unknown, fallback: string): string {
   margin-top: 1.5rem;
 }
 
-@media (max-width: 48rem) {
+@include at-most('tablet') {
   .role-menu-page__workspace {
     grid-template-columns: 1fr;
   }

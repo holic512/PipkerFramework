@@ -2,9 +2,9 @@
  * @file index.ts
  * @project Pipker Framework
  * @module Frontend Router
- * @description Registers the public home and login routes alongside the protected layout, then derives protected page routes exclusively from /api/auth/me menu data.
+ * @description Registers the public home selector and login routes alongside the protected layout, then derives protected page routes exclusively from /api/auth/me menu data.
  * @logic Keeps / publicly reachable, resolves componentKey through import.meta.glob, removes stale routes on session cleanup, and redirects the protected layout root to the first authorized page.
- * @dependencies Vue Router, AppLayout, LoginPage, HomePage, sessionStorage, SystemMenuNode
+ * @dependencies Vue Router, AppLayout, LoginPage, public home selector, sessionStorage, SystemMenuNode
  * @index_tags router, homepage, dynamic-routing, rbac, authentication
  * @author holic512
  */
@@ -29,7 +29,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: HOME_ROUTE_NAME,
-    component: () => import('../modules/home/pages/HomePage.vue'),
+    component: () => import('../modules/home/index.vue'),
     meta: { title: '系统首页', public: true },
   },
   {

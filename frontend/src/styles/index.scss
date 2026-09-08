@@ -1,0 +1,14 @@
+/*
+ * @file index.scss
+ * @project Pipker Framework
+ * @module Frontend Global Styles
+ * @description Loads the global theme token matrix, Element Plus bridge, and reusable UI patterns.
+ * @logic Keeps global CSS emission in one ordered entry point while scoped views consume Sass-only abstracts through Vite injection.
+ * @dependencies theme tokens, Element Plus bridge, global patterns
+ * @index_tags sass, global-styles, theme-entrypoint
+ * @author holic512
+ */
+
+@use 'themes';
+@use 'element-plus';
+@use 'patterns';

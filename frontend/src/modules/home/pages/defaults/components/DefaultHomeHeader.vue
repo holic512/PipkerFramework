@@ -12,7 +12,7 @@ defineProps<{
   <header class="home-header">
     <div class="home-header__frame">
       <RouterLink class="home-header__brand ui-focusable" to="/" aria-label="Pipker Framework 首页">
-        <span class="home-header__mark" aria-hidden="true">P</span>
+        <img class="home-header__mark" src="/brand/pipker-logo.webp" alt="" />
         <span class="home-header__brand-copy">
           <strong>PIPKER</strong>
           <small>FRAMEWORK</small>
@@ -83,13 +83,9 @@ defineProps<{
 .home-header__mark {
   width: 2rem;
   height: 2rem;
-  display: grid;
-  place-items: center;
-  color: var(--color-accent-on-primary);
-  background: var(--color-accent-primary);
+  display: block;
+  object-fit: cover;
   border-radius: var(--radius-control);
-  font-size: 1rem;
-  font-weight: 900;
 }
 
 .home-header__brand-copy {

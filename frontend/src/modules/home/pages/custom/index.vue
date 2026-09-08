@@ -23,7 +23,7 @@ defineProps<{
     <div class="custom-home__grid" aria-hidden="true"></div>
     <header class="custom-home__header">
       <RouterLink class="custom-home__brand ui-focusable" to="/" aria-label="Pipker Framework 首页">
-        <span aria-hidden="true">P</span>
+        <img class="custom-home__logo" src="/brand/pipker-logo.webp" alt="" />
         PIPKER FRAMEWORK
       </RouterLink>
       <ThemeSwitcher />
@@ -108,16 +108,12 @@ defineProps<{
   text-decoration: none;
 }
 
-.custom-home__brand span {
+.custom-home__logo {
   width: 1.8rem;
   height: 1.8rem;
-  display: grid;
-  place-items: center;
-  color: var(--color-accent-on-primary);
-  background: var(--color-accent-primary);
+  display: block;
+  object-fit: cover;
   border-radius: var(--radius-control);
-  font-size: 0.9rem;
-  letter-spacing: 0;
 }
 
 .custom-home__content {

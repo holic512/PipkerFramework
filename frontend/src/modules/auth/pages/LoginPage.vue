@@ -78,7 +78,7 @@ async function submit(): Promise<void> {
 
     <section class="login-panel ui-panel" aria-label="系统登录表单">
       <div class="login-panel__header">
-        <span class="login-panel__mark">P</span>
+        <img class="login-panel__mark" src="/brand/pipker-logo.webp" alt="" />
         <div>
           <p>CONTROL ROOM</p>
           <h2>系统登录</h2>
@@ -217,13 +217,9 @@ async function submit(): Promise<void> {
 .login-panel__mark {
   width: 2.65rem;
   height: 2.65rem;
-  display: grid;
-  place-items: center;
-  color: var(--color-accent-on-primary);
-  background: var(--color-accent-primary);
-  font-family: var(--font-display);
-  font-size: 1.45rem;
-  font-weight: 800;
+  display: block;
+  flex: 0 0 auto;
+  object-fit: cover;
   border-radius: var(--radius-small);
 }
 

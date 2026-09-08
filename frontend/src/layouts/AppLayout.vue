@@ -52,7 +52,7 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
   <div class="app-shell" :class="{ 'app-shell--compact': appStore.sidebarCollapsed }">
     <aside class="app-shell__sidebar" aria-label="主导航">
       <div class="brand">
-        <span class="brand__mark">P</span>
+        <img class="brand__mark" src="/brand/pipker-logo.webp" alt="Pipker" />
         <div v-show="!appStore.sidebarCollapsed" class="brand__name">
           <strong>PIPKER</strong>
           <span>CONTROL ROOM</span>
@@ -146,13 +146,8 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
   flex: 0 0 2.15rem;
   width: 2.15rem;
   height: 2.15rem;
-  display: grid;
-  place-items: center;
-  color: var(--color-accent-on-primary);
-  background: var(--color-accent-primary);
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  font-weight: 800;
+  display: block;
+  object-fit: cover;
   border-radius: var(--radius-small);
   box-shadow: var(--shadow-panel);
 }

@@ -41,7 +41,7 @@ defineProps<{
 
     <div class="home-footer__bottom ui-page-frame">
       <RouterLink class="home-footer__brand ui-focusable" to="/">
-        <span aria-hidden="true">P</span>
+        <img class="home-footer__logo" src="/brand/pipker-logo.webp" alt="" />
         PIPKER FRAMEWORK
       </RouterLink>
       <p>PUBLIC DELIVERY BASELINE</p>
@@ -189,16 +189,12 @@ defineProps<{
   text-decoration: none;
 }
 
-.home-footer__brand span {
+.home-footer__logo {
   width: 1.2rem;
   height: 1.2rem;
-  display: grid;
-  place-items: center;
-  color: var(--color-accent-primary);
-  background: var(--color-ink-on-contrast);
+  display: block;
+  object-fit: cover;
   border-radius: var(--radius-small);
-  font-size: 0.66rem;
-  letter-spacing: 0;
 }
 
 @include at-most('tablet') {

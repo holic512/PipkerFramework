@@ -146,7 +146,7 @@ public class PipkerFileProperties {
          * 相对当前工作目录的默认文件根目录。
          */
         @NotBlank
-        private String root = "./data/files";
+        private String root = "./data/file";
 
         /**
          * 返回配置的本地文件根目录。

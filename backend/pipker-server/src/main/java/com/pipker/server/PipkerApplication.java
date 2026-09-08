@@ -3,13 +3,14 @@
  * @project Pipker Framework
  * @module Pipker Server
  * @description 提供 Pipker 可执行 HTTP Server 的唯一启动入口。
- * @logic 在 Spring 上下文创建数据源前准备 SQLite 数据库目录，再扫描公共 Starter、业务 API 组件和按功能分布的 MyBatis Mapper。
- * @dependencies Spring Boot、MyBatis Spring、Pipker Business API、SQLiteDatabaseDirectoryInitializer
- * @index_tags server、bootstrap、spring-boot、mybatis、sqlite
+ * @logic 在 Spring 上下文创建数据源前初始化受控 data 目录并校验 SQLite、文件存储路径，再扫描公共 Starter、业务 API 组件和按功能分布的 MyBatis Mapper。
+ * @dependencies Spring Boot、MyBatis Spring、Pipker Business API、LocalDataDirectoryInitializer、SQLiteDatabaseDirectoryInitializer
+ * @index_tags server、bootstrap、spring-boot、mybatis、sqlite、data-root
  * @author holic512
  */
 package com.pipker.server;
 
+import com.pipker.server.config.LocalDataDirectoryInitializer;
 import com.pipker.server.config.SqliteDatabaseDirectoryInitializer;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
@@ -27,7 +28,10 @@ public class PipkerApplication {
      */
     public static void main(String[] args) {
         SpringApplication application = new SpringApplication(PipkerApplication.class);
-        application.addInitializers(new SqliteDatabaseDirectoryInitializer());
+        application.addInitializers(
+                new LocalDataDirectoryInitializer(),
+                new SqliteDatabaseDirectoryInitializer()
+        );
         application.run(args);
     }
 }

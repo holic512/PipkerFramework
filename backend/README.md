@@ -102,7 +102,7 @@ pipker-server/src/main/resources/
     │       ├── sqlite.yml
     │       ├── mysql.yml
     │       └── pg.yml
-    │   └── file.yml                        # 本地文件存储开关、目录与访问前缀
+    │   └── file.yml                        # 本地文件存储开关、受控目录与访问前缀
     ├── dev/
     │   ├── application.yml                 # 开发配置
     │   └── redis.yml                        # redis Profile 配置
@@ -141,29 +141,39 @@ MySQL 和 PostgreSQL 的连接参数通过以下环境变量提供，避免开�
 PIPKER_DATABASE_URL
 PIPKER_DATABASE_USERNAME
 PIPKER_DATABASE_PASSWORD
-PIPKER_SQLITE_PATH
 ```
 
-SQLite 默认使用 `./data/pipker.db`，可以通过 `PIPKER_SQLITE_PATH` 指定其他文件路径。MySQL、PostgreSQL 与 SQLite 分别使用 `com.mysql.cj.jdbc.Driver`、`org.postgresql.Driver` 和 `org.sqlite.JDBC`。
+SQLite 固定使用 `${PIPKER_DATA_ROOT:./data}/base/pipker.db`，不支持通过 `PIPKER_DATABASE_URL` 或 `PIPKER_SQLITE_PATH` 单独覆盖其路径。MySQL、PostgreSQL 继续使用 `PIPKER_DATABASE_URL`、`PIPKER_DATABASE_USERNAME` 与 `PIPKER_DATABASE_PASSWORD` 提供外部连接信息；三个 Profile 分别使用 `com.mysql.cj.jdbc.Driver`、`org.postgresql.Driver` 和 `org.sqlite.JDBC`。
 
 Redis 配置分别位于 `config/dev/redis.yml` 和 `config/prod/redis.yml`，使用 `spring.data.redis.host`、`port`、`database`、`username`、`password`。启用 Redis 会话存储时组合 `redis` Profile；默认使用内存会话存储，适合单实例开发。
 
 ### 本地文件持久化
 
-`pipker-spring-boot-starter-file` 默认启用本地文件存储。按照文档中的启动方式在 `backend/` 运行 Server 时，文件根目录是 `backend/data/files`；目录仅在第一次保存文件时创建。它与 SQLite 的 `./data/pipker.db` 一样按当前后端运行目录解析，但二者互不共享文件名或元数据。
+`pipker-spring-boot-starter-file` 默认启用本地文件存储。Server 将全部本地运行数据收敛在 `PIPKER_DATA_ROOT`（默认 `./data`）中；它可配置为相对或绝对本地路径。应用启动时会创建固定布局：
+
+```text
+${PIPKER_DATA_ROOT:-./data}/
+├── base/  # SQLite 数据库：pipker.db
+├── file/  # FileStorageService 保存的文件
+└── log/   # 仅预留，当前不写入文件日志
+```
+
+按照文档中的启动方式在 `backend/` 运行 Server 时，SQLite 路径为 `backend/data/base/pipker.db`，文件根目录为 `backend/data/file`。SQLite 和文件存储都不能通过独立路径配置离开该根目录；`data/log` 仅用于预留目录，不改变当前控制台日志行为。
 
 默认配置位于 `pipker-server/src/main/resources/config/base/file.yml`：
 
 ```yaml
 pipker:
+  data:
+    root: ${PIPKER_DATA_ROOT:./data}
   file:
     enabled: ${PIPKER_FILE_ENABLED:true}
     local:
-      root: ${PIPKER_FILE_LOCAL_ROOT:./data/files}
+      root: ${pipker.data.root}/file
     access-path: ${PIPKER_FILE_ACCESS_PATH:/files}
 ```
 
-可通过 `PIPKER_FILE_ENABLED=false` 完全关闭该功能。关闭后不会注册 `FileStorageService`，`/files/**` 也不会映射到磁盘，访问结果保持标准 HTTP `404`。`PIPKER_FILE_LOCAL_ROOT` 可以指定相对或绝对目录；`PIPKER_FILE_ACCESS_PATH` 必须是安全的绝对 URL 路径前缀，例如 `/files` 或 `/public/files`，不能包含 `..`、通配符、查询参数或域名。
+可通过 `PIPKER_DATA_ROOT` 配置唯一的本地运行时数据根目录；启动期会拒绝 SQLite 数据库或 `pipker.file.local.root` 被其他高优先级属性改到该目录之外。`PIPKER_FILE_ENABLED=false` 可完全关闭文件功能，关闭后不会注册 `FileStorageService`，`/files/**` 也不会映射到磁盘，访问结果保持标准 HTTP `404`；`data/file` 与 `data/log` 仍会作为固定本地目录被预创建。`PIPKER_FILE_ACCESS_PATH` 必须是安全的绝对 URL 路径前缀，例如 `/files` 或 `/public/files`，不能包含 `..`、通配符、查询参数或域名。
 
 业务模块通过 `FileStorageService` 写入文件，而不是自行拼接本地路径：
 
@@ -178,7 +188,7 @@ String accessPath = stored.accessPath();   // 例如 /files/2026/09/04/<32 位�
 
 匿名 `GET` 或 `HEAD /files/**` 返回原始文件内容，不使用 API JSON 响应包装；不存在的文件保持 HTTP `404`。该模块没有 HTTP 上传、删除、目录列表或完整 URL 生成接口。`StoredFile.accessPath()` 永远不含协议、主机、端口、请求 Host、`X-Forwarded-*` 或本地 `file:` 路径，调用方、浏览器或网关应按当前部署的公开域名和前缀拼接它。
 
-默认文件访问是公开的：任何能够猜到或获得文件路径的客户端都可以读取对应内容。因此不要把需要逐文件鉴权的敏感资料放入该目录；生产反向代理必须将 `/files/**` 与 `/api` 一同转发给后端。`backend/data/` 已被 Git 忽略，避免本地 SQLite 数据库和保存的文件进入版本控制。
+默认文件访问是公开的：任何能够猜到或获得文件路径的客户端都可以读取对应内容。因此不要把需要逐文件鉴权的敏感资料放入该目录；生产反向代理必须将 `/files/**` 与 `/api` 一同转发给后端。`backend/data/` 已被 Git 忽略，避免本地 SQLite 数据库、保存文件和预留日志目录进入版本控制。旧布局的 `data/pipker.db` 与 `data/files` 不会自动迁移；当前框架开发阶段可在切换前停止应用并清空旧本地 `data/` 内容，再由下次启动重建固定目录。
 
 主 [application.yml](pipker-server/src/main/resources/application.yml) 包含一个直接提交的本地 AES-GCM Base64 密钥，使 `SecurityCryptoService` 可以启动。它不是生产密钥，生产部署必须替换为受控的 32 字节 Base64 AES 密钥。数据库连接参数使用环境变量占位符，不在仓库内保存真实凭据。
 

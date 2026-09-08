@@ -1,11 +1,15 @@
 # @file config/base/application.yml
 # @project Pipker Framework
 # @module Pipker Server
-# @description 统一基础设施配置入口。
-# @logic 导入所有可选数据库实现及本地文件存储默认配置，由数据库 Profile 决定实际数据源，文件功能由 pipker.file.enabled 控制。
+# @description 统一基础设施配置入口和本地运行数据根目录。
+# @logic 以 pipker.data.root 统一推导 SQLite、文件存储和预留日志目录；导入所有可选数据库实现及本地文件存储默认配置，由数据库 Profile 决定实际数据源。
 # @dependencies Spring Boot Config Data、SQLite JDBC、MySQL Connector/J、PostgreSQL JDBC、Pipker File Starter
-# @index_tags server、配置、base、database、datasource、file-storage、profile
+# @index_tags server、配置、base、data-root、database、datasource、file-storage、profile
 # @author holic512
+pipker:
+  data:
+    root: ${PIPKER_DATA_ROOT:./data}
+
 spring:
   config:
     import:

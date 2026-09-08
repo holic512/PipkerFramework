@@ -20,7 +20,7 @@ class PipkerFileAutoConfigurationTests {
             assertThat(context).hasSingleBean(FileStorageService.class);
             PipkerFileProperties properties = context.getBean(PipkerFileProperties.class);
             assertThat(properties.isEnabled()).isTrue();
-            assertThat(properties.getLocal().getRoot()).isEqualTo("./data/files");
+            assertThat(properties.getLocal().getRoot()).isEqualTo("./data/file");
             assertThat(properties.getAccessPath()).isEqualTo("/files");
         });
     }

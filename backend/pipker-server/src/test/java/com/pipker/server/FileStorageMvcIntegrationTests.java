@@ -1,5 +1,7 @@
 package com.pipker.server;
 
+import com.pipker.server.config.LocalDataDirectoryInitializer;
+import com.pipker.server.config.SqliteDatabaseDirectoryInitializer;
 import com.pipker.starter.file.service.FileStorageService;
 import com.pipker.starter.file.service.StoredFile;
 import org.junit.jupiter.api.AfterAll;
@@ -8,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,9 +33,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
+@ContextConfiguration(initializers = {
+        LocalDataDirectoryInitializer.class,
+        SqliteDatabaseDirectoryInitializer.class
+})
 class FileStorageMvcIntegrationTests {
 
-    private static final Path FILE_ROOT = createTemporaryDirectory();
+    private static final Path DATA_ROOT = createTemporaryDirectory();
+    private static final Path FILE_ROOT = DATA_ROOT.resolve("file");
     private static final Path SQLITE_DATABASE = SqliteTestDatabase.create("pipker-file-mvc-");
 
     @Autowired
@@ -43,7 +51,7 @@ class FileStorageMvcIntegrationTests {
 
     @DynamicPropertySource
     static void fileStorageProperties(DynamicPropertyRegistry registry) {
-        registry.add("pipker.file.local.root", () -> FILE_ROOT.toString());
+        registry.add("pipker.data.root", DATA_ROOT::toString);
         SqliteTestDatabase.register(registry, SQLITE_DATABASE);
     }
 
@@ -64,6 +72,7 @@ class FileStorageMvcIntegrationTests {
         byte[] expectedContent = "public file response".getBytes(StandardCharsets.UTF_8);
         StoredFile storedFile = fileStorageService.store(expectedContent, "readme.txt");
 
+        assertThat(Files.isRegularFile(FILE_ROOT.resolve(storedFile.storageKey()))).isTrue();
         assertThat(storedFile.accessPath()).startsWith("/files/");
         assertThat(storedFile.accessPath())
                 .doesNotContain("://")

@@ -28,7 +28,7 @@ PipkerFramework/
 
 ## 快速开始（本地开发）
 
-前置条件：JDK 21、Maven 3.9+、Node.js 与 npm。后端默认使用 `dev,sqlite`，首次启动会在 `backend/data/pipker.db` 创建 SQLite 数据库并由 Liquibase 初始化系统表；文件保存功能默认使用 `backend/data/files`，并在第一次通过文件服务写入时创建目录：
+前置条件：JDK 21、Maven 3.9+、Node.js 与 npm。后端默认使用 `dev,sqlite`，首次启动会在 `backend/data/base/pipker.db` 创建 SQLite 数据库并由 Liquibase 初始化系统表；启动期还会预创建 `backend/data/file` 与 `backend/data/log`。文件保存功能使用 `backend/data/file`：
 
 1. 启动后端；Liquibase 会在空库中创建全部 `system_` 表并写入种子数据。
 2. 启动前端；开发服务器默认将 `/api` 和 `/files` 代理到 `http://localhost:8080`。
@@ -63,7 +63,7 @@ mvn -pl pipker-server -am spring-boot:run \
   -Dspring-boot.run.profiles=prod,mysql
 ```
 
-可用数据库 Profile 为 `sqlite`、`mysql` 和 `pg`；生产环境必须显式指定数据库，不能只使用 `prod`。数据库连接信息使用 `PIPKER_DATABASE_URL`、`PIPKER_DATABASE_USERNAME` 和 `PIPKER_DATABASE_PASSWORD` 提供，SQLite 文件路径可通过 `PIPKER_SQLITE_PATH` 覆盖。文件模块可用 `PIPKER_FILE_ENABLED`、`PIPKER_FILE_LOCAL_ROOT` 和 `PIPKER_FILE_ACCESS_PATH` 覆盖开关、物理目录和根相对读取前缀；文件服务返回 `/files/...` 一类的相对路径而不是完整 URL。不要把真实密码提交到配置文件或命令历史中。
+可用数据库 Profile 为 `sqlite`、`mysql` 和 `pg`；生产环境必须显式指定数据库，不能只使用 `prod`。`PIPKER_DATA_ROOT` 可配置本地运行时数据根目录，默认为 `./data`；SQLite 固定使用 `${PIPKER_DATA_ROOT}/base/pipker.db`，本地文件固定使用 `${PIPKER_DATA_ROOT}/file`，`${PIPKER_DATA_ROOT}/log` 当前仅预留且不写入文件日志。MySQL、PostgreSQL 的外部连接信息继续使用 `PIPKER_DATABASE_URL`、`PIPKER_DATABASE_USERNAME` 和 `PIPKER_DATABASE_PASSWORD`。文件模块仍可用 `PIPKER_FILE_ENABLED` 和 `PIPKER_FILE_ACCESS_PATH` 覆盖开关、根相对读取前缀；文件服务返回 `/files/...` 一类的相对路径而不是完整 URL。不要把真实密码提交到配置文件或命令历史中。
 
 空数据库的初始账户是 `admin / admin123`。该口令仅用于首次本地初始化，绝不能用于公开部署；上线前必须使用与 `SecurityCryptoService` 兼容的 `{bcrypt}` 哈希替换它。主配置中提交的 AES-GCM Base64 密钥同样只是本地开发默认值，生产部署必须替换。
 

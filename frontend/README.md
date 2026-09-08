@@ -13,6 +13,7 @@ Pipker Framework 的 Vue 3 管理端。前端不维护静态业务导航：SYSTE
 | Pinia | `4.0.3` | 会话、授权与布局状态 |
 | Axios | `1.20.0` | Bearer 注入和统一响应解包 |
 | Element Plus | `2.14.5` | 按需导入的后台基础组件 |
+| Element Plus Icons | `2.3.2` | 数据库菜单图标的受控映射与布局操作图标 |
 | Sass | `1.104.0` | 全局设计 token、复用模式与页面样式编译 |
 
 精确安装结果由 `package-lock.json` 固定；`package.json` 保留同一主版本内的语义化范围。
@@ -29,9 +30,10 @@ src/
 ├── layouts/
 │   ├── AppLayout.vue                # 受保护路由稳定父级；按配置选择应用布局
 │   ├── api/config.ts                # sidebar / tabbed 布局的唯一源码选择配置
+│   ├── model/navigation.ts          # 菜单树转换、图标映射、祖先链与面包屑模型
 │   └── pages/
-│       ├── sidebar/index.vue        # 当前侧栏控制台布局，默认启用
-│       └── tabbed/index.vue         # 页签工作区布局
+│       ├── sidebar/index.vue        # 全高分组侧栏与轻量顶栏布局，默认启用
+│       └── tabbed/index.vue         # 树形侧栏与访问历史页签工作区
 ├── components/ThemeSwitcher.vue      # 设计语言与明暗模式切换器
 ├── modules/
 │   ├── auth/                        # 登录 API 与登录页
@@ -52,6 +54,9 @@ src/
 │   ├── _themes.scss                  # Claude / Element × 浅色 / 深色 token map
 │   ├── _element-plus.scss            # Element Plus CSS 变量语义映射
 │   ├── _patterns.scss                # 重置、页面、面板、标题和切换器复用样式
+│   ├── layout/pages/
+│   │   ├── sidebar/index.scss        # sidebar 布局独立结构、状态与响应式样式
+│   │   └── tabbed/index.scss         # tabbed 布局独立结构、页签与响应式样式
 │   └── index.scss                    # 唯一全局 Sass 样式入口
 └── main.ts                          # 先恢复会话和路由，再挂载应用
 ```
@@ -64,8 +69,8 @@ src/
 
 | 布局值 | 页面实现 | 说明 |
 | --- | --- | --- |
-| `sidebar` | `src/layouts/pages/sidebar/index.vue` | 当前侧栏控制台布局，也是默认配置。 |
-| `tabbed` | `src/layouts/pages/tabbed/index.vue` | 顶部工作区栏、紧凑侧导航与授权页签组成的第二套布局。 |
+| `sidebar` | `src/layouts/pages/sidebar/index.vue` | 全高分组侧栏、右侧轻量顶栏和直接内容工作区；不显示页签，也是默认配置。 |
+| `tabbed` | `src/layouts/pages/tabbed/index.vue` | 全宽顶栏、可展开树形侧栏、会话内访问历史页签和底部信息栏；首个授权页面固定不可关闭。 |
 
 切换入口是 `src/layouts/api/config.ts`：
 
@@ -73,7 +78,11 @@ src/
 export const applicationLayoutVariant = 'sidebar'
 ```
 
-设为 `tabbed` 后，受保护应用会在原有 URL 下直接渲染页签工作区；该设置是源码配置，不使用环境变量、后端字段或 `localStorage`。新增布局时，应在 `src/layouts/pages/` 下创建独立页面并仅扩展 `ApplicationLayoutVariant` 联合类型，不应在布局中硬编码业务菜单或新增静态业务路由。
+设为 `tabbed` 后，受保护应用会在原有 URL 下直接渲染页签工作区；该设置是源码配置，不使用环境变量、后端字段或 `localStorage`。页签记录当前组件生命周期内实际访问过的授权页面，重复访问不会重复创建；关闭活动页签时会进入相邻页签，授权刷新后也会自动剔除失效项。退出登录或布局组件销毁后，这份访问历史自然清空。
+
+两套布局通过 `src/layouts/model/navigation.ts` 使用同一份数据库菜单树，保留目录、菜单、层级、祖先链、排序和图标。数据库图标名只经过明确的 Element Plus 图标映射，空值或未知值回退为通用菜单图标，不作为任意动态组件执行。新增布局时，应在 `src/layouts/pages/` 下创建独立页面并仅扩展 `ApplicationLayoutVariant` 联合类型，不应在布局中硬编码业务菜单或新增静态业务路由。
+
+布局的结构尺寸和响应式规则分别位于 `src/styles/layout/pages/sidebar/index.scss` 与 `src/styles/layout/pages/tabbed/index.scss`。颜色、边框、阴影和状态反馈继续继承全局 `--color-*`、`--radius-*` 与 `--shadow-*` 语义 token，因此 Claude / Element 与浅色 / 深色组合不会改变两种布局各自的结构职责。桌面端侧栏可折叠；窄屏时统一改为带遮罩的抽屉，并支持路由跳转或 Escape 关闭。
 
 ## 公开首页
 
@@ -107,7 +116,7 @@ export const applicationLayoutVariant = 'sidebar'
 <html data-design-theme="claude|element" data-color-scheme="light|dark" class="dark">
 ```
 
-`dark` class 只会在深色模式存在，符合 Element Plus 的暗色变量启用方式。公开首页、登录页以及登录后的应用壳顶栏均放置共享的 `ThemeSwitcher`，任一入口切换后会即时影响当前应用的所有页面。
+`dark` class 只会在深色模式存在，符合 Element Plus 的暗色变量启用方式。公开首页、登录页以及登录后的应用壳顶栏均放置共享的 `ThemeSwitcher`，任一入口切换后会即时影响当前应用的所有页面。两套应用布局使用 `compact` 展示属性提供紧凑图标入口，公开首页和登录页未传入该属性，继续保留完整文本按钮；两种入口打开的是同一主题面板，共享相同状态和持久化逻辑。
 
 全局入口是 `src/styles/index.scss`，按“主题 token → Element Plus 映射 → 基础与复用模式”的顺序加载。Vite 会向每个 `lang="scss"` 页面注入 `src/styles/_abstracts.scss`，因此页面可使用 `@include at-most('phone')`、`@include panel()` 等无输出 mixin，同时将通用 `ui-page-frame`、`ui-panel`、`ui-eyebrow`、`ui-code` 和焦点态留在全局模式层，避免重复编写。
 

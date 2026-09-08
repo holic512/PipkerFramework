@@ -2,14 +2,20 @@
   @file ThemeSwitcher.vue
   @project Pipker Framework
   @module Frontend Theme Switcher
-  @description Renders a shared compact selector for the active design language and light or dark color scheme.
-  @logic Reads and updates the global Pinia theme state so all visible application surfaces switch together.
+  @description Renders the shared full or icon-only selector for the active design language and light or dark color scheme.
+  @logic Reads and updates the global Pinia theme state while allowing dense application headers to request a compact trigger.
   @dependencies Vue, Pinia theme store
   @index_tags component, theme-switcher, claude, element-plus, dark-mode
   @author holic512
 -->
 <script setup lang="ts">
 import { useThemeStore, type ColorScheme, type DesignTheme } from '../stores/theme'
+
+withDefaults(defineProps<{
+  compact?: boolean
+}>(), {
+  compact: false,
+})
 
 const themeStore = useThemeStore()
 
@@ -25,10 +31,10 @@ const colorOptions: Array<{ value: ColorScheme; label: string }> = [
 </script>
 
 <template>
-  <details class="theme-switcher">
+  <details class="theme-switcher" :class="{ 'theme-switcher--compact': compact }">
     <summary :aria-label="`切换界面主题，当前为 ${themeStore.themeLabel}`">
       <span class="theme-switcher__mark" aria-hidden="true">◐</span>
-      <span class="theme-switcher__label">{{ themeStore.themeLabel }}</span>
+      <span v-if="!compact" class="theme-switcher__label">{{ themeStore.themeLabel }}</span>
     </summary>
 
     <div class="theme-switcher__panel">

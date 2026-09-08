@@ -121,6 +121,16 @@ select {
   transition: transform 160ms ease;
 }
 
+.theme-switcher--compact summary {
+  width: 2.35rem;
+  justify-content: center;
+  padding: 0.35rem;
+}
+
+.theme-switcher--compact summary::after {
+  display: none;
+}
+
 .theme-switcher[open] summary::after {
   transform: rotate(180deg);
 }

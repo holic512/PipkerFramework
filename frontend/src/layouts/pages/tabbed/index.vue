@@ -2,151 +2,358 @@
   @file index.vue
   @project Pipker Framework
   @module 页签应用布局
-  @description 提供顶部工作区栏、授权页签与紧凑侧导航组成的第二套登录后控制台布局。
-  @logic 基于同一份会话菜单树生成侧导航和页签入口；仅改变信息架构与响应式交互，不修改动态路由、菜单授权或会话状态。
-  @dependencies Vue、Vue Router、Pinia 会话 Store、ThemeSwitcher、Element Plus、系统菜单类型
-  @index_tags 布局、页签、导航、RBAC、动态路由、主题
+  @description 渲染全宽顶栏、可折叠授权菜单树、访问历史页签与独立滚动工作区。
+  @logic 从数据库菜单派生目录、面包屑和会话内页签，协调目录展开、页签关闭回退、桌面折叠与移动抽屉。
+  @dependencies Vue、Vue Router、Pinia 应用 Store、Pinia 会话 Store、布局导航模型、ThemeSwitcher、Element Plus 图标
+  @index_tags 布局、页签、访问历史、菜单树、面包屑、RBAC、响应式、主题
   @author holic512
 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRoute } from 'vue-router'
-import type { SystemMenuNode } from '../../../core/api/contracts'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  ArrowDown,
+  Close,
+  Expand,
+  Fold,
+  House,
+  SwitchButton,
+  User,
+} from '@element-plus/icons-vue'
+import { useRoute, useRouter } from 'vue-router'
 import ThemeSwitcher from '../../../components/ThemeSwitcher.vue'
+import { useAppStore } from '../../../stores/app'
 import { useSessionStore } from '../../../stores/session'
+import {
+  buildLayoutNavigation,
+  findActiveNavigationEntry,
+  getDirectoryNavigationEntries,
+  getNavigationTrail,
+  getPageNavigationEntries,
+  type LayoutNavigationEntry,
+} from '../../model/navigation'
+
+interface VisitedLayoutTab {
+  id: number
+  label: string
+  path: string
+  icon: LayoutNavigationEntry['icon']
+}
 
 const route = useRoute()
+const router = useRouter()
+const appStore = useAppStore()
 const sessionStore = useSessionStore()
 const mobileNavigationOpen = ref(false)
+const avatarLoadFailed = ref(false)
+const expandedDirectoryIds = ref<Set<number>>(new Set())
+const visitedTabs = ref<VisitedLayoutTab[]>([])
 
-const navigationItems = computed(() => flattenNavigation(sessionStore.menus))
-const activePageName = computed(() => (
-  navigationItems.value.find((item) => item.path === route.path)?.label ?? '授权工作区'
+const navigationEntries = computed(() => buildLayoutNavigation(sessionStore.menus))
+const pageEntries = computed(() => getPageNavigationEntries(navigationEntries.value))
+const directoryEntries = computed(() => getDirectoryNavigationEntries(navigationEntries.value))
+const pinnedEntry = computed(() => pageEntries.value[0] ?? null)
+const activeEntry = computed(() => findActiveNavigationEntry(
+  navigationEntries.value,
+  route.meta.menuId,
+  route.path,
 ))
+const navigationTrail = computed(() => getNavigationTrail(navigationEntries.value, activeEntry.value))
+const visibleNavigationEntries = computed(() => navigationEntries.value.filter((entry) => (
+  entry.ancestorIds.every((directoryId) => expandedDirectoryIds.value.has(directoryId))
+)))
+const userDisplayName = computed(() => (
+  sessionStore.user?.nickname?.trim()
+  || sessionStore.user?.username
+  || 'SYSTEM'
+))
+const userInitial = computed(() => userDisplayName.value.slice(0, 1).toUpperCase())
+const authorizationSummary = computed(() => (
+  `${sessionStore.roles[0] ?? '已授权'} · ${sessionStore.permissions.length} 项权限`
+))
+
+watch([pageEntries, activeEntry], synchronizeNavigationState, { immediate: true })
+watch(() => route.fullPath, closeMobileNavigation)
+watch(() => sessionStore.user?.avatar, () => {
+  avatarLoadFailed.value = false
+})
+
+onMounted(() => {
+  window.addEventListener('keydown', handleWindowKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleWindowKeydown)
+})
+
+function synchronizeNavigationState(): void {
+  const authorizedIds = new Set(pageEntries.value.map((entry) => entry.id))
+  const nextTabs = visitedTabs.value.filter((tab) => authorizedIds.has(tab.id))
+  const pinnedPage = pinnedEntry.value
+  const activePage = activeEntry.value
+
+  if (pinnedPage?.path) {
+    const existingPinnedIndex = nextTabs.findIndex((tab) => tab.id === pinnedPage.id)
+    if (existingPinnedIndex >= 0) {
+      const [existingPinnedTab] = nextTabs.splice(existingPinnedIndex, 1)
+      if (existingPinnedTab) {
+        nextTabs.unshift(existingPinnedTab)
+      }
+    } else {
+      nextTabs.unshift(toVisitedTab(pinnedPage))
+    }
+  }
+
+  if (activePage?.path && !nextTabs.some((tab) => tab.id === activePage.id)) {
+    nextTabs.push(toVisitedTab(activePage))
+  }
+  visitedTabs.value = nextTabs
+
+  const validDirectoryIds = new Set(directoryEntries.value.map((entry) => entry.id))
+  const nextExpandedIds = new Set(
+    [...expandedDirectoryIds.value].filter((directoryId) => validDirectoryIds.has(directoryId)),
+  )
+  for (const directoryId of activePage?.ancestorIds ?? []) {
+    nextExpandedIds.add(directoryId)
+  }
+  expandedDirectoryIds.value = nextExpandedIds
+
+  if (!activePage && pinnedPage?.path && typeof route.meta.menuId === 'number') {
+    void router.replace(pinnedPage.path)
+  }
+}
+
+function toVisitedTab(entry: LayoutNavigationEntry): VisitedLayoutTab {
+  return {
+    id: entry.id,
+    label: entry.label,
+    path: entry.path ?? '/',
+    icon: entry.icon,
+  }
+}
+
+function toggleDirectory(directoryId: number): void {
+  const nextExpandedIds = new Set(expandedDirectoryIds.value)
+  if (nextExpandedIds.has(directoryId)) {
+    nextExpandedIds.delete(directoryId)
+  } else {
+    nextExpandedIds.add(directoryId)
+  }
+  expandedDirectoryIds.value = nextExpandedIds
+}
+
+function isDirectoryExpanded(directoryId: number): boolean {
+  return expandedDirectoryIds.value.has(directoryId)
+}
+
+function navigateToTab(tab: VisitedLayoutTab): void {
+  if (tab.path !== route.path) {
+    void router.push(tab.path)
+  }
+}
+
+function closeTab(tabId: number): void {
+  if (tabId === pinnedEntry.value?.id) {
+    return
+  }
+
+  const closingIndex = visitedTabs.value.findIndex((tab) => tab.id === tabId)
+  if (closingIndex < 0) {
+    return
+  }
+
+  const closingActiveTab = activeEntry.value?.id === tabId
+  const fallbackTab = visitedTabs.value[closingIndex + 1] ?? visitedTabs.value[closingIndex - 1]
+  visitedTabs.value = visitedTabs.value.filter((tab) => tab.id !== tabId)
+
+  if (closingActiveTab && fallbackTab) {
+    void router.push(fallbackTab.path)
+  }
+}
 
 function closeMobileNavigation(): void {
   mobileNavigationOpen.value = false
 }
 
-function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
-  id: number
-  path: string
-  code: string
-  label: string
-  description: string
-  depth: number
-}> {
-  return menus.flatMap((menu) => {
-    const children = flattenNavigation(menu.children, depth + 1)
-    if (menu.type !== 'MENU' || !menu.path) {
-      return children
-    }
+function handleWindowKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape') {
+    closeMobileNavigation()
+  }
+}
 
-    return [
-      {
-        id: menu.id,
-        path: menu.path,
-        code: String(menu.id).padStart(2, '0'),
-        label: menu.name,
-        description: '已授权页面',
-        depth,
-      },
-      ...children,
-    ]
-  })
+function markAvatarLoadFailed(): void {
+  avatarLoadFailed.value = true
 }
 </script>
 
 <template>
-  <div class="tabbed-shell" :class="{ 'tabbed-shell--navigation-open': mobileNavigationOpen }">
-    <header class="tabbed-shell__header">
-      <div class="tabbed-brand">
-        <img class="tabbed-brand__logo" src="/brand/pipker-logo.webp" alt="Pipker" />
-        <strong>PIPKER</strong>
-        <span>CONTROL ROOM</span>
-      </div>
+  <div
+    class="tabbed-layout"
+    :class="{
+      'tabbed-layout--compact': appStore.sidebarCollapsed,
+      'tabbed-layout--navigation-open': mobileNavigationOpen,
+    }"
+  >
+    <header class="tabbed-layout__header">
+      <RouterLink class="tabbed-layout__brand ui-focusable" to="/" aria-label="Pipker Framework 首页">
+        <img class="tabbed-layout__brand-mark" src="/brand/pipker-logo.webp" alt="" />
+        <span class="tabbed-layout__brand-copy">
+          <strong>PIPKER</strong>
+          <small>FRAMEWORK</small>
+        </span>
+      </RouterLink>
 
-      <p class="tabbed-shell__breadcrumb">
-        <span>WORKSPACE</span>
-        <i aria-hidden="true">/</i>
-        {{ activePageName }}
-      </p>
+      <button
+        class="tabbed-layout__mobile-toggle ui-focusable"
+        type="button"
+        :aria-expanded="mobileNavigationOpen"
+        aria-controls="tabbed-layout-navigation"
+        :aria-label="mobileNavigationOpen ? '关闭导航' : '打开导航'"
+        @click="mobileNavigationOpen = !mobileNavigationOpen"
+      >
+        <Expand aria-hidden="true" />
+      </button>
 
-      <div class="tabbed-shell__actions">
-        <el-tag effect="plain" type="success">
-          {{ sessionStore.roles.length }} 个角色 · {{ sessionStore.permissions.length }} 项权限
-        </el-tag>
-        <ThemeSwitcher />
-        <el-button text @click="sessionStore.logout">退出登录</el-button>
+      <nav class="tabbed-breadcrumb" aria-label="面包屑导航">
+        <span>{{ sessionStore.roles[0] ?? '授权工作区' }}</span>
+        <template v-if="navigationTrail.length > 0">
+          <template v-for="entry in navigationTrail" :key="entry.id">
+            <i aria-hidden="true">/</i>
+            <strong>{{ entry.label }}</strong>
+          </template>
+        </template>
+      </nav>
+
+      <div class="tabbed-layout__actions">
+        <span class="tabbed-layout__authorization">{{ authorizationSummary }}</span>
+        <RouterLink class="tabbed-layout__icon-action ui-focusable" to="/" aria-label="返回公开首页" title="返回公开首页">
+          <House aria-hidden="true" />
+        </RouterLink>
+        <ThemeSwitcher compact />
+        <div class="tabbed-layout__user" :title="userDisplayName">
+          <img
+            v-if="sessionStore.user?.avatar && !avatarLoadFailed"
+            :key="sessionStore.user.avatar"
+            :src="sessionStore.user.avatar"
+            alt=""
+            @error="markAvatarLoadFailed"
+          />
+          <span v-else class="tabbed-layout__user-fallback" aria-hidden="true">
+            <User v-if="!userInitial" />
+            <template v-else>{{ userInitial }}</template>
+          </span>
+          <span>{{ userDisplayName }}</span>
+        </div>
         <button
-          class="tabbed-shell__navigation-toggle ui-focusable"
+          class="tabbed-layout__icon-action ui-focusable"
           type="button"
-          :aria-expanded="mobileNavigationOpen"
-          aria-controls="tabbed-navigation"
-          @click="mobileNavigationOpen = !mobileNavigationOpen"
+          aria-label="退出登录"
+          title="退出登录"
+          @click="sessionStore.logout"
         >
-          <span aria-hidden="true">☰</span>
-          导航
+          <SwitchButton aria-hidden="true" />
         </button>
       </div>
     </header>
 
-    <aside id="tabbed-navigation" class="tabbed-shell__sidebar" aria-label="已授权页面导航">
-      <div class="tabbed-shell__sidebar-heading">
-        <span>AUTHORIZED PAGES</span>
-        <b>{{ navigationItems.length }}</b>
+    <aside id="tabbed-layout-navigation" class="tabbed-layout__sidebar" aria-label="授权页面导航">
+      <div class="tabbed-layout__sidebar-heading">
+        <span>导航菜单</span>
+        <b>{{ pageEntries.length }}</b>
       </div>
 
       <nav class="tabbed-navigation">
-        <RouterLink
-          v-for="item in navigationItems"
-          :key="item.id"
-          :to="item.path"
-          class="tabbed-navigation__item"
-          :style="{ '--navigation-depth': `${item.depth * 0.55}rem` }"
-          @click="closeMobileNavigation"
-        >
-          <span class="tabbed-navigation__code">{{ item.code }}</span>
-          <span class="tabbed-navigation__copy">
-            <strong>{{ item.label }}</strong>
-            <small>{{ item.description }}</small>
-          </span>
-          <i aria-hidden="true">→</i>
-        </RouterLink>
-        <p v-if="navigationItems.length === 0" class="tabbed-navigation__empty">
+        <template v-for="entry in visibleNavigationEntries" :key="entry.id">
+          <button
+            v-if="entry.type === 'DIRECTORY'"
+            class="tabbed-navigation__directory ui-focusable"
+            type="button"
+            :style="{ '--navigation-depth': `${entry.depth * 0.7}rem` }"
+            :aria-expanded="isDirectoryExpanded(entry.id)"
+            :aria-label="`${isDirectoryExpanded(entry.id) ? '收起' : '展开'}${entry.label}`"
+            :title="entry.label"
+            @click="toggleDirectory(entry.id)"
+          >
+            <span class="tabbed-navigation__icon" aria-hidden="true">
+              <component :is="entry.icon" />
+            </span>
+            <span class="tabbed-navigation__copy">{{ entry.label }}</span>
+            <ArrowDown class="tabbed-navigation__chevron" aria-hidden="true" />
+          </button>
+
+          <RouterLink
+            v-else-if="entry.path"
+            :to="entry.path"
+            class="tabbed-navigation__item ui-focusable"
+            :style="{ '--navigation-depth': `${entry.depth * 0.7}rem` }"
+            :aria-label="entry.label"
+            :title="entry.label"
+            @click="closeMobileNavigation"
+          >
+            <span class="tabbed-navigation__icon" aria-hidden="true">
+              <component :is="entry.icon" />
+            </span>
+            <span class="tabbed-navigation__copy">{{ entry.label }}</span>
+          </RouterLink>
+        </template>
+
+        <p v-if="pageEntries.length === 0" class="tabbed-navigation__empty">
           当前账户没有可装载的菜单。
         </p>
       </nav>
 
-      <div class="tabbed-shell__sidebar-foot">
-        <span>SESSION</span>
-        <strong>{{ sessionStore.user?.username ?? 'SYSTEM' }}</strong>
-      </div>
+      <button
+        class="tabbed-layout__collapse ui-focusable"
+        type="button"
+        :aria-label="appStore.sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
+        @click="appStore.toggleSidebar"
+      >
+        <component :is="appStore.sidebarCollapsed ? Expand : Fold" aria-hidden="true" />
+        <span>收起导航</span>
+      </button>
     </aside>
 
-    <main class="tabbed-shell__main">
-      <nav class="tabbed-tabs" aria-label="授权页面页签">
-        <RouterLink
-          v-for="item in navigationItems"
-          :key="item.id"
-          :to="item.path"
-          class="tabbed-tabs__item ui-focusable"
+    <button
+      class="tabbed-layout__backdrop"
+      type="button"
+      aria-label="关闭导航"
+      @click="closeMobileNavigation"
+    ></button>
+
+    <main class="tabbed-layout__main">
+      <nav class="tabbed-history" aria-label="访问历史页签">
+        <div
+          v-for="tab in visitedTabs"
+          :key="tab.id"
+          class="tabbed-history__tab"
+          :class="{ 'tabbed-history__tab--active': activeEntry?.id === tab.id }"
         >
-          <span>{{ item.code }}</span>
-          {{ item.label }}
-        </RouterLink>
-        <span v-if="navigationItems.length === 0" class="tabbed-tabs__empty">等待授权菜单装载</span>
+          <button
+            class="tabbed-history__link ui-focusable"
+            type="button"
+            :aria-current="activeEntry?.id === tab.id ? 'page' : undefined"
+            @click="navigateToTab(tab)"
+          >
+            <component :is="tab.icon" aria-hidden="true" />
+            <span>{{ tab.label }}</span>
+          </button>
+          <button
+            v-if="tab.id !== pinnedEntry?.id"
+            class="tabbed-history__close ui-focusable"
+            type="button"
+            :aria-label="`关闭${tab.label}页签`"
+            @click="closeTab(tab.id)"
+          >
+            <Close aria-hidden="true" />
+          </button>
+        </div>
+        <span v-if="visitedTabs.length === 0" class="tabbed-history__empty">等待授权页面装载</span>
       </nav>
 
-      <section class="tabbed-workspace">
-        <div class="tabbed-workspace__label">
-          <p>ACTIVE WORKSPACE</p>
-          <span>{{ activePageName }}</span>
-        </div>
+      <section class="tabbed-layout__workspace">
         <RouterView />
       </section>
 
-      <footer class="tabbed-shell__footer">
+      <footer class="tabbed-layout__footer">
         <span>PIPKER FRAMEWORK</span>
         <p>DATABASE-DRIVEN AUTHORIZED NAVIGATION</p>
       </footer>
@@ -154,433 +361,4 @@ function flattenNavigation(menus: SystemMenuNode[], depth = 0): Array<{
   </div>
 </template>
 
-<style scoped lang="scss">
-.tabbed-shell {
-  min-height: 100svh;
-  display: grid;
-  grid-template-areas:
-    'header header'
-    'sidebar main';
-  grid-template-columns: 15.75rem minmax(0, 1fr);
-  grid-template-rows: 3.85rem minmax(0, 1fr);
-  color: var(--color-ink-strong);
-  background: var(--color-surface-page);
-}
-
-.tabbed-shell__header {
-  grid-area: header;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 1.25rem;
-  padding: 0 1rem;
-  background: var(--color-surface-base);
-  border-bottom: 1px solid var(--color-line-subtle);
-}
-
-.tabbed-brand {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 13.25rem;
-  color: var(--color-ink-strong);
-}
-
-.tabbed-brand__logo {
-  width: 1.82rem;
-  height: 1.82rem;
-  display: block;
-  object-fit: cover;
-  border-radius: var(--radius-small);
-  box-shadow: var(--shadow-panel);
-}
-
-.tabbed-brand strong {
-  font-size: 0.88rem;
-  font-weight: 850;
-  letter-spacing: 0.11em;
-}
-
-.tabbed-brand span,
-.tabbed-shell__breadcrumb,
-.tabbed-shell__sidebar-heading,
-.tabbed-shell__sidebar-foot span,
-.tabbed-workspace__label p,
-.tabbed-shell__footer {
-  font-size: 0.62rem;
-  font-weight: 760;
-  letter-spacing: 0.09em;
-}
-
-.tabbed-brand span {
-  color: var(--color-ink-soft);
-}
-
-.tabbed-shell__breadcrumb {
-  display: inline-flex;
-  gap: 0.45rem;
-  min-width: 0;
-  margin: 0;
-  color: var(--color-ink-muted);
-  white-space: nowrap;
-}
-
-.tabbed-shell__breadcrumb span {
-  color: var(--color-accent-primary);
-}
-
-.tabbed-shell__breadcrumb i {
-  color: var(--color-ink-soft);
-  font-style: normal;
-}
-
-.tabbed-shell__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  margin-left: auto;
-}
-
-.tabbed-shell__actions :deep(.el-button) {
-  color: var(--color-ink-muted);
-}
-
-.tabbed-shell__navigation-toggle {
-  min-height: 2.1rem;
-  display: none;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.3rem 0.52rem;
-  color: var(--color-ink-strong);
-  cursor: pointer;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-line-subtle);
-  border-radius: var(--radius-control);
-  font-size: 0.72rem;
-  font-weight: 720;
-}
-
-.tabbed-shell__sidebar {
-  grid-area: sidebar;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 1rem 0.6rem 0.75rem;
-  background: var(--color-surface-base);
-  border-right: 1px solid var(--color-line-subtle);
-}
-
-.tabbed-shell__sidebar-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 0.55rem 0.8rem;
-  color: var(--color-ink-soft);
-}
-
-.tabbed-shell__sidebar-heading b {
-  min-width: 1.3rem;
-  height: 1.3rem;
-  display: grid;
-  place-items: center;
-  color: var(--color-accent-on-primary);
-  background: var(--color-accent-primary);
-  border-radius: var(--radius-small);
-  font-size: 0.62rem;
-}
-
-.tabbed-navigation {
-  display: grid;
-  gap: 0.18rem;
-  min-height: 0;
-  overflow-y: auto;
-}
-
-.tabbed-navigation__item {
-  min-height: 3.3rem;
-  display: grid;
-  grid-template-columns: 1.55rem minmax(0, 1fr) auto;
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.45rem 0.5rem 0.45rem calc(0.5rem + var(--navigation-depth, 0rem));
-  color: var(--color-ink-muted);
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
-  text-decoration: none;
-  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
-}
-
-.tabbed-navigation__item:hover {
-  color: var(--color-ink-strong);
-  background: var(--color-surface-muted);
-  border-color: var(--color-line-subtle);
-  transform: translateX(0.12rem);
-}
-
-.tabbed-navigation__item.router-link-exact-active {
-  color: var(--color-accent-on-primary);
-  background: var(--color-accent-primary);
-  border-color: var(--color-accent-primary);
-}
-
-.tabbed-navigation__code {
-  width: 1.4rem;
-  height: 1.4rem;
-  display: grid;
-  place-items: center;
-  color: currentColor;
-  border: 1px solid currentColor;
-  border-radius: var(--radius-small);
-  font-size: 0.58rem;
-  font-weight: 800;
-  opacity: 0.78;
-}
-
-.tabbed-navigation__copy {
-  min-width: 0;
-  display: grid;
-  gap: 0.18rem;
-}
-
-.tabbed-navigation__copy strong {
-  overflow: hidden;
-  font-size: 0.78rem;
-  font-weight: 710;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tabbed-navigation__copy small {
-  overflow: hidden;
-  font-size: 0.61rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  opacity: 0.66;
-}
-
-.tabbed-navigation__item > i {
-  font-size: 0.75rem;
-  font-style: normal;
-  opacity: 0;
-  transform: translateX(-0.18rem);
-  transition: opacity 160ms ease, transform 160ms ease;
-}
-
-.tabbed-navigation__item:hover > i,
-.tabbed-navigation__item.router-link-exact-active > i {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.tabbed-navigation__empty {
-  padding: 0.85rem 0.55rem;
-  margin: 0;
-  color: var(--color-ink-soft);
-  font-size: 0.72rem;
-  line-height: 1.65;
-}
-
-.tabbed-shell__sidebar-foot {
-  display: grid;
-  gap: 0.28rem;
-  padding: 0.9rem 0.55rem 0.2rem;
-  margin-top: auto;
-  border-top: 1px solid var(--color-line-subtle);
-}
-
-.tabbed-shell__sidebar-foot span {
-  color: var(--color-ink-soft);
-}
-
-.tabbed-shell__sidebar-foot strong {
-  overflow: hidden;
-  color: var(--color-ink-muted);
-  font-size: 0.75rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tabbed-shell__main {
-  grid-area: main;
-  min-width: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-}
-
-.tabbed-tabs {
-  display: flex;
-  gap: 0.35rem;
-  min-width: 0;
-  overflow-x: auto;
-  padding: 0.6rem 1rem;
-  background: var(--color-surface-raised);
-  border-bottom: 1px solid var(--color-line-subtle);
-  scrollbar-width: thin;
-}
-
-.tabbed-tabs__item {
-  min-height: 2.05rem;
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 0.44rem;
-  padding: 0.32rem 0.64rem;
-  color: var(--color-ink-muted);
-  background: var(--color-surface-base);
-  border: 1px solid var(--color-line-subtle);
-  border-radius: var(--radius-small);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-decoration: none;
-  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
-}
-
-.tabbed-tabs__item span {
-  color: var(--color-ink-soft);
-  font-size: 0.58rem;
-  font-weight: 850;
-}
-
-.tabbed-tabs__item:hover {
-  color: var(--color-ink-strong);
-  border-color: var(--color-line-strong);
-}
-
-.tabbed-tabs__item.router-link-exact-active {
-  color: var(--color-accent-on-primary);
-  background: var(--color-accent-primary);
-  border-color: var(--color-accent-primary);
-}
-
-.tabbed-tabs__item.router-link-exact-active span {
-  color: inherit;
-  opacity: 0.72;
-}
-
-.tabbed-tabs__empty {
-  align-self: center;
-  padding: 0 0.25rem;
-  color: var(--color-ink-soft);
-  font-size: 0.7rem;
-}
-
-.tabbed-workspace {
-  min-width: 0;
-  max-width: 100rem;
-  width: 100%;
-  padding: clamp(1.25rem, 3vw, 2.75rem);
-  margin: 0 auto;
-}
-
-.tabbed-workspace__label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-bottom: 0.85rem;
-  margin-bottom: 1.25rem;
-  border-bottom: 1px solid var(--color-line-subtle);
-}
-
-.tabbed-workspace__label p {
-  margin: 0;
-  color: var(--color-ink-soft);
-}
-
-.tabbed-workspace__label span {
-  overflow: hidden;
-  color: var(--color-ink-muted);
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tabbed-shell__footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.9rem clamp(1.25rem, 3vw, 2.75rem);
-  color: var(--color-ink-soft);
-  background: var(--color-surface-base);
-  border-top: 1px solid var(--color-line-subtle);
-}
-
-.tabbed-shell__footer p {
-  margin: 0;
-}
-
-@include at-most('tablet') {
-  .tabbed-shell {
-    display: block;
-  }
-
-  .tabbed-shell__header {
-    min-height: 3.75rem;
-  }
-
-  .tabbed-brand {
-    min-width: 0;
-  }
-
-  .tabbed-brand span,
-  .tabbed-shell__breadcrumb,
-  .tabbed-shell__actions :deep(.el-tag),
-  .tabbed-shell__actions :deep(.el-button) {
-    display: none;
-  }
-
-  .tabbed-shell__navigation-toggle {
-    display: inline-flex;
-  }
-
-  .tabbed-shell__sidebar {
-    width: min(18rem, calc(100vw - 2rem));
-    height: calc(100svh - 3.75rem);
-    position: fixed;
-    top: 3.75rem;
-    left: 0;
-    z-index: 20;
-    box-shadow: var(--shadow-floating);
-    transform: translateX(-104%);
-    transition: transform 200ms ease;
-  }
-
-  .tabbed-shell--navigation-open .tabbed-shell__sidebar {
-    transform: translateX(0);
-  }
-
-  .tabbed-shell__main {
-    min-height: calc(100svh - 3.75rem);
-  }
-}
-
-@include at-most('phone') {
-  .tabbed-shell__header {
-    padding: 0 0.75rem;
-  }
-
-  .tabbed-brand strong {
-    font-size: 0.76rem;
-  }
-
-  .tabbed-shell__actions {
-    gap: 0.3rem;
-  }
-
-  .tabbed-tabs {
-    padding: 0.5rem 0.75rem;
-  }
-
-  .tabbed-workspace {
-    padding: 1rem 0.75rem;
-  }
-
-  .tabbed-shell__footer {
-    flex-direction: column;
-    padding: 0.8rem 0.75rem;
-    font-size: 0.54rem;
-  }
-}
-</style>
+<style scoped lang="scss" src="@/styles/layout/pages/tabbed/index.scss"></style>

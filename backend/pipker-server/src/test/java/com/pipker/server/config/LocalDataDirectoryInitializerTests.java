@@ -2,22 +2,26 @@
  * @file LocalDataDirectoryInitializerTests.java
  * @project Pipker Framework
  * @module Pipker Server
- * @description 验证受控本地 data 目录的初始化与路径边界校验。
- * @logic 在隔离临时目录中验证 base、file、log 创建、普通文件冲突及 SQLite 和文件根目录越界拒绝。
- * @dependencies JUnit Jupiter、AssertJ、Java NIO Files、LocalDataDirectoryInitializer
- * @index_tags server、test、configuration、data-root、sqlite、file-storage
+ * @description 验证独立配置的文件、日志和 SQLite 数据库目录初始化与边界校验。
+ * @logic 在隔离临时目录中验证所有 Profile 初始化文件和日志目录，SQLite Profile 额外初始化数据库目录并拒绝目录或数据库 URL 越界。
+ * @dependencies JUnit Jupiter、AssertJ、Spring Context、Java NIO Files、LocalDataDirectoryInitializer
+ * @index_tags server、test、configuration、persistence-path、sqlite、file-storage、log
  * @author holic512
  */
 package com.pipker.server.config;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.core.env.MapPropertySource;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 class LocalDataDirectoryInitializerTests {
@@ -26,58 +30,94 @@ class LocalDataDirectoryInitializerTests {
     private Path temporaryDirectory;
 
     @Test
-    void createsManagedDirectoriesWithoutCreatingTheSqliteDatabaseFile() {
-        Path configuredRoot = temporaryDirectory.resolve("runtime-data");
+    void initializesFileAndLogDirectoriesWithoutRequiringDatabaseDirectoryForNonSqliteProfile() {
+        Path fileRoot = temporaryDirectory.resolve("file-storage");
+        Path logRoot = temporaryDirectory.resolve("application-log");
 
-        Path dataRoot = LocalDataDirectoryInitializer.initializeDirectories(configuredRoot.toString());
+        try (GenericApplicationContext applicationContext = applicationContext("mysql", Map.of(
+                LocalDataDirectoryInitializer.LOG_ROOT_PROPERTY, logRoot.toString(),
+                LocalDataDirectoryInitializer.FILE_STORAGE_ROOT_PROPERTY, fileRoot.toString()
+        ))) {
+            new LocalDataDirectoryInitializer().initialize(applicationContext);
+        }
 
-        assertThat(dataRoot).isEqualTo(configuredRoot.toAbsolutePath());
-        assertThat(Files.isDirectory(dataRoot.resolve(LocalDataDirectoryInitializer.BASE_DIRECTORY))).isTrue();
-        assertThat(Files.isDirectory(dataRoot.resolve(LocalDataDirectoryInitializer.FILE_DIRECTORY))).isTrue();
-        assertThat(Files.isDirectory(dataRoot.resolve(LocalDataDirectoryInitializer.LOG_DIRECTORY))).isTrue();
-        assertThat(Files.exists(dataRoot.resolve(LocalDataDirectoryInitializer.BASE_DIRECTORY)
-                .resolve(LocalDataDirectoryInitializer.SQLITE_DATABASE_FILENAME))).isFalse();
+        assertThat(Files.isDirectory(fileRoot)).isTrue();
+        assertThat(Files.isDirectory(logRoot)).isTrue();
+        assertThat(Files.exists(temporaryDirectory.resolve("sqlite-data"))).isFalse();
     }
 
     @Test
-    void rejectsAManagedDirectoryThatIsAlreadyARegularFile() throws IOException {
-        Path configuredRoot = temporaryDirectory.resolve("runtime-data");
-        Files.createDirectories(configuredRoot);
-        Files.createFile(configuredRoot.resolve(LocalDataDirectoryInitializer.FILE_DIRECTORY));
+    void initializesIndependentDirectoriesForSqliteProfile() {
+        Path fileRoot = temporaryDirectory.resolve("file-storage");
+        Path logRoot = temporaryDirectory.resolve("application-log");
+        Path databaseRoot = temporaryDirectory.resolve("sqlite-data");
 
-        assertThatIllegalStateException()
-                .isThrownBy(() -> LocalDataDirectoryInitializer.initializeDirectories(configuredRoot.toString()))
-                .withMessageContaining("file directory")
-                .withMessageContaining("not a directory");
+        try (GenericApplicationContext applicationContext = applicationContext("sqlite", Map.of(
+                LocalDataDirectoryInitializer.LOG_ROOT_PROPERTY, logRoot.toString(),
+                LocalDataDirectoryInitializer.DATABASE_ROOT_PROPERTY, databaseRoot.toString(),
+                LocalDataDirectoryInitializer.FILE_STORAGE_ROOT_PROPERTY, fileRoot.toString(),
+                "spring.datasource.url", "jdbc:sqlite:" + databaseRoot.resolve("pipker.db")
+        ))) {
+            new LocalDataDirectoryInitializer().initialize(applicationContext);
+        }
+
+        assertThat(Files.isDirectory(fileRoot)).isTrue();
+        assertThat(Files.isDirectory(logRoot)).isTrue();
+        assertThat(Files.isDirectory(databaseRoot)).isTrue();
+        assertThat(Files.exists(databaseRoot.resolve("pipker.db"))).isFalse();
     }
 
     @Test
-    void rejectsFileStorageRootsOutsideTheManagedFileDirectory() {
-        Path dataRoot = LocalDataDirectoryInitializer.initializeDirectories(
-                temporaryDirectory.resolve("runtime-data").toString()
-        );
+    void rejectsAConfiguredPersistentDirectoryThatIsAlreadyARegularFile() throws IOException {
+        Path fileRoot = temporaryDirectory.resolve("file-storage");
+        Files.createFile(fileRoot);
 
-        assertThatIllegalStateException()
-                .isThrownBy(() -> LocalDataDirectoryInitializer.validateFileStorageRoot(
-                        dataRoot,
-                        temporaryDirectory.resolve("outside-file-root").toString()
-                ))
-                .withMessageContaining("pipker.file.local.root")
-                .withMessageContaining("pipker.data.root");
+        try (GenericApplicationContext applicationContext = applicationContext("pg", Map.of(
+                LocalDataDirectoryInitializer.LOG_ROOT_PROPERTY, temporaryDirectory.resolve("application-log").toString(),
+                LocalDataDirectoryInitializer.FILE_STORAGE_ROOT_PROPERTY, fileRoot.toString()
+        ))) {
+            assertThatIllegalStateException()
+                    .isThrownBy(() -> new LocalDataDirectoryInitializer().initialize(applicationContext))
+                    .withMessageContaining("file directory")
+                    .withMessageContaining("not a directory");
+        }
     }
 
     @Test
-    void rejectsSqliteDatasourcePathsOutsideTheManagedBaseDirectory() {
-        Path dataRoot = LocalDataDirectoryInitializer.initializeDirectories(
-                temporaryDirectory.resolve("runtime-data").toString()
-        );
+    void rejectsSqliteDatasourcePathsOutsideTheConfiguredDatabaseDirectory() {
+        Path fileRoot = temporaryDirectory.resolve("file-storage");
+        Path databaseRoot = temporaryDirectory.resolve("sqlite-data");
 
-        assertThatIllegalStateException()
-                .isThrownBy(() -> LocalDataDirectoryInitializer.validateSqliteDatasource(
-                        dataRoot,
-                        "jdbc:sqlite:" + temporaryDirectory.resolve("outside.db")
-                ))
-                .withMessageContaining("spring.datasource.url")
-                .withMessageContaining("managed SQLite database");
+        try (GenericApplicationContext applicationContext = applicationContext("sqlite", Map.of(
+                LocalDataDirectoryInitializer.LOG_ROOT_PROPERTY, temporaryDirectory.resolve("application-log").toString(),
+                LocalDataDirectoryInitializer.DATABASE_ROOT_PROPERTY, databaseRoot.toString(),
+                LocalDataDirectoryInitializer.FILE_STORAGE_ROOT_PROPERTY, fileRoot.toString(),
+                "spring.datasource.url", "jdbc:sqlite:" + temporaryDirectory.resolve("outside.db")
+        ))) {
+            assertThatIllegalStateException()
+                    .isThrownBy(() -> new LocalDataDirectoryInitializer().initialize(applicationContext))
+                    .withMessageContaining("spring.datasource.url")
+                    .withMessageContaining("managed SQLite database");
+        }
+    }
+
+    @Test
+    void validatesConfiguredDirectoriesWithoutCreatingTheSqliteDatabaseFile() {
+        Path directory = temporaryDirectory.resolve("custom-directory");
+
+        assertThatCode(() -> LocalDataDirectoryInitializer.initializeDirectory(
+                directory.toString(),
+                "test.directory",
+                "test directory"
+        )).doesNotThrowAnyException();
+        assertThat(Files.isDirectory(directory)).isTrue();
+    }
+
+    private GenericApplicationContext applicationContext(String profile, Map<String, Object> properties) {
+        GenericApplicationContext applicationContext = new GenericApplicationContext();
+        applicationContext.getEnvironment().setActiveProfiles(profile);
+        applicationContext.getEnvironment().getPropertySources()
+                .addFirst(new MapPropertySource("test-properties", properties));
+        return applicationContext;
     }
 }

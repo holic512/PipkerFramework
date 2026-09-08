@@ -2,10 +2,10 @@
  * @file index.ts
  * @project Pipker Framework
  * @module Frontend Router
- * @description Registers static login and layout routes, then derives protected page routes exclusively from /api/auth/me menu data.
- * @logic Resolves componentKey through import.meta.glob, removes stale routes on session cleanup, and redirects the route root to the first authorized page.
- * @dependencies Vue Router, AppLayout, LoginPage, sessionStorage, SystemMenuNode
- * @index_tags router, dynamic-routing, rbac, authentication
+ * @description Registers the public home and login routes alongside the protected layout, then derives protected page routes exclusively from /api/auth/me menu data.
+ * @logic Keeps / publicly reachable, resolves componentKey through import.meta.glob, removes stale routes on session cleanup, and redirects the protected layout root to the first authorized page.
+ * @dependencies Vue Router, AppLayout, LoginPage, HomePage, sessionStorage, SystemMenuNode
+ * @index_tags router, homepage, dynamic-routing, rbac, authentication
  * @author holic512
  */
 
@@ -18,6 +18,7 @@ import AppLayout from '../layouts/AppLayout.vue'
 import LoginPage from '../modules/auth/pages/LoginPage.vue'
 
 const APP_LAYOUT_ROUTE_NAME = 'app-layout'
+const HOME_ROUTE_NAME = 'home'
 const LOGIN_ROUTE_NAME = 'login'
 const pageModules = import.meta.glob<Component>('../modules/**/index.vue')
 const databaseRouteNames = new Set<string>()
@@ -25,6 +26,12 @@ const authorizedPageMenuIds = new Set<number>()
 let defaultAuthorizedPath: string | null = null
 
 const routes: RouteRecordRaw[] = [
+  {
+    path: '/',
+    name: HOME_ROUTE_NAME,
+    component: () => import('../modules/home/pages/HomePage.vue'),
+    meta: { title: '系统首页', public: true },
+  },
   {
     path: '/login',
     name: LOGIN_ROUTE_NAME,
@@ -38,7 +45,9 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: () => (readAccessToken() ? { name: APP_LAYOUT_ROUTE_NAME } : { name: LOGIN_ROUTE_NAME }),
+    redirect: () => (readAccessToken()
+      ? { name: APP_LAYOUT_ROUTE_NAME, params: {} }
+      : { name: LOGIN_ROUTE_NAME, params: {} }),
   },
 ]
 
@@ -49,7 +58,7 @@ export const router = createRouter({
 
 router.beforeEach((to) => {
   const hasAccessToken = readAccessToken() !== null
-  if (!hasAccessToken && to.name !== LOGIN_ROUTE_NAME) {
+  if (!hasAccessToken && to.name !== LOGIN_ROUTE_NAME && to.name !== HOME_ROUTE_NAME) {
     return {
       name: LOGIN_ROUTE_NAME,
       query: to.fullPath === '/' ? undefined : { redirect: to.fullPath },

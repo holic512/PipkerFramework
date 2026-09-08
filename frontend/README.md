@@ -28,6 +28,7 @@ src/
 ├── layouts/AppLayout.vue            # 基于已授权菜单渲染的应用壳
 ├── modules/
 │   ├── auth/                        # 登录 API 与登录页
+│   ├── home/pages/HomePage.vue       # 公开系统介绍首页（/）
 │   └── system/overview/index.vue    # 初始 componentKey 的实际页面入口
 ├── router/index.ts                  # 动态路由注册、清理和登录守卫
 ├── stores/
@@ -37,6 +38,12 @@ src/
 ```
 
 `src/modules/overview/pages/OverviewPage.vue` 是系统概览的展示实现；`src/modules/system/overview/index.vue` 是数据库菜单 `componentKey = system/overview/index` 对应的稳定入口。
+
+## 公开首页
+
+`/` 是不要求登录的系统介绍页，展示 Pipker 的技术基线、授权路由机制与交付边界。首页内容、布局和样式统一维护在 `src/modules/home/pages/HomePage.vue`；根路由与匿名访问守卫维护在 `src/router/index.ts`。
+
+首页的“进入控制台”会根据会话状态跳转：未登录用户进入 `/login`，已恢复有效会话的用户进入 `/api/auth/me` 返回菜单中的第一个已授权页面。公开首页不注册业务页面、不提供菜单数据，也不会绕过登录后的数据库 RBAC 动态路由机制。
 
 ## 会话与统一 API 契约
 

@@ -3,9 +3,9 @@
  * @project Pipker Framework
  * @module Pipker Business API
  * @description 聚合缓存的 API 权限、导航菜单与页面路由授权投影。
- * @logic 通过专属表 Mapper 读取角色、权限和菜单；SUPER_ADMIN 自动获得全部启用权限和页面路由，菜单展示仅由 visible 决定。
+ * @logic 通过专属表 Mapper 读取角色、权限和菜单；SUPER_ADMIN 自动获得全部启用权限和页面路由，目录不要求页面索引，而可授予 MENU 必须具备完整动态路由定义，菜单展示仅由 visible 决定。
  * @dependencies SystemAccountService、SystemUserRoleMapper、SystemPermissionMapper、SystemMenuMapper、SystemAuthorizationCache
- * @index_tags rbac、authorization、system-menu、route、cache、mybatis-plus
+ * @index_tags rbac、authorization、system-menu、route、route-guard、cache、mybatis-plus
  * @author holic512
  */
 package com.pipker.business.api.system.authorization;
@@ -105,6 +105,19 @@ public class SystemAuthorizationService {
                 .orderByAsc(SystemMenu::getId)));
     }
 
+    /**
+     * @return 供角色页面权限配置使用的目录和可动态注册页面树；尚未配置页面索引的 MENU 不可授予。
+     */
+    public List<SystemMenuNode> findAllEnabledRoutePermissionTree() {
+        List<SystemMenu> menus = systemMenuMapper.selectList(new LambdaQueryWrapper<SystemMenu>()
+                .eq(SystemMenu::getStatus, "ENABLED")
+                .orderByAsc(SystemMenu::getSort)
+                .orderByAsc(SystemMenu::getId));
+        return buildMenuTree(menus.stream()
+                .filter(menu -> "DIRECTORY".equals(menu.getMenuType()) || menu.isRouteMenu())
+                .toList());
+    }
+
     private List<String> findAllEnabledPermissionCodes() {
         return systemPermissionMapper.selectList(new LambdaQueryWrapper<SystemPermission>()
                         .eq(SystemPermission::getStatus, "ENABLED")
@@ -128,7 +141,9 @@ public class SystemAuthorizationService {
                 .eq(SystemMenu::getStatus, "ENABLED")
                 .eq(SystemMenu::getMenuType, "MENU")
                 .orderByAsc(SystemMenu::getSort)
-                .orderByAsc(SystemMenu::getId));
+                .orderByAsc(SystemMenu::getId)).stream()
+                .filter(SystemMenu::isRouteMenu)
+                .toList();
     }
 
     private List<SystemMenu> findAuthorizedPageMenus(long userId, boolean superAdmin) {

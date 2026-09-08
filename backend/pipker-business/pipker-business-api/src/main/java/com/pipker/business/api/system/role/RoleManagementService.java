@@ -2,10 +2,10 @@
  * @file RoleManagementService.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 提供系统角色生命周期、批量状态处理、成员查询与成员密码重置能力。
- * @logic 角色创建后编码不可变，SUPER_ADMIN 永远不能被改动或删除；所有影响授权的角色操作均清除本机授权快照。
- * @dependencies SystemRoleMapper、SystemUserRoleMapper、SystemRolePermissionMapper、SystemRoleMenuMapper、SystemAccountService、SecurityCryptoService、SystemAuthorizationCache、Spring Transaction
- * @index_tags rbac、role、user、password-reset、pagination、administration
+ * @description 提供系统角色生命周期、页面权限、成员查询与成员密码重置能力。
+ * @logic 角色创建后编码不可变，SUPER_ADMIN 永远不能被改动或删除或手工收窄页面权限；所有影响授权的角色操作均清除本机授权快照。
+ * @dependencies RoleMenuConfigurationService、SystemRoleMapper、SystemUserRoleMapper、SystemRolePermissionMapper、SystemRoleMenuMapper、SystemAccountService、SecurityCryptoService、SystemAuthorizationCache、Spring Transaction
+ * @index_tags rbac、role、route、user、password-reset、pagination、administration
  * @author holic512
  */
 package com.pipker.business.api.system.role;
@@ -24,17 +24,22 @@ import com.pipker.business.api.common.model.SystemUserRole;
 import com.pipker.business.api.common.model.SystemRoleMenu;
 import com.pipker.business.api.common.model.SystemRolePermission;
 import com.pipker.business.api.system.auth.CurrentSystemAuthorizationService;
+import com.pipker.business.api.system.authorization.RoleMenuConfiguration;
+import com.pipker.business.api.system.authorization.RoleMenuConfigurationService;
 import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
 import com.pipker.business.api.system.authorization.SystemAuthorizationService;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchDelete;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchStatus;
 import com.pipker.business.api.system.role.RoleManagementRequest.Create;
 import com.pipker.business.api.system.role.RoleManagementRequest.ResetMemberPassword;
+import com.pipker.business.api.system.role.RoleManagementRequest.ReplaceRoutes;
 import com.pipker.business.api.system.role.RoleManagementRequest.Update;
 import com.pipker.business.api.system.role.RoleManagementResponse.OperationResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.PageResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleDetail;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleMember;
+import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteConfiguration;
+import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleSummary;
 import com.pipker.business.api.system.user.SystemAccountService;
 import com.pipker.business.common.api.CommonApiCode;
@@ -65,6 +70,7 @@ public class RoleManagementService {
     private final SecurityCryptoService securityCryptoService;
     private final CurrentSystemAuthorizationService currentSystemAuthorizationService;
     private final SystemAuthorizationCache systemAuthorizationCache;
+    private final RoleMenuConfigurationService roleMenuConfigurationService;
 
     /** 创建角色管理服务。 */
     public RoleManagementService(
@@ -75,7 +81,8 @@ public class RoleManagementService {
             SystemAccountService systemAccountService,
             SecurityCryptoService securityCryptoService,
             CurrentSystemAuthorizationService currentSystemAuthorizationService,
-            SystemAuthorizationCache systemAuthorizationCache
+            SystemAuthorizationCache systemAuthorizationCache,
+            RoleMenuConfigurationService roleMenuConfigurationService
     ) {
         this.systemRoleMapper = systemRoleMapper;
         this.systemUserRoleMapper = systemUserRoleMapper;
@@ -85,6 +92,7 @@ public class RoleManagementService {
         this.securityCryptoService = securityCryptoService;
         this.currentSystemAuthorizationService = currentSystemAuthorizationService;
         this.systemAuthorizationCache = systemAuthorizationCache;
+        this.roleMenuConfigurationService = roleMenuConfigurationService;
     }
 
     /** 分页筛选角色。 */
@@ -126,6 +134,28 @@ public class RoleManagementService {
                 role.getUpdatedAt(),
                 memberCount
         );
+    }
+
+    /** 返回角色操作弹窗使用的页面访问权限与路由树。 */
+    public RoleRouteConfiguration findRoleRouteConfiguration(String roleId) {
+        RoleMenuConfiguration.RoleMenuConfigurationRole configuration =
+                roleMenuConfigurationService.findRoleMenuConfiguration(roleId);
+        return new RoleRouteConfiguration(
+                configuration.id(),
+                configuration.code(),
+                configuration.name(),
+                configuration.status(),
+                configuration.allMenus(),
+                configuration.menuIds(),
+                roleMenuConfigurationService.findAssignableMenuTree()
+        );
+    }
+
+    /** 覆盖保存一个普通启用角色的页面访问权限，并清理受影响账户的授权快照。 */
+    @Transactional
+    public RoleRouteUpdateResult replaceRoleRouteConfiguration(String roleId, ReplaceRoutes request) {
+        var result = roleMenuConfigurationService.replaceRoleMenuAssignments(roleId, request.routeIds());
+        return new RoleRouteUpdateResult(result.roleId(), result.menuIds());
     }
 
     /** 创建普通系统角色。 */

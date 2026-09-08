@@ -2,16 +2,18 @@
  * @file roleManagement.ts
  * @project Pipker Framework
  * @module Frontend Role Management API
- * @description Defines typed requests for system role lifecycle, member pagination, and member password resets.
- * @logic Keeps Snowflake IDs as strings end-to-end and routes every command through the shared authenticated HTTP client.
+ * @description Defines typed requests for system role lifecycle, page permission configuration, member pagination, and member password resets.
+ * @logic Keeps Snowflake IDs as strings end-to-end and routes every command through the shared authenticated HTTP client, including role-owned page permission replacement.
  * @dependencies requestApi、frontend API contracts
- * @index_tags api、rbac、role、pagination、password-reset
+ * @index_tags api、rbac、role、route、pagination、password-reset
  * @author holic512
  */
 
 import type {
   PageResult,
   RoleManagementOperationResult,
+  RoleRouteConfiguration,
+  RoleRouteUpdateResult,
   SystemRoleDetail,
   SystemRoleMember,
   SystemRoleStatus,
@@ -82,6 +84,26 @@ export function deleteRole(roleId: string): Promise<RoleManagementOperationResul
   return requestApi<RoleManagementOperationResult>({
     method: 'DELETE',
     url: `/admin/roles/${roleId}`,
+  })
+}
+
+/** 读取一个角色的可访问页面与完整启用路由树。 */
+export function getRoleRouteConfiguration(roleId: string): Promise<RoleRouteConfiguration> {
+  return requestApi<RoleRouteConfiguration>({
+    method: 'GET',
+    url: `/admin/roles/${encodeURIComponent(roleId)}/routes`,
+  })
+}
+
+/** 全量覆盖一个普通角色的页面访问权限。 */
+export function replaceRoleRouteConfiguration(
+  roleId: string,
+  routeIds: string[],
+): Promise<RoleRouteUpdateResult> {
+  return requestApi<RoleRouteUpdateResult>({
+    method: 'PUT',
+    url: `/admin/roles/${encodeURIComponent(roleId)}/routes`,
+    data: { routeIds },
   })
 }
 

@@ -2,10 +2,10 @@
  * @file MybatisPlusSystemPersistenceIntegrationTests.java
  * @project Pipker Framework
  * @module Pipker Server
- * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键、授权初始化数据、角色管理与只读路由管理服务。
- * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 和应用服务验证实体读写、授权、真实分页、批量角色操作、密码重置和已落库路由定义。
+ * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键、授权初始化数据、角色管理、页面权限与只读路由管理服务。
+ * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 和应用服务验证实体读写、授权、真实分页、角色页面权限替换、密码重置和已落库路由定义。
  * @dependencies Spring Boot Test、Liquibase、SQLite JDBC、MyBatis-Plus、Pipker Business API、Pipker Security Starter
- * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、role、route、password-reset
+ * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、role、route、hidden-menu、password-reset
  * @author holic512
  */
 package com.pipker.server;
@@ -38,9 +38,12 @@ import com.pipker.business.api.system.role.RoleManagementRequest.BatchDelete;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchStatus;
 import com.pipker.business.api.system.role.RoleManagementRequest.Create;
 import com.pipker.business.api.system.role.RoleManagementRequest.ResetMemberPassword;
+import com.pipker.business.api.system.role.RoleManagementRequest.ReplaceRoutes;
 import com.pipker.business.api.system.role.RoleManagementRequest.Update;
 import com.pipker.business.api.system.role.RoleManagementResponse.PageResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleMember;
+import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteConfiguration;
+import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleSummary;
 import com.pipker.business.api.system.route.RouteManagementResponse.RouteDetail;
 import com.pipker.business.api.system.route.RouteManagementResponse.RouteSummary;
@@ -333,6 +336,7 @@ class MybatisPlusSystemPersistenceIntegrationTests {
         hiddenRoute.setVisible(false);
         hiddenRoute.setStatus("ENABLED");
         systemMenuMapper.insert(hiddenRoute);
+
         systemAuthorizationCache.invalidateAllSnapshots();
 
         SystemAuthorizationSnapshot superAdminSnapshot = systemAuthorizationService.findSnapshot(2090000000000000001L);
@@ -356,6 +360,104 @@ class MybatisPlusSystemPersistenceIntegrationTests {
                 List.of(String.valueOf(hiddenRoute.getId()))
         );
         assertThat(update.menuIds()).containsExactly(String.valueOf(hiddenRoute.getId()));
+        assertThat(roleMenuConfigurationService.getConfiguration().roles())
+                .filteredOn(role -> "ADMIN".equals(role.code()))
+                .singleElement()
+                .satisfies(role -> assertThat(role.menuIds()).containsExactly(String.valueOf(hiddenRoute.getId())));
+    }
+
+    @Test
+    void replacesRolePagePermissionsAndSeparatesHiddenRouteAccessFromNavigation() {
+        String suffix = String.valueOf(System.nanoTime());
+        SystemRole role = new SystemRole();
+        role.setRoleCode("ROUTE_PERMISSION_" + suffix);
+        role.setRoleName("页面权限测试角色");
+        role.setStatus("ENABLED");
+        role.setSort(998);
+        systemRoleMapper.insert(role);
+
+        SystemUser user = new SystemUser();
+        user.setUsername("route-permission-user-" + suffix);
+        user.setPasswordHash("{bcrypt}test-hash");
+        user.setStatus("ENABLED");
+        systemUserMapper.insert(user);
+
+        SystemUserRole membership = new SystemUserRole();
+        membership.setUserId(user.getId());
+        membership.setRoleId(role.getId());
+        systemUserRoleMapper.insert(membership);
+
+        SystemMenu hiddenRoute = new SystemMenu();
+        hiddenRoute.setParentId(2090000000000000301L);
+        hiddenRoute.setMenuName("页面权限隐藏路由 " + suffix);
+        hiddenRoute.setMenuType("MENU");
+        hiddenRoute.setRoutePath("/system/role-permission-hidden-" + suffix);
+        hiddenRoute.setRouteName("RolePermissionHidden" + suffix);
+        hiddenRoute.setComponentKey("system/overview/index");
+        hiddenRoute.setSort(998);
+        hiddenRoute.setVisible(false);
+        hiddenRoute.setStatus("ENABLED");
+        systemMenuMapper.insert(hiddenRoute);
+
+        SystemMenu unindexedRoute = new SystemMenu();
+        unindexedRoute.setParentId(2090000000000000301L);
+        unindexedRoute.setMenuName("未配置索引页面 " + suffix);
+        unindexedRoute.setMenuType("MENU");
+        unindexedRoute.setSort(999);
+        unindexedRoute.setVisible(true);
+        unindexedRoute.setStatus("ENABLED");
+        systemMenuMapper.insert(unindexedRoute);
+        systemAuthorizationCache.invalidateAllSnapshots();
+
+        SystemAuthorizationSnapshot superAdminSnapshot = systemAuthorizationService.findSnapshot(2090000000000000001L);
+        assertThat(superAdminSnapshot.routes())
+                .extracting(SystemRouteDefinition::id)
+                .doesNotContain(String.valueOf(unindexedRoute.getId()));
+        assertThat(superAdminSnapshot.menus().stream()
+                .flatMap(menu -> menu.children().stream())
+                .map(menu -> menu.id()))
+                .doesNotContain(String.valueOf(unindexedRoute.getId()));
+
+        RoleRouteConfiguration initialConfiguration = roleManagementService.findRoleRouteConfiguration(
+                String.valueOf(role.getId())
+        );
+        assertThat(initialConfiguration.allRoutes()).isFalse();
+        assertThat(initialConfiguration.routeIds()).isEmpty();
+        assertThat(initialConfiguration.routes().stream()
+                .flatMap(menu -> menu.children().stream())
+                .map(menu -> menu.id()))
+                .contains(String.valueOf(hiddenRoute.getId()))
+                .doesNotContain(String.valueOf(unindexedRoute.getId()));
+
+        RoleRouteUpdateResult update = roleManagementService.replaceRoleRouteConfiguration(
+                String.valueOf(role.getId()),
+                new ReplaceRoutes(List.of("2090000000000000304", String.valueOf(hiddenRoute.getId())))
+        );
+        assertThat(update.routeIds())
+                .containsExactly("2090000000000000304", String.valueOf(hiddenRoute.getId()));
+
+        SystemAuthorizationSnapshot snapshot = systemAuthorizationService.findSnapshot(user.getId());
+        assertThat(snapshot.routes())
+                .extracting(SystemRouteDefinition::id)
+                .contains("2090000000000000304", String.valueOf(hiddenRoute.getId()));
+        assertThat(snapshot.menus().stream()
+                .flatMap(menu -> menu.children().stream())
+                .map(menu -> menu.id()))
+                .contains("2090000000000000304")
+                .doesNotContain(String.valueOf(hiddenRoute.getId()));
+
+        assertThatThrownBy(() -> roleManagementService.replaceRoleRouteConfiguration(
+                "2090000000000000101",
+                new ReplaceRoutes(List.of("2090000000000000304"))
+        )).isInstanceOf(ApiBusinessException.class);
+        assertThatThrownBy(() -> roleManagementService.replaceRoleRouteConfiguration(
+                String.valueOf(role.getId()),
+                new ReplaceRoutes(List.of("2090000000000000301"))
+        )).isInstanceOf(ApiBusinessException.class);
+        assertThatThrownBy(() -> roleManagementService.replaceRoleRouteConfiguration(
+                String.valueOf(role.getId()),
+                new ReplaceRoutes(List.of(String.valueOf(unindexedRoute.getId())))
+        )).isInstanceOf(ApiBusinessException.class);
     }
 
     private static Path createTemporaryDataRoot() {

@@ -71,6 +71,7 @@ class LiquibaseChangelogStructureTests {
                 .contains("SYSTEM:ROLE-MENU:MANAGE")
                 .contains("SYSTEM:ROLE:MANAGE")
                 .contains("SYSTEM:ROUTE:READ")
+                .contains("/API/ADMIN/ROLES/{ROLEID}/ROUTES")
                 .contains("SYSTEMOVERVIEW")
                 .contains("SYSTEMROLEMANAGEMENT")
                 .contains("SYSTEMROUTEMANAGEMENT")

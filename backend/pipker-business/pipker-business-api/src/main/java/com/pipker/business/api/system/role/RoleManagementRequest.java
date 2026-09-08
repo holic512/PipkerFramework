@@ -2,10 +2,10 @@
  * @file RoleManagementRequest.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 定义角色管理 API 的创建、编辑、批量与成员密码重置请求契约。
- * @logic 在 HTTP 边界校验字段长度和基础格式，服务层继续处理角色保护规则与跨表完整性校验。
+ * @description 定义角色管理 API 的创建、编辑、批量、页面权限与成员密码重置请求契约。
+ * @logic 在 HTTP 边界校验字段长度和基础格式，服务层继续处理角色保护规则、页面路由有效性和跨表完整性校验。
  * @dependencies Jakarta Validation、Java 标准库
- * @index_tags rbac、role、request-validation、administration
+ * @index_tags rbac、role、route、request-validation、administration
  * @author holic512
  */
 package com.pipker.business.api.system.role;
@@ -57,6 +57,12 @@ public final class RoleManagementRequest {
 
     /** 批量删除角色。 */
     public record BatchDelete(@NotEmpty List<@NotBlank String> roleIds) {
+    }
+
+    /** 全量替换一个角色可访问的页面路由；空列表代表移除全部页面权限。 */
+    public record ReplaceRoutes(
+            @NotNull List<@NotBlank String> routeIds
+    ) {
     }
 
     /** 重置角色成员账户的登录密码。 */

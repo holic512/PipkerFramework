@@ -2,10 +2,10 @@
  * @file RoleManagementController.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 提供系统角色的分页筛选、增删改、批量处理、详情、成员与密码重置 HTTP API。
- * @logic 所有端点由数据库 API 资源规则统一鉴权；控制器仅绑定请求、委托服务并返回标准响应信封。
+ * @description 提供系统角色的分页筛选、增删改、批量处理、详情、页面权限、成员与密码重置 HTTP API。
+ * @logic 所有端点由数据库 API 资源规则统一鉴权；页面权限端点委托同一角色菜单关联服务以确保路由守卫和菜单投影一致。
  * @dependencies RoleManagementService、ApiResponse、Spring Web MVC、Jakarta Validation
- * @index_tags controller、rbac、role、password-reset、pagination、administration
+ * @index_tags controller、rbac、role、route、password-reset、pagination、administration
  * @author holic512
  */
 package com.pipker.business.api.system.role;
@@ -14,11 +14,14 @@ import com.pipker.business.api.system.role.RoleManagementRequest.BatchDelete;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchStatus;
 import com.pipker.business.api.system.role.RoleManagementRequest.Create;
 import com.pipker.business.api.system.role.RoleManagementRequest.ResetMemberPassword;
+import com.pipker.business.api.system.role.RoleManagementRequest.ReplaceRoutes;
 import com.pipker.business.api.system.role.RoleManagementRequest.Update;
 import com.pipker.business.api.system.role.RoleManagementResponse.OperationResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.PageResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleDetail;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleMember;
+import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteConfiguration;
+import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleSummary;
 import com.pipker.business.common.api.ApiResponse;
 import jakarta.validation.Valid;
@@ -83,6 +86,21 @@ public class RoleManagementController {
     @DeleteMapping("/{roleId}")
     public ApiResponse<OperationResult> deleteRole(@PathVariable String roleId) {
         return ApiResponse.success(roleManagementService.deleteRoles(new BatchDelete(List.of(roleId))));
+    }
+
+    /** 查询一个角色的页面访问权限和可配置路由树。 */
+    @GetMapping("/{roleId}/routes")
+    public ApiResponse<RoleRouteConfiguration> routeConfiguration(@PathVariable String roleId) {
+        return ApiResponse.success(roleManagementService.findRoleRouteConfiguration(roleId));
+    }
+
+    /** 全量替换一个普通角色的页面访问权限。 */
+    @PutMapping("/{roleId}/routes")
+    public ApiResponse<RoleRouteUpdateResult> replaceRouteConfiguration(
+            @PathVariable String roleId,
+            @Valid @RequestBody ReplaceRoutes request
+    ) {
+        return ApiResponse.success(roleManagementService.replaceRoleRouteConfiguration(roleId, request));
     }
 
     /** 批量变更普通角色状态。 */

@@ -3,7 +3,7 @@
  * @project Pipker Framework
  * @module Pipker Business API
  * @description 提供 system_user_role 的 MyBatis-Plus CRUD 与用户授权关联查询。
- * @logic 单表关联记录走 BaseMapper；角色、API 权限和全部启用页面菜单查询在此集中保留必要连接，菜单展示状态由授权服务单独投影。
+ * @logic 单表关联记录走 BaseMapper；角色、API 权限和页面索引完整的启用路由查询在此集中保留必要连接，菜单展示状态由授权服务单独投影。
  * @dependencies MyBatis-Plus、SystemUserRole、SystemMenu
  * @index_tags mybatis-plus、system-user-role、rbac、authorization
  * @author holic512
@@ -87,6 +87,9 @@ public interface SystemUserRoleMapper extends BaseMapper<SystemUserRole> {
               AND r.status = 'ENABLED'
               AND m.status = 'ENABLED'
               AND m.menu_type = 'MENU'
+              AND m.route_path IS NOT NULL AND TRIM(m.route_path) <> ''
+              AND m.route_name IS NOT NULL AND TRIM(m.route_name) <> ''
+              AND m.component_key IS NOT NULL AND TRIM(m.component_key) <> ''
             ORDER BY m.sort, m.id
             """)
     List<SystemMenu> findEnabledPageMenusByUserId(@Param("userId") long userId);

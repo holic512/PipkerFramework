@@ -2,10 +2,10 @@
  * @file contracts.ts
  * @project Pipker Framework
  * @module Frontend API Contracts
- * @description Defines the server envelope, RBAC, role-management and read-only route-management projections shared by frontend features.
- * @logic Keeps all backend field names and business result codes at the transport boundary so pages only consume verified data, including string-form Snowflake IDs.
+ * @description Defines the server envelope, RBAC, role-management including page permissions, and read-only route-management projections shared by frontend features.
+ * @logic Keeps all backend field names and business result codes at the transport boundary so pages only consume verified data, including string-form Snowflake IDs and the separate navigation/route authorization model.
  * @dependencies TypeScript
- * @index_tags api, contracts, rbac, role, route, authentication
+ * @index_tags api, contracts, rbac, role, route, authorization, authentication
  * @author holic512
  */
 
@@ -78,6 +78,7 @@ export interface RoleMenuConfigurationRole {
   id: string
   code: string
   name: string
+  status: SystemRoleStatus
   sort: number | null
   allMenus: boolean
   menuIds: string[]
@@ -139,6 +140,21 @@ export interface PageResult<T> {
 
 export interface RoleManagementOperationResult {
   affectedIds: string[]
+}
+
+export interface RoleRouteConfiguration {
+  roleId: string
+  roleCode: string
+  roleName: string
+  status: SystemRoleStatus
+  allRoutes: boolean
+  routeIds: string[]
+  routes: SystemMenuNode[]
+}
+
+export interface RoleRouteUpdateResult {
+  roleId: string
+  routeIds: string[]
 }
 
 export type SystemRouteMenuType = 'DIRECTORY' | 'MENU'

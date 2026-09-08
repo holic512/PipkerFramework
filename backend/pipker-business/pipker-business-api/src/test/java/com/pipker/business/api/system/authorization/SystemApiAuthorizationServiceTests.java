@@ -76,7 +76,9 @@ class SystemApiAuthorizationServiceTests {
                 new SystemApiResourceRule(6L, "system:role:manage", "PATCH", "/api/admin/roles/batch-status"),
                 new SystemApiResourceRule(7L, "system:role:manage", "POST", "/api/admin/roles/batch-delete"),
                 new SystemApiResourceRule(8L, "system:role:manage", "GET", "/api/admin/roles/{roleId}/members"),
-                new SystemApiResourceRule(9L, "system:role:manage", "PUT", "/api/admin/roles/{roleId}/members/{userId}/password")
+                new SystemApiResourceRule(9L, "system:role:manage", "PUT", "/api/admin/roles/{roleId}/members/{userId}/password"),
+                new SystemApiResourceRule(10L, "system:role:manage", "GET", "/api/admin/roles/{roleId}/routes"),
+                new SystemApiResourceRule(11L, "system:role:manage", "PUT", "/api/admin/roles/{roleId}/routes")
         );
         systemAuthorizationService.snapshot = snapshotWith("system:role:manage");
 
@@ -92,6 +94,16 @@ class SystemApiAuthorizationServiceTests {
                 systemIdentity(),
                 "PUT",
                 "/api/admin/roles/42/members/7/password"
+        )).isTrue();
+        assertThat(systemApiAuthorizationService.isAuthorized(
+                systemIdentity(),
+                "GET",
+                "/api/admin/roles/42/routes"
+        )).isTrue();
+        assertThat(systemApiAuthorizationService.isAuthorized(
+                systemIdentity(),
+                "PUT",
+                "/api/admin/roles/42/routes"
         )).isTrue();
     }
 

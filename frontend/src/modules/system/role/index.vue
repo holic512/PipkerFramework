@@ -2,10 +2,10 @@
   @file index.vue
   @project Pipker Framework
   @module Frontend Role Management
-  @description 提供系统角色的筛选分页、生命周期维护、批量操作、详情成员查看和成员密码重置工作台。
-  @logic 优先显示可批量处理的角色清单，角色详情按需加载成员分页；所有雪花 ID 均以字符串传递给后端以避免 JavaScript 精度丢失。
-  @dependencies Vue、Element Plus、角色管理 API、frontend API contracts
-  @index_tags page、rbac、role、pagination、batch、password-reset、administration
+  @description 提供系统角色的筛选分页、生命周期维护、页面权限弹窗、批量操作、详情成员查看和成员密码重置工作台。
+  @logic 优先显示可批量处理的角色清单；页面权限弹窗复用已落库路由树，仅勾选页面节点，隐藏页面保留 URL 访问但不显示导航；所有雪花 ID 均以字符串传递以避免 JavaScript 精度丢失。
+  @dependencies Vue、Element Plus、RoleMenuTree、角色管理 API、frontend API contracts
+  @index_tags page、rbac、role、route、pagination、batch、password-reset、administration
   @author holic512
 -->
 <script setup lang="ts">
@@ -14,6 +14,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ApiBusinessError } from '../../../core/api/contracts'
 import type {
   PageResult,
+  RoleRouteConfiguration,
   SystemRoleDetail,
   SystemRoleMember,
   SystemRoleStatus,
@@ -25,11 +26,14 @@ import {
   createRole,
   deleteRole,
   getRoleDetail,
+  getRoleRouteConfiguration,
   getRoleMemberPage,
   getRolePage,
   resetRoleMemberPassword,
+  replaceRoleRouteConfiguration,
   updateRole,
 } from './api/roleManagement'
+import RoleMenuTree from '../role-menu/components/RoleMenuTree.vue'
 
 interface RoleFormState {
   roleCode: string
@@ -83,9 +87,19 @@ const selectedMember = ref<SystemRoleMember | null>(null)
 const resetPassword = ref('')
 const resettingPassword = ref(false)
 
+const routePermissionDialogVisible = ref(false)
+const routePermissionConfiguration = ref<RoleRouteConfiguration | null>(null)
+const selectedRouteIds = ref<string[]>([])
+const routePermissionLoading = ref(false)
+const routePermissionSaving = ref(false)
+
 const selectedRoleIds = computed(() => selectedRoles.value.map((role) => role.id))
 const roleDialogTitle = computed(() => (editingRole.value ? '编辑角色' : '新建角色'))
 const memberTotalLabel = computed(() => `${memberPage.value.total} 位成员`)
+const selectedRouteCount = computed(() => selectedRouteIds.value.length)
+const canSaveRoutePermissions = computed(() => routePermissionConfiguration.value !== null
+  && routePermissionConfiguration.value.status === 'ENABLED'
+  && !routePermissionConfiguration.value.allRoutes)
 
 onMounted(() => {
   void loadRoles()
@@ -255,6 +269,51 @@ async function removeRole(role: SystemRoleSummary): Promise<void> {
     ElMessage.error(readableError(error, '删除角色失败。'))
   } finally {
     operating.value = false
+  }
+}
+
+async function openRoutePermissionDialog(role: SystemRoleSummary): Promise<void> {
+  routePermissionDialogVisible.value = true
+  routePermissionConfiguration.value = null
+  selectedRouteIds.value = []
+  routePermissionLoading.value = true
+  try {
+    const configuration = await getRoleRouteConfiguration(role.id)
+    routePermissionConfiguration.value = configuration
+    selectedRouteIds.value = [...configuration.routeIds]
+  } catch (error) {
+    ElMessage.error(readableError(error, '无法读取角色页面权限。'))
+  } finally {
+    routePermissionLoading.value = false
+  }
+}
+
+async function saveRoutePermissions(): Promise<void> {
+  const configuration = routePermissionConfiguration.value
+  if (!configuration || !canSaveRoutePermissions.value) {
+    return
+  }
+  if (!await confirm(
+    `确认将“${configuration.roleName}”的页面访问权限更新为 ${selectedRouteCount.value} 项吗？`,
+    '更新页面权限',
+    'warning',
+  )) {
+    return
+  }
+
+  routePermissionSaving.value = true
+  try {
+    const result = await replaceRoleRouteConfiguration(configuration.roleId, selectedRouteIds.value)
+    routePermissionConfiguration.value = {
+      ...configuration,
+      routeIds: [...result.routeIds],
+    }
+    selectedRouteIds.value = [...result.routeIds]
+    ElMessage.success(`已保存 ${result.routeIds.length} 项页面权限；受影响账户将使用新的路由与导航授权。`)
+  } catch (error) {
+    ElMessage.error(readableError(error, '保存角色页面权限失败。'))
+  } finally {
+    routePermissionSaving.value = false
   }
 }
 
@@ -472,10 +531,11 @@ function newRoleForm(): RoleFormState {
         <el-table-column label="最近更新" min-width="164">
           <template #default="{ row }: { row: SystemRoleSummary }">{{ formatTime(row.updatedAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" fixed="right" min-width="216">
+        <el-table-column label="操作" fixed="right" min-width="282">
           <template #default="{ row }: { row: SystemRoleSummary }">
             <div class="role-management-page__row-actions">
               <el-button link type="primary" @click="openDetail(row)">详情</el-button>
+              <el-button link type="primary" @click="openRoutePermissionDialog(row)">页面权限</el-button>
               <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
               <el-button link type="danger" @click="removeRole(row)">删除</el-button>
             </div>
@@ -602,6 +662,61 @@ function newRoleForm(): RoleFormState {
       <div v-else v-loading="detailLoading" class="role-detail__loading">正在读取角色详情…</div>
     </el-drawer>
 
+    <el-dialog
+      v-model="routePermissionDialogVisible"
+      :close-on-click-modal="false"
+      class="role-route-permission-dialog"
+      title="页面权限"
+      top="6vh"
+      width="min(52rem, calc(100vw - 2rem))"
+    >
+      <section v-if="routePermissionConfiguration" v-loading="routePermissionLoading" class="role-route-permission">
+        <header class="role-route-permission__header">
+          <div>
+            <p class="ui-eyebrow">ROLE / PAGE ACCESS</p>
+            <h2>{{ routePermissionConfiguration.roleName }}</h2>
+            <code>{{ routePermissionConfiguration.roleCode }}</code>
+          </div>
+          <div class="role-route-permission__metric">
+            <strong>{{ selectedRouteCount }}</strong>
+            <span>项页面权限</span>
+          </div>
+        </header>
+
+        <p v-if="routePermissionConfiguration.allRoutes" class="role-route-permission__notice">
+          SUPER_ADMIN 自动拥有全部启用页面。此角色不能手工收窄页面访问范围。
+        </p>
+        <p v-else-if="routePermissionConfiguration.status === 'DISABLED'" class="role-route-permission__notice">
+          角色当前已停用，可查看已保存页面权限；启用角色后才可更新。
+        </p>
+        <div v-else class="role-route-permission__guide">
+          <span><i class="role-route-permission__guide-dot" />勾选页面决定该角色可直接访问的路由。</span>
+          <span><i class="role-route-permission__guide-dot role-route-permission__guide-dot--hidden" />“隐藏菜单”不出现在侧栏或页签，但已授权账户仍可通过 URL 访问。</span>
+          <span><i class="role-route-permission__guide-dot role-route-permission__guide-dot--directory" />分类目录仅组织层级，不是可授予页面。</span>
+        </div>
+
+        <div class="role-route-permission__tree" :class="{ 'role-route-permission__tree--readonly': !canSaveRoutePermissions }">
+          <RoleMenuTree
+            :disabled="!canSaveRoutePermissions || routePermissionSaving"
+            :menus="routePermissionConfiguration.routes"
+            v-model="selectedRouteIds"
+          />
+        </div>
+      </section>
+      <div v-else v-loading="routePermissionLoading" class="role-route-permission__loading">正在读取角色页面权限…</div>
+      <template #footer>
+        <el-button @click="routePermissionDialogVisible = false">关闭</el-button>
+        <el-button
+          :disabled="!canSaveRoutePermissions"
+          :loading="routePermissionSaving"
+          type="primary"
+          @click="saveRoutePermissions"
+        >
+          保存 {{ selectedRouteCount }} 项
+        </el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="passwordDialogVisible" :close-on-click-modal="false" title="重置成员密码" width="min(28rem, calc(100vw - 2rem))">
       <p class="password-reset-copy">
         将为 <strong>{{ selectedMember?.username }}</strong> 设置新的登录密码。密码不会显示或以明文形式保存。
@@ -643,7 +758,8 @@ function newRoleForm(): RoleFormState {
 
 .role-management-page__heading h1,
 .role-detail h2,
-.role-detail h3 {
+.role-detail h3,
+.role-route-permission h2 {
   color: var(--color-ink-strong);
   font-family: var(--font-display);
 }
@@ -885,6 +1001,117 @@ function newRoleForm(): RoleFormState {
   color: var(--color-ink-muted);
 }
 
+.role-route-permission {
+  min-height: 20rem;
+}
+
+.role-route-permission__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.15rem 0 1rem;
+  border-bottom: 1px solid var(--color-line-subtle);
+}
+
+.role-route-permission__header h2 {
+  margin: 0.38rem 0 0.2rem;
+  font-size: 1.45rem;
+}
+
+.role-route-permission__header code {
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.role-route-permission__metric {
+  display: grid;
+  min-width: 6.9rem;
+  padding: 0.65rem 0.8rem;
+  text-align: right;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent-primary) 14%, var(--color-surface-base)), var(--color-surface-base));
+  border: 1px solid color-mix(in srgb, var(--color-accent-primary) 28%, var(--color-line-subtle));
+  border-radius: var(--radius-control);
+}
+
+.role-route-permission__metric strong {
+  color: var(--color-accent-primary);
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.role-route-permission__metric span {
+  margin-top: 0.24rem;
+  color: var(--color-ink-soft);
+  font-size: 0.65rem;
+}
+
+.role-route-permission__notice,
+.role-route-permission__guide {
+  margin: 1rem 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-control);
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
+
+.role-route-permission__notice {
+  color: var(--color-ink-muted);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-line-subtle);
+}
+
+.role-route-permission__guide {
+  display: grid;
+  gap: 0.38rem;
+  color: var(--color-ink-muted);
+  background: color-mix(in srgb, var(--color-accent-primary) 5%, var(--color-surface-base));
+  border-left: 3px solid var(--color-accent-primary);
+}
+
+.role-route-permission__guide span {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.46rem;
+}
+
+.role-route-permission__guide-dot {
+  width: 0.48rem;
+  height: 0.48rem;
+  flex: 0 0 auto;
+  margin-top: 0.42rem;
+  background: var(--color-accent-primary);
+  border-radius: 50%;
+}
+
+.role-route-permission__guide-dot--hidden {
+  background: var(--color-ink-soft);
+}
+
+.role-route-permission__guide-dot--directory {
+  border-radius: 0.08rem;
+  background: var(--color-accent-success);
+}
+
+.role-route-permission__tree {
+  max-height: min(43vh, 31rem);
+  padding: 0.55rem 0.25rem 0.8rem 0;
+  overflow: auto;
+}
+
+.role-route-permission__tree--readonly {
+  opacity: 0.76;
+}
+
+.role-route-permission__loading {
+  min-height: 20rem;
+  display: grid;
+  place-items: center;
+  color: var(--color-ink-muted);
+}
+
 .password-reset-copy {
   margin: 0 0 1rem;
   color: var(--color-ink-muted);
@@ -900,7 +1127,8 @@ function newRoleForm(): RoleFormState {
   .role-management-page__header,
   .role-management-page__filter,
   .role-management-page__toolbar,
-  .role-detail__section-heading {
+  .role-detail__section-heading,
+  .role-route-permission__header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -965,6 +1193,10 @@ function newRoleForm(): RoleFormState {
 
   .role-detail__facts div:last-child {
     border-bottom: 0;
+  }
+
+  .role-route-permission__metric {
+    text-align: left;
   }
 }
 </style>

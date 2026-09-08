@@ -2,10 +2,10 @@
  * @file RoleMenuConfiguration.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description Defines the complete role-route configuration payload consumed by the administration page.
- * @logic Returns enabled roles with their editable state and one canonical menu tree, serializing every snowflake ID as a string so the client saves exact leaf IDs.
+ * @description Defines role-route configuration payloads consumed by administration screens.
+ * @logic Returns canonical menu trees and per-role editable state, serializing every snowflake ID as a string so callers save exact page IDs without losing precision.
  * @dependencies SystemMenuNode, Java Standard Library
- * @index_tags rbac, role-menu, api-contract, snowflake-id
+ * @index_tags rbac, role-menu, route, api-contract, snowflake-id
  * @author holic512
  */
 package com.pipker.business.api.system.authorization;
@@ -29,6 +29,7 @@ public record RoleMenuConfiguration(
             String id,
             String code,
             String name,
+            String status,
             Integer sort,
             boolean allMenus,
             List<String> menuIds

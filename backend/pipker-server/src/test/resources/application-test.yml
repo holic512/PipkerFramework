@@ -1,3 +1,0 @@
-spring:
-  liquibase:
-    change-log: classpath:db/changelog/sqlite/db.changelog-master.yaml

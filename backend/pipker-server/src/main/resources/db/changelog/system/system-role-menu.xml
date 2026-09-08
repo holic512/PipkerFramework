@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file db/changelog/system/system-role-menu.xml
+    @project Pipker Framework
+    @module Pipker Server
+    @description 定义系统角色与动态菜单的多对多关联及系统管理员默认路由。
+    @logic 创建角色菜单联合主键、级联外键和菜单索引，再为 ADMIN 分配系统概览路由。
+    @dependencies Liquibase、system_role、system_menu、system_role_menu
+    @index_tags liquibase、database、system_role_menu、seed、rbac、route
+    @author holic512
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="system-role-menu-schema-mysql-postgresql" author="holic512" dbms="mysql,postgresql">
+        <createTable tableName="system_role_menu">
+            <column name="role_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="menu_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="system_role_menu" columnNames="role_id, menu_id" constraintName="pk_system_role_menu"/>
+        <addForeignKeyConstraint baseTableName="system_role_menu" baseColumnNames="role_id"
+                                 constraintName="fk_system_role_menu_role" referencedTableName="system_role"
+                                 referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="system_role_menu" baseColumnNames="menu_id"
+                                 constraintName="fk_system_role_menu_menu" referencedTableName="system_menu"
+                                 referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex tableName="system_role_menu" indexName="idx_system_role_menu_menu_id">
+            <column name="menu_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="system-role-menu-schema-sqlite" author="holic512" dbms="sqlite">
+        <sql splitStatements="true"><![CDATA[
+            CREATE TABLE system_role_menu (
+              role_id BIGINT NOT NULL,
+              menu_id BIGINT NOT NULL,
+              CONSTRAINT pk_system_role_menu PRIMARY KEY (role_id, menu_id),
+              CONSTRAINT fk_system_role_menu_role FOREIGN KEY (role_id)
+                REFERENCES system_role (id) ON DELETE CASCADE,
+              CONSTRAINT fk_system_role_menu_menu FOREIGN KEY (menu_id)
+                REFERENCES system_menu (id) ON DELETE CASCADE
+            );
+            CREATE INDEX idx_system_role_menu_menu_id ON system_role_menu (menu_id);
+        ]]></sql>
+    </changeSet>
+
+    <changeSet id="system-role-menu-seed" author="holic512">
+        <insert tableName="system_role_menu">
+            <column name="role_id" valueComputed="(SELECT id FROM system_role WHERE role_code = 'ADMIN')"/>
+            <column name="menu_id" valueComputed="(SELECT id FROM system_menu WHERE route_name = 'SystemOverview')"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

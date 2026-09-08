@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file db/changelog/system/system-role.xml
+    @project Pipker Framework
+    @module Pipker Server
+    @description 定义系统角色表及默认超级管理员、系统管理员角色。
+    @logic 创建角色主表和角色编码唯一约束，再写入框架内置角色；角色授权关系由关联表 changelog 维护。
+    @dependencies Liquibase、system_role
+    @index_tags liquibase、database、system_role、seed、rbac
+    @author holic512
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="system-role-schema" author="holic512">
+        <createTable tableName="system_role">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_system_role" nullable="false"/>
+            </column>
+            <column name="role_code" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_system_role_role_code"/>
+            </column>
+            <column name="role_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="status" type="VARCHAR(16)" defaultValue="ENABLED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sort" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="system-role-seed" author="holic512">
+        <insert tableName="system_role">
+            <column name="role_code" value="SUPER_ADMIN"/>
+            <column name="role_name" value="超级管理员"/>
+            <column name="description" value="拥有全部框架权限和菜单"/>
+            <column name="status" value="ENABLED"/>
+            <column name="sort" valueNumeric="0"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="system_role">
+            <column name="role_code" value="ADMIN"/>
+            <column name="role_name" value="系统管理员"/>
+            <column name="description" value="拥有框架基础管理读取权限"/>
+            <column name="status" value="ENABLED"/>
+            <column name="sort" valueNumeric="100"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

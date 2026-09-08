@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file db/changelog/system/system-role-permission.xml
+    @project Pipker Framework
+    @module Pipker Server
+    @description 定义系统角色与 API 权限的多对多关联及系统管理员默认授权。
+    @logic 创建角色权限联合主键、级联外键和权限索引，再授予 ADMIN 基础鉴权 API 权限。
+    @dependencies Liquibase、system_role、system_permission、system_role_permission
+    @index_tags liquibase、database、system_role_permission、seed、rbac、api
+    @author holic512
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="system-role-permission-schema-mysql-postgresql" author="holic512" dbms="mysql,postgresql">
+        <createTable tableName="system_role_permission">
+            <column name="role_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permission_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="system_role_permission" columnNames="role_id, permission_id"
+                       constraintName="pk_system_role_permission"/>
+        <addForeignKeyConstraint baseTableName="system_role_permission" baseColumnNames="role_id"
+                                 constraintName="fk_system_role_permission_role" referencedTableName="system_role"
+                                 referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="system_role_permission" baseColumnNames="permission_id"
+                                 constraintName="fk_system_role_permission_permission" referencedTableName="system_permission"
+                                 referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex tableName="system_role_permission" indexName="idx_system_role_permission_permission_id">
+            <column name="permission_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="system-role-permission-schema-sqlite" author="holic512" dbms="sqlite">
+        <sql splitStatements="true"><![CDATA[
+            CREATE TABLE system_role_permission (
+              role_id BIGINT NOT NULL,
+              permission_id BIGINT NOT NULL,
+              CONSTRAINT pk_system_role_permission PRIMARY KEY (role_id, permission_id),
+              CONSTRAINT fk_system_role_permission_role FOREIGN KEY (role_id)
+                REFERENCES system_role (id) ON DELETE CASCADE,
+              CONSTRAINT fk_system_role_permission_permission FOREIGN KEY (permission_id)
+                REFERENCES system_permission (id) ON DELETE CASCADE
+            );
+            CREATE INDEX idx_system_role_permission_permission_id ON system_role_permission (permission_id);
+        ]]></sql>
+    </changeSet>
+
+    <changeSet id="system-role-permission-seed" author="holic512">
+        <insert tableName="system_role_permission">
+            <column name="role_id" valueComputed="(SELECT id FROM system_role WHERE role_code = 'ADMIN')"/>
+            <column name="permission_id" valueComputed="(SELECT id FROM system_permission WHERE permission_code = 'system:authorization:read')"/>
+        </insert>
+        <insert tableName="system_role_permission">
+            <column name="role_id" valueComputed="(SELECT id FROM system_role WHERE role_code = 'ADMIN')"/>
+            <column name="permission_id" valueComputed="(SELECT id FROM system_permission WHERE permission_code = 'system:auth:me')"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

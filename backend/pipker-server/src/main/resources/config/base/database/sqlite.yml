@@ -1,8 +1,8 @@
 # @file config/base/database/sqlite.yml
 # @project Pipker Framework
 # @module Pipker Server
-# @description SQLite 数据源和 SQLite 兼容 Liquibase changelog 配置。
-# @logic 仅在 sqlite Profile 下生效，数据库文件固定由 pipker.data.root 推导至 base/pipker.db，并加载 SQLite 专用数据库迁移入口。
+# @description SQLite 数据源和共享 Liquibase XML 基线配置。
+# @logic 仅在 sqlite Profile 下生效，数据库文件固定由 pipker.data.root 推导至 base/pipker.db，并加载根据 SQLite 分支适配的共享 XML 基线。
 # @dependencies Spring Boot JDBC、SQLite JDBC、Liquibase
 # @index_tags server、配置、base、sqlite、datasource、liquibase
 # @author holic512
@@ -16,4 +16,4 @@ spring:
     password: ${PIPKER_DATABASE_PASSWORD:}
     driver-class-name: org.sqlite.JDBC
   liquibase:
-    change-log: classpath:db/changelog/sqlite/db.changelog-master.yaml
+    change-log: classpath:db/changelog/db.changelog-master.xml

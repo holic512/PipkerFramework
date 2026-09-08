@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file db/changelog/db.changelog-master.xml
+    @project Pipker Framework
+    @module Pipker Server
+    @description 统一加载框架最终系统结构和初始化数据的 Liquibase XML 基线。
+    @logic 按外键和初始化数据依赖顺序加载各表 changelog；同一入口根据运行数据源选择对应的 changeset 分支。
+    @dependencies Liquibase、MySQL Connector/J、PostgreSQL JDBC、SQLite JDBC
+    @index_tags liquibase、database、baseline、mysql、postgresql、sqlite、rbac
+    @author holic512
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 基础实体表必须先于依赖它们的资源表和关联表执行。 -->
+    <include file="db/changelog/system/system-user.xml"/>
+    <include file="db/changelog/system/system-role.xml"/>
+    <include file="db/changelog/system/system-permission.xml"/>
+    <include file="db/changelog/system/system-menu.xml"/>
+    <include file="db/changelog/system/system-api-resource.xml"/>
+    <include file="db/changelog/system/system-user-role.xml"/>
+    <include file="db/changelog/system/system-role-permission.xml"/>
+    <include file="db/changelog/system/system-role-menu.xml"/>
+
+    <!-- 业务表 changelog 统一放在 business 目录；当前基线没有独立业务表，避免保留空入口。 -->
+</databaseChangeLog>

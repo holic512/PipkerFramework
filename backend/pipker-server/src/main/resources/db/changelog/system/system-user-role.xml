@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file db/changelog/system/system-user-role.xml
+    @project Pipker Framework
+    @module Pipker Server
+    @description 定义系统用户与角色的多对多关联及管理员默认角色。
+    @logic 创建用户角色联合主键、级联外键和角色索引，再将 admin 关联到 SUPER_ADMIN。
+    @dependencies Liquibase、system_user、system_role、system_user_role
+    @index_tags liquibase、database、system_user_role、seed、rbac
+    @author holic512
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="system-user-role-schema-mysql-postgresql" author="holic512" dbms="mysql,postgresql">
+        <createTable tableName="system_user_role">
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="system_user_role" columnNames="user_id, role_id" constraintName="pk_system_user_role"/>
+        <addForeignKeyConstraint baseTableName="system_user_role" baseColumnNames="user_id"
+                                 constraintName="fk_system_user_role_user" referencedTableName="system_user"
+                                 referencedColumnNames="id" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="system_user_role" baseColumnNames="role_id"
+                                 constraintName="fk_system_user_role_role" referencedTableName="system_role"
+                                 referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex tableName="system_user_role" indexName="idx_system_user_role_role_id">
+            <column name="role_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="system-user-role-schema-sqlite" author="holic512" dbms="sqlite">
+        <sql splitStatements="true"><![CDATA[
+            CREATE TABLE system_user_role (
+              user_id BIGINT NOT NULL,
+              role_id BIGINT NOT NULL,
+              CONSTRAINT pk_system_user_role PRIMARY KEY (user_id, role_id),
+              CONSTRAINT fk_system_user_role_user FOREIGN KEY (user_id)
+                REFERENCES system_user (id) ON DELETE CASCADE,
+              CONSTRAINT fk_system_user_role_role FOREIGN KEY (role_id)
+                REFERENCES system_role (id) ON DELETE CASCADE
+            );
+            CREATE INDEX idx_system_user_role_role_id ON system_user_role (role_id);
+        ]]></sql>
+    </changeSet>
+
+    <changeSet id="system-user-role-seed" author="holic512">
+        <insert tableName="system_user_role">
+            <column name="user_id" valueComputed="(SELECT id FROM system_user WHERE username = 'admin')"/>
+            <column name="role_id" valueComputed="(SELECT id FROM system_role WHERE role_code = 'SUPER_ADMIN')"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file db/changelog/system/system-menu.xml
+    @project Pipker Framework
+    @module Pipker Server
+    @description 定义系统动态菜单与前端路由数据。
+    @logic 创建仅支持目录和菜单的最终菜单结构及父子关联，再写入系统管理目录、概览和角色路由菜单。
+    @dependencies Liquibase、system_menu
+    @index_tags liquibase、database、system_menu、seed、route、rbac
+    @author holic512
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- MySQL 和 PostgreSQL 可直接使用 Liquibase 的外键和索引标签。 -->
+    <changeSet id="system-menu-schema-mysql-postgresql" author="holic512" dbms="mysql,postgresql">
+        <createTable tableName="system_menu">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_system_menu" nullable="false"/>
+            </column>
+            <column name="parent_id" type="BIGINT"/>
+            <column name="menu_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="menu_type" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="route_path" type="VARCHAR(255)"/>
+            <column name="route_name" type="VARCHAR(100)"/>
+            <column name="component_key" type="VARCHAR(255)"/>
+            <column name="icon" type="VARCHAR(100)"/>
+            <column name="sort" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="visible" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(16)" defaultValue="ENABLED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="system_menu" columnNames="route_path" constraintName="uk_system_menu_route_path"/>
+        <addUniqueConstraint tableName="system_menu" columnNames="route_name" constraintName="uk_system_menu_route_name"/>
+        <addForeignKeyConstraint baseTableName="system_menu" baseColumnNames="parent_id"
+                                 constraintName="fk_system_menu_parent" referencedTableName="system_menu"
+                                 referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex tableName="system_menu" indexName="idx_system_menu_parent_id">
+            <column name="parent_id"/>
+        </createIndex>
+        <!-- Liquibase 5.0.3 的 MySQL 生成器不会可靠地下推 column CHECK，显式声明菜单类型约束。 -->
+        <sql splitStatements="false">ALTER TABLE system_menu ADD CONSTRAINT ck_system_menu_type CHECK (menu_type IN ('DIRECTORY', 'MENU'))</sql>
+    </changeSet>
+
+    <!-- SQLite 不能通过 addForeignKeyConstraint 后置添加外键，改为一次性创建最终表结构。 -->
+    <changeSet id="system-menu-schema-sqlite" author="holic512" dbms="sqlite">
+        <sql splitStatements="true"><![CDATA[
+            CREATE TABLE system_menu (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              parent_id BIGINT,
+              menu_name VARCHAR(100) NOT NULL,
+              menu_type VARCHAR(16) NOT NULL,
+              route_path VARCHAR(255),
+              route_name VARCHAR(100),
+              component_key VARCHAR(255),
+              icon VARCHAR(100),
+              sort INT NOT NULL DEFAULT 0,
+              visible BOOLEAN NOT NULL DEFAULT 1,
+              status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
+              created_at TIMESTAMP NOT NULL,
+              updated_at TIMESTAMP NOT NULL,
+              CONSTRAINT uk_system_menu_route_path UNIQUE (route_path),
+              CONSTRAINT uk_system_menu_route_name UNIQUE (route_name),
+              CONSTRAINT ck_system_menu_type CHECK (menu_type IN ('DIRECTORY', 'MENU')),
+              CONSTRAINT fk_system_menu_parent FOREIGN KEY (parent_id)
+                REFERENCES system_menu (id) ON DELETE CASCADE
+            );
+            CREATE INDEX idx_system_menu_parent_id ON system_menu (parent_id);
+        ]]></sql>
+    </changeSet>
+
+    <changeSet id="system-menu-seed" author="holic512">
+        <insert tableName="system_menu">
+            <column name="menu_name" value="系统管理"/>
+            <column name="menu_type" value="DIRECTORY"/>
+            <column name="route_path" value="/system"/>
+            <column name="route_name" value="System"/>
+            <column name="icon" value="Setting"/>
+            <column name="sort" valueNumeric="0"/>
+            <column name="visible" valueBoolean="true"/>
+            <column name="status" value="ENABLED"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="system_menu">
+            <column name="parent_id" valueComputed="(SELECT id FROM system_menu WHERE route_name = 'System')"/>
+            <column name="menu_name" value="系统概览"/>
+            <column name="menu_type" value="MENU"/>
+            <column name="route_path" value="/system/overview"/>
+            <column name="route_name" value="SystemOverview"/>
+            <column name="component_key" value="system/overview/index"/>
+            <column name="icon" value="House"/>
+            <column name="sort" valueNumeric="10"/>
+            <column name="visible" valueBoolean="true"/>
+            <column name="status" value="ENABLED"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="system_menu">
+            <column name="parent_id" valueComputed="(SELECT id FROM system_menu WHERE route_name = 'System')"/>
+            <column name="menu_name" value="角色路由"/>
+            <column name="menu_type" value="MENU"/>
+            <column name="route_path" value="/system/role-menu"/>
+            <column name="route_name" value="SystemRoleMenu"/>
+            <column name="component_key" value="system/role-menu/index"/>
+            <column name="icon" value="Share"/>
+            <column name="sort" valueNumeric="20"/>
+            <column name="visible" valueBoolean="true"/>
+            <column name="status" value="ENABLED"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file db/changelog/system/system-api-resource.xml
+    @project Pipker Framework
+    @module Pipker Server
+    @description 定义 API 资源与 API 权限的映射。
+    @logic 创建 API 资源表、方法路径唯一约束和权限外键，再写入框架受保护 API 的默认资源映射。
+    @dependencies Liquibase、system_api_resource、system_permission
+    @index_tags liquibase、database、system_api_resource、seed、api、rbac
+    @author holic512
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="system-api-resource-schema-mysql-postgresql" author="holic512" dbms="mysql,postgresql">
+        <createTable tableName="system_api_resource">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_system_api_resource" nullable="false"/>
+            </column>
+            <column name="permission_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="http_method" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="path_pattern" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="system_api_resource" columnNames="http_method, path_pattern"
+                             constraintName="uk_system_api_resource_method_path"/>
+        <addForeignKeyConstraint baseTableName="system_api_resource" baseColumnNames="permission_id"
+                                 constraintName="fk_system_api_resource_permission" referencedTableName="system_permission"
+                                 referencedColumnNames="id" onDelete="CASCADE"/>
+        <createIndex tableName="system_api_resource" indexName="idx_system_api_resource_permission_id">
+            <column name="permission_id"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- SQLite 外键必须在 CREATE TABLE 中定义，因此保留唯一的 SQLite 专属结构 SQL。 -->
+    <changeSet id="system-api-resource-schema-sqlite" author="holic512" dbms="sqlite">
+        <sql splitStatements="true"><![CDATA[
+            CREATE TABLE system_api_resource (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              permission_id BIGINT NOT NULL,
+              http_method VARCHAR(16) NOT NULL,
+              path_pattern VARCHAR(255) NOT NULL,
+              CONSTRAINT uk_system_api_resource_method_path UNIQUE (http_method, path_pattern),
+              CONSTRAINT fk_system_api_resource_permission FOREIGN KEY (permission_id)
+                REFERENCES system_permission (id) ON DELETE CASCADE
+            );
+            CREATE INDEX idx_system_api_resource_permission_id ON system_api_resource (permission_id);
+        ]]></sql>
+    </changeSet>
+
+    <changeSet id="system-api-resource-seed" author="holic512">
+        <insert tableName="system_api_resource">
+            <column name="permission_id" valueComputed="(SELECT id FROM system_permission WHERE permission_code = 'system:auth:me')"/>
+            <column name="http_method" value="GET"/>
+            <column name="path_pattern" value="/api/auth/me"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="permission_id" valueComputed="(SELECT id FROM system_permission WHERE permission_code = 'system:authorization:read')"/>
+            <column name="http_method" value="GET"/>
+            <column name="path_pattern" value="/api/admin/authorization"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="permission_id" valueComputed="(SELECT id FROM system_permission WHERE permission_code = 'system:role-menu:manage')"/>
+            <column name="http_method" value="GET"/>
+            <column name="path_pattern" value="/api/admin/role-menu-config"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="permission_id" valueComputed="(SELECT id FROM system_permission WHERE permission_code = 'system:role-menu:manage')"/>
+            <column name="http_method" value="PUT"/>
+            <column name="path_pattern" value="/api/admin/role-menu-config/{roleId}"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

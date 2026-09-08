@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file db/changelog/system/system-permission.xml
+    @project Pipker Framework
+    @module Pipker Server
+    @description 定义最终 API 权限模型和框架内置 API 权限数据。
+    @logic 创建权限表、权限编码唯一约束和仅允许 API 的检查约束，再写入鉴权与角色菜单管理权限。
+    @dependencies Liquibase、system_permission
+    @index_tags liquibase、database、system_permission、seed、rbac、api
+    @author holic512
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 当前授权模型不再保留历史 PAGE 和 BUTTON 权限类型。 -->
+    <changeSet id="system-permission-schema-mysql-postgresql" author="holic512" dbms="mysql,postgresql">
+        <createTable tableName="system_permission">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_system_permission" nullable="false"/>
+            </column>
+            <column name="permission_code" type="VARCHAR(128)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_system_permission_code"/>
+            </column>
+            <column name="permission_name" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permission_type" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="status" type="VARCHAR(16)" defaultValue="ENABLED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <!-- Liquibase 5.0.3 不会为 MySQL 可靠地从 column constraints 生成 CHECK，显式保留最终约束。 -->
+        <sql splitStatements="false">ALTER TABLE system_permission ADD CONSTRAINT ck_system_permission_type CHECK (permission_type = 'API')</sql>
+    </changeSet>
+
+    <!-- SQLite 需要在建表时内联定义最终 CHECK 约束。 -->
+    <changeSet id="system-permission-schema-sqlite" author="holic512" dbms="sqlite">
+        <sql splitStatements="false"><![CDATA[
+            CREATE TABLE system_permission (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              permission_code VARCHAR(128) NOT NULL,
+              permission_name VARCHAR(100) NOT NULL,
+              permission_type VARCHAR(16) NOT NULL,
+              description VARCHAR(500),
+              status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
+              created_at TIMESTAMP NOT NULL,
+              updated_at TIMESTAMP NOT NULL,
+              CONSTRAINT uk_system_permission_code UNIQUE (permission_code),
+              CONSTRAINT ck_system_permission_type CHECK (permission_type = 'API')
+            )
+        ]]></sql>
+    </changeSet>
+
+    <changeSet id="system-permission-seed" author="holic512">
+        <insert tableName="system_permission">
+            <column name="permission_code" value="system:authorization:read"/>
+            <column name="permission_name" value="读取当前授权信息"/>
+            <column name="permission_type" value="API"/>
+            <column name="description" value="读取当前用户角色、权限和菜单"/>
+            <column name="status" value="ENABLED"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="system_permission">
+            <column name="permission_code" value="system:auth:me"/>
+            <column name="permission_name" value="读取当前授权信息"/>
+            <column name="permission_type" value="API"/>
+            <column name="description" value="读取当前登录用户的角色、权限和页面菜单"/>
+            <column name="status" value="ENABLED"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+        <insert tableName="system_permission">
+            <column name="permission_code" value="system:role-menu:manage"/>
+            <column name="permission_name" value="管理角色路由菜单"/>
+            <column name="permission_type" value="API"/>
+            <column name="description" value="读取和保存角色可访问页面菜单"/>
+            <column name="status" value="ENABLED"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

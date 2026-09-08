@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file db/changelog/system/system-user.xml
+    @project Pipker Framework
+    @module Pipker Server
+    @description 定义系统用户表及默认管理员账户。
+    @logic 创建用户主表和用户名唯一约束，再写入框架默认管理员；关联角色在 system-user-role.xml 中维护。
+    @dependencies Liquibase、system_user
+    @index_tags liquibase、database、system_user、seed、admin
+    @author holic512
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 三种数据库均支持由 Liquibase 生成用户表及内联约束。 -->
+    <changeSet id="system-user-schema" author="holic512">
+        <createTable tableName="system_user">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_system_user" nullable="false"/>
+            </column>
+            <column name="username" type="VARCHAR(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_system_user_username"/>
+            </column>
+            <column name="password_hash" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="nickname" type="VARCHAR(100)"/>
+            <column name="avatar" type="VARCHAR(500)"/>
+            <column name="phone" type="VARCHAR(32)"/>
+            <column name="email" type="VARCHAR(255)"/>
+            <column name="status" type="VARCHAR(16)" defaultValue="ENABLED">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_login_time" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <!-- 管理员密码保留 bcrypt 哈希，明文初始密码仍由现有运维约定管理。 -->
+    <changeSet id="system-user-seed" author="holic512">
+        <insert tableName="system_user">
+            <column name="username" value="admin"/>
+            <column name="password_hash" value="{bcrypt}$2a$12$jtnBe8ju./KkxopocsK1ku669f2qwfKcQ.HiHCM2Kwmb0dp0p9I82"/>
+            <column name="nickname" value="Pipker 管理员"/>
+            <column name="status" value="ENABLED"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

@@ -2,7 +2,7 @@
 # @project Pipker Framework
 # @module Pipker Server
 # @description MySQL 数据源配置。
-# @logic 仅在 mysql Profile 下生效，连接参数由外部环境变量提供，并加载 MySQL 专用数据库迁移入口。
+# @logic 仅在 mysql Profile 下生效，连接参数由外部环境变量提供，并加载跨数据库共享的 Liquibase XML 基线。
 # @dependencies Spring Boot JDBC、MySQL Connector/J、Liquibase
 # @index_tags server、配置、base、mysql、datasource、liquibase
 # @author holic512
@@ -16,4 +16,4 @@ spring:
     password: ${PIPKER_DATABASE_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
   liquibase:
-    change-log: classpath:db/changelog/mysql/db.changelog-master.yaml
+    change-log: classpath:db/changelog/db.changelog-master.xml

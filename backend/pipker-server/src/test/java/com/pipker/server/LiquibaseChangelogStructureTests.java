@@ -70,8 +70,10 @@ class LiquibaseChangelogStructureTests {
                 .contains("SYSTEM:AUTH:ME")
                 .contains("SYSTEM:ROLE-MENU:MANAGE")
                 .contains("SYSTEM:ROLE:MANAGE")
+                .contains("SYSTEM:ROUTE:READ")
                 .contains("SYSTEMOVERVIEW")
                 .contains("SYSTEMROLEMANAGEMENT")
+                .contains("SYSTEMROUTEMANAGEMENT")
                 .contains("CK_SYSTEM_PERMISSION_TYPE")
                 .contains("CK_SYSTEM_MENU_TYPE");
 

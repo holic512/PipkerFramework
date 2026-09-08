@@ -95,12 +95,30 @@ class SystemApiAuthorizationServiceTests {
         )).isTrue();
     }
 
+    @Test
+    void grantsEachReadOnlyRouteManagementOperationThroughOneUnambiguousRule() {
+        testSystemApiResourceMapper.apiResourceRules = List.of(
+                new SystemApiResourceRule(1L, "system:route:read", "GET", "/api/admin/routes"),
+                new SystemApiResourceRule(2L, "system:route:read", "GET", "/api/admin/routes/{routeId}")
+        );
+        systemAuthorizationService.snapshot = snapshotWith("system:route:read");
+
+        assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "GET", "/api/admin/routes"))
+                .isTrue();
+        assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "GET", "/api/admin/routes/42"))
+                .isTrue();
+        assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "POST", "/api/admin/routes"))
+                .isFalse();
+        assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "PUT", "/api/admin/routes/42"))
+                .isFalse();
+    }
+
     private LoginIdentity systemIdentity() {
         return new LoginIdentity(SystemLoginTypes.SYSTEM, "42");
     }
 
     private SystemAuthorizationSnapshot snapshotWith(String... permissions) {
-        return new SystemAuthorizationSnapshot(null, List.of(), List.of(permissions), List.of());
+        return new SystemAuthorizationSnapshot(null, List.of(), List.of(permissions), List.of(), List.of());
     }
 
     private static final class TestSystemApiResourceMapper {

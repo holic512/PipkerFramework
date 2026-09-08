@@ -1,6 +1,6 @@
 # Pipker Framework Frontend
 
-Pipker Framework 的 Vue 3 管理端。前端不维护静态业务导航：SYSTEM 用户登录后，由后端 `GET /api/auth/me` 返回的数据库菜单树是动态页面路由的唯一来源。
+Pipker Framework 的 Vue 3 管理端。前端不维护静态业务导航：SYSTEM 用户登录后，由后端 `GET /api/auth/me` 返回的可见数据库菜单树用于导航，独立的已授权页面路由列表用于动态注册。
 
 ## 技术基线
 
@@ -65,7 +65,7 @@ src/
 
 ## 应用布局
 
-登录后的应用壳由 `src/layouts/AppLayout.vue` 作为动态路由的稳定父级，但它只负责选择页面布局，不再直接持有具体布局实现。两套布局均从同一个会话 Store 读取 `/api/auth/me` 返回的数据库菜单树，因此切换布局不会改变菜单授权、动态路由、登录守卫或退出登录行为。
+登录后的应用壳由 `src/layouts/AppLayout.vue` 作为动态路由的稳定父级，但它只负责选择页面布局，不再直接持有具体布局实现。两套布局均从同一个会话 Store 读取 `/api/auth/me` 返回的可见数据库菜单树；同一快照的页面路由列表独立用于动态注册，因此切换布局不会改变菜单授权、动态路由、登录守卫或退出登录行为。
 
 | 布局值 | 页面实现 | 说明 |
 | --- | --- | --- |
@@ -142,13 +142,13 @@ Authorization: Bearer <accessToken>
 
 令牌键为 `pipker.system.access-token`，只存于当前浏览器会话。刷新页面时，`main.ts` 先请求 `/api/auth/me`：
 
-- 请求成功：Pinia 写入用户、角色、权限和菜单，并注册动态路由。
+- 请求成功：Pinia 写入用户、角色、权限、可见菜单和已授权页面路由，并注册动态路由。
 - 会话失效：清理 token、授权状态和动态路由，进入登录页。
 - 登录成功：同样先完成 `/api/auth/me` 和路由注册，再导航到原请求路径或第一个授权页面。
 
 ## 数据库菜单与组件键
 
-`/api/auth/me` 的菜单树提供 `id`、`type`、`path`、`routeName`、`componentKey` 与 `children`。菜单来自当前用户全部启用角色的页面菜单关联。路由器只处理满足下列条件的 `MENU` 节点：
+`/api/auth/me` 同时返回 `menus` 与 `routes`：前者是可见导航树，后者是当前账户全部已授权且已启用的页面路由。`routes` 的每项提供字符串 `id`、`title`、`path`、`routeName` 和 `componentKey`，路由器只处理满足下列条件的页面定义：
 
 ```text
 type === MENU
@@ -169,7 +169,7 @@ import.meta.glob('../modules/**/index.vue')
 system/overview/index  →  src/modules/system/overview/index.vue
 ```
 
-未找到对应组件的菜单不会被伪造成静态页面：它会被跳过，并只在开发环境输出诊断。退出登录或授权刷新时，前一份数据库菜单注册的路由会被移除；导航守卫还会检查路由的菜单 ID 是否仍在当前授权菜单集合中。要新增页面，应先增加 Vue 组件，再通过后端的 Liquibase 增量 changeset 增加菜单并为角色配置菜单关联；页面调用 API 所需权限仍通过独立 API 权限配置。`SUPER_ADMIN` 可通过“角色路由”页面为普通角色勾选页面菜单，本期不实现按钮级权限控制。
+未找到对应组件的页面路由不会被伪造成静态页面：它会被跳过，并只在开发环境输出诊断。退出登录或授权刷新时，前一份数据库路由注册会被移除；导航守卫还会检查路由 ID 是否仍在当前授权路由集合中。`visible=false` 仅隐藏导航菜单，已获授权的页面仍会被注册并可通过直接 URL 访问；`DIRECTORY` 仅组织层级，不需要真实页面文件或 `componentKey`。要新增页面，应先增加 Vue 组件，再通过后端的 Liquibase 增量 changeset 增加菜单并为角色配置菜单关联；页面调用 API 所需权限仍通过独立 API 权限配置。`SUPER_ADMIN` 可通过“角色路由”页面为普通角色勾选页面菜单，本期不实现按钮级权限控制。
 
 当前启用的应用布局只渲染会话 Store 中的菜单，不再硬编码“系统概览”导航。后端不再提供开发 Route Manifest；页面数据唯一来自已登录用户的 `/api/auth/me`。
 

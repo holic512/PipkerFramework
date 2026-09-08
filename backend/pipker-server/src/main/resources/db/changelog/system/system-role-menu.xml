@@ -4,7 +4,7 @@
     @project Pipker Framework
     @module Pipker Server
     @description 定义系统角色与动态菜单的多对多关联及系统管理员默认路由。
-    @logic 创建独立雪花主键、关联唯一约束、级联外键和菜单索引，再为 ADMIN 分配系统概览和角色管理路由。
+    @logic 创建独立雪花主键、关联唯一约束、级联外键和菜单索引，再为 ADMIN 分配系统概览、角色管理和只读路由管理页面。
     @dependencies Liquibase、system_role、system_menu、system_role_menu
     @index_tags liquibase、database、system_role_menu、seed、rbac、route
     @author holic512
@@ -71,6 +71,15 @@
             <column name="id" valueNumeric="2090000000000000702"/>
             <column name="role_id" valueNumeric="2090000000000000102"/>
             <column name="menu_id" valueNumeric="2090000000000000304"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="system-role-menu-route-management-seed" author="holic512">
+        <comment>为 ADMIN 分配路由管理菜单，用于只读查看页面路径、索引、路由和菜单展示状态。</comment>
+        <insert tableName="system_role_menu">
+            <column name="id" valueNumeric="2090000000000000703"/>
+            <column name="role_id" valueNumeric="2090000000000000102"/>
+            <column name="menu_id" valueNumeric="2090000000000000305"/>
         </insert>
     </changeSet>
 </databaseChangeLog>

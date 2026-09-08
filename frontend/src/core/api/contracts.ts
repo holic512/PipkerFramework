@@ -2,10 +2,10 @@
  * @file contracts.ts
  * @project Pipker Framework
  * @module Frontend API Contracts
- * @description Defines the server envelope, RBAC and role-management projections, and typed error surface shared by frontend features.
+ * @description Defines the server envelope, RBAC, role-management and read-only route-management projections shared by frontend features.
  * @logic Keeps all backend field names and business result codes at the transport boundary so pages only consume verified data, including string-form Snowflake IDs.
  * @dependencies TypeScript
- * @index_tags api, contracts, rbac, role, authentication
+ * @index_tags api, contracts, rbac, role, route, authentication
  * @author holic512
  */
 
@@ -45,8 +45,8 @@ export interface SystemUserProfile {
 }
 
 export interface SystemMenuNode {
-  id: number
-  parentId: number | null
+  id: string
+  parentId: string | null
   name: string
   type: 'DIRECTORY' | 'MENU'
   path: string | null
@@ -54,7 +54,16 @@ export interface SystemMenuNode {
   componentKey: string | null
   icon: string | null
   sort: number | null
+  visible: boolean
   children: SystemMenuNode[]
+}
+
+export interface SystemRouteDefinition {
+  id: string
+  title: string
+  path: string
+  routeName: string
+  componentKey: string
 }
 
 export interface SystemAuthorizationSnapshot {
@@ -62,15 +71,16 @@ export interface SystemAuthorizationSnapshot {
   roles: string[]
   permissions: string[]
   menus: SystemMenuNode[]
+  routes: SystemRouteDefinition[]
 }
 
 export interface RoleMenuConfigurationRole {
-  id: number
+  id: string
   code: string
   name: string
   sort: number | null
   allMenus: boolean
-  menuIds: number[]
+  menuIds: string[]
 }
 
 export interface RoleMenuConfiguration {
@@ -79,8 +89,8 @@ export interface RoleMenuConfiguration {
 }
 
 export interface RoleMenuUpdateResult {
-  roleId: number
-  menuIds: number[]
+  roleId: string
+  menuIds: string[]
 }
 
 export interface LoginResponse {
@@ -129,4 +139,28 @@ export interface PageResult<T> {
 
 export interface RoleManagementOperationResult {
   affectedIds: string[]
+}
+
+export type SystemRouteMenuType = 'DIRECTORY' | 'MENU'
+export type SystemRouteStatus = 'ENABLED' | 'DISABLED'
+
+export interface SystemRouteSummary {
+  id: string
+  parentId: string | null
+  menuName: string
+  menuType: SystemRouteMenuType
+  routePath: string | null
+  routeName: string | null
+  componentKey: string | null
+  icon: string | null
+  sort: number | null
+  visible: boolean
+  status: SystemRouteStatus
+  componentIndexRequired: boolean
+}
+
+export interface SystemRouteDetail extends SystemRouteSummary {
+  parentName: string | null
+  createdAt: string
+  updatedAt: string
 }

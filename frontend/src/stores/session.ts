@@ -3,9 +3,9 @@
  * @project Pipker Framework
  * @module Frontend Session State
  * @description Owns the active SYSTEM session, its authorization projection, and the dynamic route lifecycle.
- * @logic Persists only the Bearer token in sessionStorage; every successful login or refresh fetches /auth/me and synchronizes routes from its menus.
+ * @logic Persists only the Bearer token in sessionStorage; every successful login or refresh fetches /auth/me, renders visible menus, and registers all authorized page routes.
  * @dependencies Pinia, Vue, authentication API, router, sessionStorage, API contracts
- * @index_tags pinia, authentication, rbac, dynamic-routing
+ * @index_tags pinia, authentication, rbac, route, dynamic-routing
  * @author holic512
  */
 
@@ -17,6 +17,7 @@ import type {
   LoginRequest,
   SystemAuthorizationSnapshot,
   SystemMenuNode,
+  SystemRouteDefinition,
   SystemUserProfile,
 } from '../core/api/contracts'
 import {
@@ -33,6 +34,7 @@ export const useSessionStore = defineStore('session', () => {
   const roles = ref<string[]>([])
   const permissions = ref<string[]>([])
   const menus = ref<SystemMenuNode[]>([])
+  const routes = ref<SystemRouteDefinition[]>([])
   const restoring = ref(false)
 
   const isAuthenticated = computed(() => accessToken.value !== null && user.value !== null)
@@ -42,7 +44,8 @@ export const useSessionStore = defineStore('session', () => {
     roles.value = snapshot.roles
     permissions.value = snapshot.permissions
     menus.value = snapshot.menus
-    replaceDatabaseRoutes(snapshot.menus)
+    routes.value = snapshot.routes
+    replaceDatabaseRoutes(snapshot.routes, findFirstVisiblePagePath(snapshot.menus))
   }
 
   function clearSession(): void {
@@ -52,6 +55,7 @@ export const useSessionStore = defineStore('session', () => {
     roles.value = []
     permissions.value = []
     menus.value = []
+    routes.value = []
     clearDatabaseRoutes()
   }
 
@@ -102,6 +106,7 @@ export const useSessionStore = defineStore('session', () => {
     roles,
     permissions,
     menus,
+    routes,
     restoring,
     isAuthenticated,
     login,
@@ -111,6 +116,19 @@ export const useSessionStore = defineStore('session', () => {
     clearSession,
   }
 })
+
+function findFirstVisiblePagePath(menus: SystemMenuNode[]): string | null {
+  for (const menu of menus) {
+    if (menu.type === 'MENU' && menu.path) {
+      return menu.path
+    }
+    const childPath = findFirstVisiblePagePath(menu.children)
+    if (childPath) {
+      return childPath
+    }
+  }
+  return null
+}
 
 function isAuthenticationFailure(error: unknown): boolean {
   if (!(error instanceof ApiBusinessError)) {

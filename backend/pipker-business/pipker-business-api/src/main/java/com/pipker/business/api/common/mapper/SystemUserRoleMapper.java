@@ -3,7 +3,7 @@
  * @project Pipker Framework
  * @module Pipker Business API
  * @description 提供 system_user_role 的 MyBatis-Plus CRUD 与用户授权关联查询。
- * @logic 单表关联记录走 BaseMapper；角色、API 权限和页面菜单查询在此集中保留必要连接。
+ * @logic 单表关联记录走 BaseMapper；角色、API 权限和全部启用页面菜单查询在此集中保留必要连接，菜单展示状态由授权服务单独投影。
  * @dependencies MyBatis-Plus、SystemUserRole、SystemMenu
  * @index_tags mybatis-plus、system-user-role、rbac、authorization
  * @author holic512
@@ -74,7 +74,7 @@ public interface SystemUserRoleMapper extends BaseMapper<SystemUserRole> {
             """)
     List<String> findEnabledPermissionCodesByUserId(@Param("userId") long userId);
 
-    /** 查询普通用户由启用角色关联的启用可见页面菜单。 */
+    /** 查询普通用户由启用角色关联的全部启用页面菜单；展示状态由导航投影单独处理。 */
     @Select("""
             SELECT DISTINCT m.id, m.parent_id, m.menu_name, m.menu_type, m.route_path,
                    m.route_name, m.component_key, m.icon, m.sort, m.visible, m.status,
@@ -86,9 +86,8 @@ public interface SystemUserRoleMapper extends BaseMapper<SystemUserRole> {
             WHERE ur.user_id = #{userId}
               AND r.status = 'ENABLED'
               AND m.status = 'ENABLED'
-              AND m.visible = TRUE
               AND m.menu_type = 'MENU'
             ORDER BY m.sort, m.id
             """)
-    List<SystemMenu> findVisiblePageMenusByUserId(@Param("userId") long userId);
+    List<SystemMenu> findEnabledPageMenusByUserId(@Param("userId") long userId);
 }

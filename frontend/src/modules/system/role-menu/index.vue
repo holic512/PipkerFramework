@@ -3,9 +3,9 @@
   @project Pipker Framework
   @module Frontend Role Route Management
   @description Provides the role-first page-route administration screen for SUPER_ADMIN.
-  @logic Loads the canonical database menu tree, edits only ordinary role leaf-menu selections, and performs a full replacement save through the protected configuration API.
+  @logic Loads the canonical database menu tree, edits only ordinary role leaf-menu selections including hidden navigation entries, and performs a full replacement save with exact string-form snowflake IDs.
   @dependencies Vue, Element Plus, RoleMenuTree, roleMenu API
-  @index_tags page, rbac, role-menu, administration
+  @index_tags page, rbac, role-menu, route, snowflake-id, administration
   @author holic512
 -->
 <script setup lang="ts">
@@ -15,8 +15,8 @@ import RoleMenuTree from './components/RoleMenuTree.vue'
 import { getRoleMenuConfiguration, replaceRoleMenuAssignments } from './api/roleMenu'
 
 const configuration = ref<RoleMenuConfiguration | null>(null)
-const selectedRoleId = ref<number | null>(null)
-const selectedMenuIds = ref<number[]>([])
+const selectedRoleId = ref<string | null>(null)
+const selectedMenuIds = ref<string[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const feedback = ref<string | null>(null)
@@ -121,7 +121,7 @@ function readableError(error: unknown, fallback: string): string {
             <div>
               <p class="role-menu-page__caption ui-eyebrow">页面菜单</p>
               <h2>{{ selectedRole.name }}</h2>
-              <p>{{ selectedRole.allMenus ? 'SUPER_ADMIN 自动拥有全部启用菜单，不能手工收窄。' : '仅勾选可访问页面；目录只用于组织菜单树。' }}</p>
+              <p>{{ selectedRole.allMenus ? 'SUPER_ADMIN 自动拥有全部启用页面，不能手工收窄。' : '仅勾选可访问页面；隐藏菜单不会显示在导航，但仍可被授权访问。目录只用于组织菜单树。' }}</p>
             </div>
             <el-button
               v-if="!selectedRole.allMenus"

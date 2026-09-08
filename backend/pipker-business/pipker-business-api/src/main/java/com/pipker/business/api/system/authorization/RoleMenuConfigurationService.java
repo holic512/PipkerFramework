@@ -3,9 +3,9 @@
  * @project Pipker Framework
  * @module Pipker Business API
  * @description 提供角色优先的页面菜单配置与关联数据校验。
- * @logic 使用角色、菜单和角色菜单专属 Mapper 替换旧关联 Mapper，并在事务内以雪花主键重建普通角色的菜单关联。
+ * @logic 使用角色、菜单和角色菜单专属 Mapper 重建普通角色的页面关联；全部雪花 ID 在 HTTP 边界保持字符串，隐藏菜单也可授权但不会进入导航。
  * @dependencies SystemRoleMapper、SystemMenuMapper、SystemRoleMenuMapper、SystemAuthorizationService、Spring Transaction
- * @index_tags rbac、role-menu、administration、cache、mybatis-plus
+ * @index_tags rbac、role-menu、administration、cache、mybatis-plus、route、snowflake-id
  * @author holic512
  */
 package com.pipker.business.api.system.authorization;
@@ -59,8 +59,8 @@ public class RoleMenuConfigurationService {
 
     /** @return 所有启用角色、其菜单选择和可配置菜单树。 */
     public RoleMenuConfiguration getConfiguration() {
-        List<SystemMenuNode> menus = systemAuthorizationService.findAllVisibleMenuTree();
-        List<Long> allPageMenuIds = findPageMenuIds(menus);
+        List<SystemMenuNode> menus = systemAuthorizationService.findAllEnabledMenuTree();
+        List<Long> allPageMenuIds = findEnabledPageMenuIds();
         Map<Long, List<Long>> menuIdsByRoleId = assignmentsByRoleId(
                 systemRoleMenuMapper.findAllEnabledPageMenuAssignments()
         );
@@ -78,10 +78,8 @@ public class RoleMenuConfigurationService {
 
     /** 全量替换一个普通启用角色的页面菜单。 */
     @Transactional
-    public RoleMenuUpdateResult replaceRoleMenuAssignments(long roleId, List<Long> requestedMenuIds) {
-        if (roleId <= 0) {
-            throw validationError("roleId must be positive");
-        }
+    public RoleMenuUpdateResult replaceRoleMenuAssignments(String rawRoleId, List<String> requestedMenuIds) {
+        long roleId = parsePositiveId(rawRoleId, "roleId");
         SystemRole role = systemRoleMapper.selectById(roleId);
         if (role == null || !role.isEnabled()) {
             throw validationError("角色不存在或已停用");
@@ -95,13 +93,12 @@ public class RoleMenuConfigurationService {
             Set<Long> validMenuIds = systemMenuMapper.selectList(new LambdaQueryWrapper<SystemMenu>()
                             .in(SystemMenu::getId, menuIds)
                             .eq(SystemMenu::getStatus, "ENABLED")
-                            .eq(SystemMenu::isVisible, true)
                             .eq(SystemMenu::getMenuType, "MENU"))
                     .stream()
                     .map(SystemMenu::getId)
                     .collect(Collectors.toSet());
             if (validMenuIds.size() != menuIds.size() || !validMenuIds.containsAll(menuIds)) {
-                throw validationError("菜单必须是启用且可见的页面菜单");
+                throw validationError("菜单必须是启用的页面菜单");
             }
         }
 
@@ -114,7 +111,7 @@ public class RoleMenuConfigurationService {
             systemRoleMenuMapper.insert(assignment);
         }
         systemAuthorizationCache.invalidateAllSnapshots();
-        return new RoleMenuUpdateResult(roleId, menuIds);
+        return new RoleMenuUpdateResult(stringifyId(roleId), stringifyIds(menuIds));
     }
 
     private RoleMenuConfiguration.RoleMenuConfigurationRole toConfigurationRole(
@@ -127,12 +124,12 @@ public class RoleMenuConfigurationService {
                 ? allPageMenuIds
                 : menuIdsByRoleId.getOrDefault(role.getId(), List.of());
         return new RoleMenuConfiguration.RoleMenuConfigurationRole(
-                role.getId(),
+                stringifyId(role.getId()),
                 role.getRoleCode(),
                 role.getRoleName(),
                 role.getSort(),
                 allMenus,
-                menuIds
+                stringifyIds(menuIds)
         );
     }
 
@@ -146,33 +143,46 @@ public class RoleMenuConfigurationService {
         return assignmentsByRoleId;
     }
 
-    private List<Long> findPageMenuIds(List<SystemMenuNode> menus) {
-        List<Long> pageMenuIds = new ArrayList<>();
-        collectPageMenuIds(menus, pageMenuIds);
-        return pageMenuIds;
+    private List<Long> findEnabledPageMenuIds() {
+        return systemMenuMapper.selectList(new LambdaQueryWrapper<SystemMenu>()
+                        .eq(SystemMenu::getStatus, "ENABLED")
+                        .eq(SystemMenu::getMenuType, "MENU")
+                        .orderByAsc(SystemMenu::getSort)
+                        .orderByAsc(SystemMenu::getId))
+                .stream()
+                .map(SystemMenu::getId)
+                .toList();
     }
 
-    private void collectPageMenuIds(List<SystemMenuNode> menus, List<Long> pageMenuIds) {
-        for (SystemMenuNode menu : menus) {
-            if ("MENU".equals(menu.type())) {
-                pageMenuIds.add(menu.id());
-            }
-            collectPageMenuIds(menu.children(), pageMenuIds);
-        }
-    }
-
-    private List<Long> normalizeMenuIds(List<Long> requestedMenuIds) {
+    private List<Long> normalizeMenuIds(List<String> requestedMenuIds) {
         if (requestedMenuIds == null || requestedMenuIds.isEmpty()) {
             return List.of();
         }
         LinkedHashSet<Long> uniqueIds = new LinkedHashSet<>();
-        for (Long menuId : requestedMenuIds) {
-            if (menuId == null || menuId <= 0) {
-                throw validationError("menuIds must contain positive IDs only");
-            }
-            uniqueIds.add(menuId);
+        for (String rawMenuId : requestedMenuIds) {
+            uniqueIds.add(parsePositiveId(rawMenuId, "menuIds"));
         }
         return List.copyOf(uniqueIds);
+    }
+
+    private long parsePositiveId(String rawId, String fieldName) {
+        try {
+            long id = Long.parseLong(rawId);
+            if (id <= 0) {
+                throw validationError(fieldName + " must be a positive Long ID");
+            }
+            return id;
+        } catch (NumberFormatException exception) {
+            throw validationError(fieldName + " must be a positive Long ID");
+        }
+    }
+
+    private List<String> stringifyIds(List<Long> ids) {
+        return ids.stream().map(this::stringifyId).toList();
+    }
+
+    private String stringifyId(long id) {
+        return String.valueOf(id);
     }
 
     private ApiBusinessException validationError(String message) {

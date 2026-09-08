@@ -29,6 +29,7 @@
             <li><span aria-hidden="true">└</span> roles</li>
             <li><span aria-hidden="true">└</span> permissions</li>
             <li><span aria-hidden="true">└</span> menus</li>
+            <li><span aria-hidden="true">└</span> routes</li>
           </ul>
           <div class="home-flow__request">
             <span>REQUEST</span>
@@ -55,13 +56,13 @@
             <li>
               <span class="home-flow__stage-number">02</span>
               <strong>RBAC</strong>
-              <small>读取角色与菜单</small>
-              <code>roles · menus</code>
+              <small>读取角色、菜单与路由</small>
+              <code>roles · menus · routes</code>
             </li>
             <li>
               <span class="home-flow__stage-number">03</span>
               <strong>ROUTES</strong>
-              <small>按菜单注册页面</small>
+              <small>按授权路由注册页面</small>
               <code>componentKey</code>
             </li>
             <li>

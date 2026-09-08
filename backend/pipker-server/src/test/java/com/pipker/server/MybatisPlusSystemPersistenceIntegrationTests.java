@@ -2,10 +2,10 @@
  * @file MybatisPlusSystemPersistenceIntegrationTests.java
  * @project Pipker Framework
  * @module Pipker Server
- * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键、授权初始化数据和角色管理服务。
- * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 和角色管理服务验证实体读写、授权、真实分页、批量角色操作和密码重置。
+ * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键、授权初始化数据、角色管理与只读路由管理服务。
+ * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 和应用服务验证实体读写、授权、真实分页、批量角色操作、密码重置和已落库路由定义。
  * @dependencies Spring Boot Test、Liquibase、SQLite JDBC、MyBatis-Plus、Pipker Business API、Pipker Security Starter
- * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、role、password-reset
+ * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、role、route、password-reset
  * @author holic512
  */
 package com.pipker.server;
@@ -25,9 +25,12 @@ import com.pipker.business.api.common.model.SystemPermission;
 import com.pipker.business.api.common.model.SystemRole;
 import com.pipker.business.api.common.model.SystemRoleMenu;
 import com.pipker.business.api.common.model.SystemRolePermission;
+import com.pipker.business.api.common.model.SystemRouteDefinition;
 import com.pipker.business.api.common.model.SystemUser;
 import com.pipker.business.api.common.model.SystemUserRole;
 import com.pipker.business.api.system.authorization.SystemAuthorizationService;
+import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
+import com.pipker.business.api.system.authorization.RoleMenuConfiguration;
 import com.pipker.business.api.system.authorization.RoleMenuConfigurationService;
 import com.pipker.business.api.system.authorization.RoleMenuUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementService;
@@ -39,6 +42,9 @@ import com.pipker.business.api.system.role.RoleManagementRequest.Update;
 import com.pipker.business.api.system.role.RoleManagementResponse.PageResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleMember;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleSummary;
+import com.pipker.business.api.system.route.RouteManagementResponse.RouteDetail;
+import com.pipker.business.api.system.route.RouteManagementResponse.RouteSummary;
+import com.pipker.business.api.system.route.RouteManagementService;
 import com.pipker.business.common.exception.ApiBusinessException;
 import com.pipker.starter.security.service.SecurityCryptoService;
 import org.junit.jupiter.api.Test;
@@ -89,10 +95,16 @@ class MybatisPlusSystemPersistenceIntegrationTests {
     private SystemAuthorizationService systemAuthorizationService;
 
     @Autowired
+    private SystemAuthorizationCache systemAuthorizationCache;
+
+    @Autowired
     private RoleMenuConfigurationService roleMenuConfigurationService;
 
     @Autowired
     private RoleManagementService roleManagementService;
+
+    @Autowired
+    private RouteManagementService routeManagementService;
 
     @Autowired
     private SecurityCryptoService securityCryptoService;
@@ -192,15 +204,15 @@ class MybatisPlusSystemPersistenceIntegrationTests {
                 .contains("system:auth:me");
 
         RoleMenuUpdateResult menuUpdate = roleMenuConfigurationService.replaceRoleMenuAssignments(
-                2090000000000000102L,
-                List.of(2090000000000000303L)
+                "2090000000000000102",
+                List.of("2090000000000000303")
         );
-        assertThat(menuUpdate.menuIds()).containsExactly(2090000000000000303L);
+        assertThat(menuUpdate.menuIds()).containsExactly("2090000000000000303");
         assertThat(roleMenuConfigurationService.getConfiguration().roles())
                 .filteredOn(roleConfiguration -> "ADMIN".equals(roleConfiguration.code()))
                 .singleElement()
                 .satisfies(roleConfiguration -> assertThat(roleConfiguration.menuIds())
-                        .containsExactly(2090000000000000303L));
+                        .containsExactly("2090000000000000303"));
     }
 
     @Test
@@ -276,6 +288,74 @@ class MybatisPlusSystemPersistenceIntegrationTests {
         roleManagementService.deleteRoles(new BatchDelete(List.of(createdRole.id())));
         assertThat(systemRoleMapper.selectById(Long.parseLong(createdRole.id()))).isNull();
         assertThat(systemUserRoleMapper.selectById(memberAssignment.getId())).isNull();
+    }
+
+    @Test
+    void readsPersistedPageRoutesAndDirectoryCategoriesWithoutRouteWrites() {
+        com.pipker.business.api.system.route.RouteManagementResponse.PageResult<RouteSummary> routePage =
+                routeManagementService.findRoutePage(1, 10, "/system/routes", "MENU", true, "ENABLED");
+
+        assertThat(routePage.total()).isEqualTo(1);
+        RouteSummary route = routePage.records().getFirst();
+        assertThat(route.id()).isEqualTo("2090000000000000305");
+        assertThat(route.routeName()).isEqualTo("SystemRouteManagement");
+        assertThat(route.routePath()).isEqualTo("/system/routes");
+        assertThat(route.componentKey()).isEqualTo("system/route/index");
+        assertThat(route.componentIndexRequired()).isTrue();
+        assertThat(route.visible()).isTrue();
+
+        RouteDetail routeDetail = routeManagementService.findRouteDetail(route.id());
+        assertThat(routeDetail.parentName()).isEqualTo("系统管理");
+        assertThat(routeDetail.createdAt()).isNotNull();
+        assertThat(routeDetail.updatedAt()).isNotNull();
+
+        com.pipker.business.api.system.route.RouteManagementResponse.PageResult<RouteSummary> directoryPage =
+                routeManagementService.findRoutePage(1, 10, "系统管理", "DIRECTORY", true, "ENABLED");
+        assertThat(directoryPage.records()).singleElement()
+                .satisfies(directory -> {
+                    assertThat(directory.componentIndexRequired()).isFalse();
+                    assertThat(directory.componentKey()).isNull();
+                    assertThat(directory.routePath()).isEqualTo("/system");
+                });
+    }
+
+    @Test
+    void registersAuthorizedHiddenPageRoutesWithoutPlacingThemInNavigationMenus() {
+        String suffix = String.valueOf(System.nanoTime());
+        SystemMenu hiddenRoute = new SystemMenu();
+        hiddenRoute.setParentId(2090000000000000301L);
+        hiddenRoute.setMenuName("隐藏路由 " + suffix);
+        hiddenRoute.setMenuType("MENU");
+        hiddenRoute.setRoutePath("/system/hidden-route-" + suffix);
+        hiddenRoute.setRouteName("HiddenRoute" + suffix);
+        hiddenRoute.setComponentKey("system/overview/index");
+        hiddenRoute.setSort(997);
+        hiddenRoute.setVisible(false);
+        hiddenRoute.setStatus("ENABLED");
+        systemMenuMapper.insert(hiddenRoute);
+        systemAuthorizationCache.invalidateAllSnapshots();
+
+        SystemAuthorizationSnapshot superAdminSnapshot = systemAuthorizationService.findSnapshot(2090000000000000001L);
+        assertThat(superAdminSnapshot.routes())
+                .extracting(SystemRouteDefinition::id)
+                .contains(String.valueOf(hiddenRoute.getId()));
+        assertThat(superAdminSnapshot.menus().stream()
+                .flatMap(menu -> menu.children().stream())
+                .map(menu -> menu.id()))
+                .doesNotContain(String.valueOf(hiddenRoute.getId()));
+
+        RoleMenuConfiguration configuration = roleMenuConfigurationService.getConfiguration();
+        assertThat(configuration.menus().stream()
+                .flatMap(menu -> menu.children().stream())
+                .filter(menu -> menu.id().equals(String.valueOf(hiddenRoute.getId()))))
+                .singleElement()
+                .satisfies(menu -> assertThat(menu.visible()).isFalse());
+
+        RoleMenuUpdateResult update = roleMenuConfigurationService.replaceRoleMenuAssignments(
+                "2090000000000000102",
+                List.of(String.valueOf(hiddenRoute.getId()))
+        );
+        assertThat(update.menuIds()).containsExactly(String.valueOf(hiddenRoute.getId()));
     }
 
     private static Path createTemporaryDataRoot() {

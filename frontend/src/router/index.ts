@@ -2,17 +2,17 @@
  * @file index.ts
  * @project Pipker Framework
  * @module Frontend Router
- * @description Registers the public home selector and login routes alongside the protected layout, then derives protected page routes exclusively from /api/auth/me menu data.
- * @logic Keeps / publicly reachable, resolves componentKey through import.meta.glob, removes stale routes on session cleanup, and redirects the protected layout root to the first authorized page.
- * @dependencies Vue Router, AppLayout, LoginPage, public home selector, sessionStorage, SystemMenuNode
- * @index_tags router, homepage, dynamic-routing, rbac, authentication
+ * @description Registers the public home selector and login routes alongside the protected layout, then derives protected page routes from /api/auth/me authorized route definitions.
+ * @logic Keeps / publicly reachable, resolves componentKey through import.meta.glob, registers hidden-but-authorized pages without showing them in navigation, and removes stale routes on session cleanup.
+ * @dependencies Vue Router, AppLayout, LoginPage, public home selector, sessionStorage, SystemRouteDefinition
+ * @index_tags router, homepage, dynamic-routing, rbac, route, authentication
  * @author holic512
  */
 
 import { createRouter, createWebHistory } from 'vue-router'
 import type { Component } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
-import type { SystemMenuNode } from '../core/api/contracts'
+import type { SystemRouteDefinition } from '../core/api/contracts'
 import { readAccessToken } from '../core/auth/sessionStorage'
 import AppLayout from '../layouts/AppLayout.vue'
 import LoginPage from '../modules/auth/pages/LoginPage.vue'
@@ -22,7 +22,7 @@ const HOME_ROUTE_NAME = 'home'
 const LOGIN_ROUTE_NAME = 'login'
 const pageModules = import.meta.glob<Component>('../modules/**/index.vue')
 const databaseRouteNames = new Set<string>()
-const authorizedPageMenuIds = new Set<number>()
+const authorizedRouteIds = new Set<string>()
 let defaultAuthorizedPath: string | null = null
 
 const routes: RouteRecordRaw[] = [
@@ -70,8 +70,8 @@ router.beforeEach((to) => {
   if (hasAccessToken && to.name === APP_LAYOUT_ROUTE_NAME && defaultAuthorizedPath) {
     return defaultAuthorizedPath
   }
-  const requiredMenuId = typeof to.meta.menuId === 'number' ? to.meta.menuId : null
-  if (hasAccessToken && requiredMenuId !== null && !authorizedPageMenuIds.has(requiredMenuId)) {
+  const requiredRouteId = typeof to.meta.routeId === 'string' ? to.meta.routeId : null
+  if (hasAccessToken && requiredRouteId !== null && !authorizedRouteIds.has(requiredRouteId)) {
     return defaultAuthorizedPath ?? { name: APP_LAYOUT_ROUTE_NAME }
   }
   return true
@@ -82,44 +82,47 @@ router.afterEach((to) => {
   document.title = `${pageTitle} · Pipker Framework`
 })
 
-export function replaceDatabaseRoutes(menus: SystemMenuNode[]): void {
+export function replaceDatabaseRoutes(
+  routes: SystemRouteDefinition[],
+  defaultVisiblePath: string | null,
+): void {
   clearDatabaseRoutes()
-  forEachMenu(menus, (menu) => {
-    if (!isPageMenu(menu)) {
-      return
-    }
-
-    const componentModulePath = `../modules/${menu.componentKey}.vue`
+  for (const route of routes) {
+    const componentModulePath = `../modules/${route.componentKey}.vue`
     const component = pageModules[componentModulePath]
     if (!component) {
       if (import.meta.env.DEV) {
         console.warn(
-          `[pipker] Skipping route "${menu.routeName}" because componentKey "${menu.componentKey}" has no matching src/modules/**/index.vue file.`,
+          `[pipker] Skipping route "${route.routeName}" because componentKey "${route.componentKey}" has no matching src/modules/**/index.vue file.`,
         )
       }
-      return
+      continue
     }
-    if (router.hasRoute(menu.routeName)) {
+    if (router.hasRoute(route.routeName)) {
       if (import.meta.env.DEV) {
-        console.warn(`[pipker] Skipping duplicate database route name "${menu.routeName}".`)
+        console.warn(`[pipker] Skipping duplicate database route name "${route.routeName}".`)
       }
-      return
+      continue
     }
 
     router.addRoute(APP_LAYOUT_ROUTE_NAME, {
-      path: toChildPath(menu.path),
-      name: menu.routeName,
+      path: toChildPath(route.path),
+      name: route.routeName,
       component,
       meta: {
-        title: menu.name,
-        menuId: menu.id,
-        componentKey: menu.componentKey,
+        title: route.title,
+        routeId: route.id,
+        componentKey: route.componentKey,
       },
     })
-    databaseRouteNames.add(menu.routeName)
-    authorizedPageMenuIds.add(menu.id)
-    defaultAuthorizedPath ??= menu.path
-  })
+    databaseRouteNames.add(route.routeName)
+    authorizedRouteIds.add(route.id)
+    if (defaultVisiblePath === route.path) {
+      defaultAuthorizedPath = route.path
+    } else {
+      defaultAuthorizedPath ??= route.path
+    }
+  }
 }
 
 export function clearDatabaseRoutes(): void {
@@ -127,34 +130,12 @@ export function clearDatabaseRoutes(): void {
     router.removeRoute(routeName)
   }
   databaseRouteNames.clear()
-  authorizedPageMenuIds.clear()
+  authorizedRouteIds.clear()
   defaultAuthorizedPath = null
 }
 
 export function getDefaultAuthorizedPath(): string | null {
   return defaultAuthorizedPath
-}
-
-function forEachMenu(menus: SystemMenuNode[], visitor: (menu: SystemMenuNode) => void): void {
-  for (const menu of menus) {
-    visitor(menu)
-    forEachMenu(menu.children, visitor)
-  }
-}
-
-function isPageMenu(menu: SystemMenuNode): menu is SystemMenuNode & {
-  type: 'MENU'
-  path: string
-  routeName: string
-  componentKey: string
-} {
-  return menu.type === 'MENU'
-    && typeof menu.path === 'string'
-    && menu.path.length > 0
-    && typeof menu.routeName === 'string'
-    && menu.routeName.length > 0
-    && typeof menu.componentKey === 'string'
-    && menu.componentKey.length > 0
 }
 
 function toChildPath(path: string): string {

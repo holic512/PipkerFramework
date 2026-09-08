@@ -32,7 +32,7 @@ const navigationEntries = computed(() => buildLayoutNavigation(sessionStore.menu
 const pageEntries = computed(() => getPageNavigationEntries(navigationEntries.value))
 const activeEntry = computed(() => findActiveNavigationEntry(
   navigationEntries.value,
-  route.meta.menuId,
+  route.meta.routeId,
   route.path,
 ))
 const navigationTrail = computed(() => getNavigationTrail(navigationEntries.value, activeEntry.value))

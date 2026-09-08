@@ -4,7 +4,7 @@
     @project Pipker Framework
     @module Pipker Server
     @description 定义 API 资源与 API 权限的映射。
-    @logic 创建 API 资源表、方法路径唯一约束和权限外键，再写入框架受保护 API 与角色管理操作的资源映射。
+    @logic 创建 API 资源表、方法路径唯一约束和权限外键，再写入框架受保护 API、角色管理操作与只读路由管理的资源映射。
     @dependencies Liquibase、system_api_resource、system_permission
     @index_tags liquibase、database、system_api_resource、seed、api、rbac
     @author holic512
@@ -139,6 +139,22 @@
             <column name="permission_id" valueNumeric="2090000000000000204"/>
             <column name="http_method" value="PUT"/>
             <column name="path_pattern" value="/api/admin/roles/{roleId}/members/{userId}/password"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="system-api-resource-route-management-seed" author="holic512">
+        <comment>为路由管理的分页筛选与详情查看注册唯一只读 API 资源规则。</comment>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000414"/>
+            <column name="permission_id" valueNumeric="2090000000000000205"/>
+            <column name="http_method" value="GET"/>
+            <column name="path_pattern" value="/api/admin/routes"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000415"/>
+            <column name="permission_id" valueNumeric="2090000000000000205"/>
+            <column name="http_method" value="GET"/>
+            <column name="path_pattern" value="/api/admin/routes/{routeId}"/>
         </insert>
     </changeSet>
 </databaseChangeLog>

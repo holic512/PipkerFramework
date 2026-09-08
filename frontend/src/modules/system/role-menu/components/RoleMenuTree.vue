@@ -3,9 +3,9 @@
   @project Pipker Framework
   @module Frontend Role Route Management
   @description Renders the database menu hierarchy as a recursive page-menu selection tree.
-  @logic Makes DIRECTORY nodes informational and persists only MENU leaf IDs, matching the backend role-menu contract.
+  @logic Makes DIRECTORY nodes informational, marks hidden navigation entries, and persists only exact string-form MENU leaf IDs, matching the backend role-menu contract.
   @dependencies Vue, SystemMenuNode
-  @index_tags rbac, role-menu, tree, form
+  @index_tags rbac, role-menu, tree, form, route, snowflake-id
   @author holic512
 -->
 <script setup lang="ts">
@@ -16,17 +16,17 @@ defineOptions({ name: 'RoleMenuTree' })
 
 const props = defineProps<{
   menus: SystemMenuNode[]
-  modelValue: number[]
+  modelValue: string[]
   disabled?: boolean
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [menuIds: number[]]
+  'update:modelValue': [menuIds: string[]]
 }>()
 
 const selectedMenuIds = computed(() => new Set(props.modelValue))
 
-function toggleMenu(menuId: number, event: Event): void {
+function toggleMenu(menuId: string, event: Event): void {
   const checked = (event.target as HTMLInputElement).checked
   const nextMenuIds = new Set(props.modelValue)
   if (checked) {
@@ -34,7 +34,7 @@ function toggleMenu(menuId: number, event: Event): void {
   } else {
     nextMenuIds.delete(menuId)
   }
-  emit('update:modelValue', [...nextMenuIds].sort((left, right) => left - right))
+  emit('update:modelValue', [...nextMenuIds].sort((left, right) => left.localeCompare(right)))
 }
 </script>
 
@@ -50,6 +50,7 @@ function toggleMenu(menuId: number, event: Event): void {
         />
         <span>{{ menu.name }}</span>
         <small>{{ menu.path }}</small>
+        <em v-if="!menu.visible">隐藏菜单</em>
       </label>
       <p v-else class="role-menu-tree__directory">{{ menu.name }}</p>
       <RoleMenuTree
@@ -91,7 +92,7 @@ function toggleMenu(menuId: number, event: Event): void {
 
 .role-menu-tree__page {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 0.62rem;
   min-height: 2.55rem;
@@ -119,6 +120,16 @@ function toggleMenu(menuId: number, event: Event): void {
   font-size: 0.64rem;
 }
 
+.role-menu-tree__page em {
+  padding: 0.16rem 0.32rem;
+  color: var(--color-ink-soft);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-pill);
+  font-size: 0.6rem;
+  font-style: normal;
+  white-space: nowrap;
+}
+
 @include at-most('phone') {
   .role-menu-tree__page {
     grid-template-columns: auto minmax(0, 1fr);
@@ -126,6 +137,11 @@ function toggleMenu(menuId: number, event: Event): void {
 
   .role-menu-tree__page small {
     grid-column: 2;
+  }
+
+  .role-menu-tree__page em {
+    grid-column: 2;
+    justify-self: start;
   }
 }
 </style>

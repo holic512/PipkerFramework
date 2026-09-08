@@ -19,8 +19,8 @@ import {
 import type { SystemMenuNode } from '../../core/api/contracts'
 
 export interface LayoutNavigationEntry {
-  id: number
-  parentId: number | null
+  id: string
+  parentId: string | null
   label: string
   type: SystemMenuNode['type']
   path: string | null
@@ -28,7 +28,7 @@ export interface LayoutNavigationEntry {
   icon: Component
   iconName: string | null
   depth: number
-  ancestorIds: number[]
+  ancestorIds: string[]
 }
 
 const ICON_COMPONENTS: Readonly<Record<string, Component>> = {
@@ -44,11 +44,11 @@ export function buildLayoutNavigation(menus: SystemMenuNode[]): LayoutNavigation
 
 export function findActiveNavigationEntry(
   entries: LayoutNavigationEntry[],
-  menuId: unknown,
+  routeId: unknown,
   currentPath: string,
 ): LayoutNavigationEntry | null {
-  if (typeof menuId === 'number') {
-    const matchingMenu = entries.find((entry) => entry.type === 'MENU' && entry.id === menuId)
+  if (typeof routeId === 'string') {
+    const matchingMenu = entries.find((entry) => entry.type === 'MENU' && entry.id === routeId)
     if (matchingMenu) {
       return matchingMenu
     }
@@ -79,7 +79,7 @@ export function getDirectoryNavigationEntries(entries: LayoutNavigationEntry[]):
 
 function collectEntries(
   menus: SystemMenuNode[],
-  directoryAncestorIds: number[],
+  directoryAncestorIds: string[],
   depth: number,
 ): LayoutNavigationEntry[] {
   return menus.flatMap((menu) => {
@@ -113,7 +113,7 @@ function collectEntries(
 
 function toNavigationEntry(
   menu: SystemMenuNode,
-  ancestorIds: number[],
+  ancestorIds: string[],
   depth: number,
 ): LayoutNavigationEntry {
   return {
@@ -140,6 +140,6 @@ function resolveMenuIcon(iconName: string | null): Component {
 function sortMenus(menus: SystemMenuNode[]): SystemMenuNode[] {
   return [...menus].sort((left, right) => {
     const sortDifference = (left.sort ?? Number.MAX_SAFE_INTEGER) - (right.sort ?? Number.MAX_SAFE_INTEGER)
-    return sortDifference === 0 ? left.id - right.id : sortDifference
+    return sortDifference === 0 ? left.id.localeCompare(right.id) : sortDifference
   })
 }

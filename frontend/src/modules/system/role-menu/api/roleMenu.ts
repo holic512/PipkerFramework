@@ -19,7 +19,7 @@ export function getRoleMenuConfiguration(): Promise<RoleMenuConfiguration> {
   })
 }
 
-export function replaceRoleMenuAssignments(roleId: number, menuIds: number[]): Promise<RoleMenuUpdateResult> {
+export function replaceRoleMenuAssignments(roleId: string, menuIds: string[]): Promise<RoleMenuUpdateResult> {
   return requestApi<RoleMenuUpdateResult>({
     method: 'PUT',
     url: `/admin/role-menu-config/${roleId}`,

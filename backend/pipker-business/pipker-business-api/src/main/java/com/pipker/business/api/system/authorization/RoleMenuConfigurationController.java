@@ -3,7 +3,7 @@
  * @project Pipker Framework
  * @module Pipker Business API
  * @description Exposes the role-first page-route configuration API for the administration page.
- * @logic Delegates read and full-replacement writes to the configuration service; database API-resource rules in the central Sa-Token filter authorize every request.
+ * @logic Delegates read and full-replacement writes to the configuration service, retaining Long snowflake path IDs as strings until business validation; database API-resource rules in the central Sa-Token filter authorize every request.
  * @dependencies RoleMenuConfigurationService, ApiResponse, Spring Web MVC
  * @index_tags controller, rbac, role-menu, administration
  * @author holic512
@@ -48,7 +48,7 @@ public class RoleMenuConfigurationController {
      */
     @PutMapping("/{roleId}")
     public ApiResponse<RoleMenuUpdateResult> replaceRoleMenus(
-            @PathVariable long roleId,
+            @PathVariable String roleId,
             @Valid @RequestBody RoleMenuUpdateRequest request
     ) {
         return ApiResponse.success(roleMenuConfigurationService.replaceRoleMenuAssignments(

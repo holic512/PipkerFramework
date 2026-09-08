@@ -9,8 +9,8 @@ const deliveryPillars = [
   {
     index: '02',
     title: '动态路由',
-    detail: '页面菜单携带 routeName 与 componentKey；只存在于授权菜单中的页面才会注册到应用壳。',
-    code: 'menus → componentKey',
+    detail: '授权页面路由携带 routeName 与 componentKey；隐藏菜单不会出现在导航，但仍可在授权后注册。',
+    code: 'routes → componentKey',
   },
   {
     index: '03',
@@ -34,7 +34,7 @@ const deliveryPillars = [
       <div>
         <h2 id="architecture-heading">角色、菜单与组件，都来自同一条授权链路。</h2>
         <p>
-          Pipker 不把页面可见性分散在静态导航、路由表和接口分支中。后端授权快照提供菜单树，前端据此注册页面，并在下一次会话变化时同步清理旧路由。
+          Pipker 不把页面可见性分散在静态导航、路由表和接口分支中。后端授权快照分别提供可见菜单树与已授权路由，前端据此注册页面，并在下一次会话变化时同步清理旧路由。
         </p>
       </div>
     </div>

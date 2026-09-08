@@ -33,7 +33,7 @@ import {
 } from '../../model/navigation'
 
 interface VisitedLayoutTab {
-  id: number
+  id: string
   label: string
   path: string
   icon: LayoutNavigationEntry['icon']
@@ -45,7 +45,7 @@ const appStore = useAppStore()
 const sessionStore = useSessionStore()
 const mobileNavigationOpen = ref(false)
 const avatarLoadFailed = ref(false)
-const expandedDirectoryIds = ref<Set<number>>(new Set())
+const expandedDirectoryIds = ref<Set<string>>(new Set())
 const visitedTabs = ref<VisitedLayoutTab[]>([])
 
 const navigationEntries = computed(() => buildLayoutNavigation(sessionStore.menus))
@@ -54,7 +54,7 @@ const directoryEntries = computed(() => getDirectoryNavigationEntries(navigation
 const pinnedEntry = computed(() => pageEntries.value[0] ?? null)
 const activeEntry = computed(() => findActiveNavigationEntry(
   navigationEntries.value,
-  route.meta.menuId,
+  route.meta.routeId,
   route.path,
 ))
 const navigationTrail = computed(() => getNavigationTrail(navigationEntries.value, activeEntry.value))
@@ -117,7 +117,7 @@ function synchronizeNavigationState(): void {
   }
   expandedDirectoryIds.value = nextExpandedIds
 
-  if (!activePage && pinnedPage?.path && typeof route.meta.menuId === 'number') {
+  if (!activePage && pinnedPage?.path && typeof route.meta.routeId === 'string') {
     void router.replace(pinnedPage.path)
   }
 }
@@ -131,7 +131,7 @@ function toVisitedTab(entry: LayoutNavigationEntry): VisitedLayoutTab {
   }
 }
 
-function toggleDirectory(directoryId: number): void {
+function toggleDirectory(directoryId: string): void {
   const nextExpandedIds = new Set(expandedDirectoryIds.value)
   if (nextExpandedIds.has(directoryId)) {
     nextExpandedIds.delete(directoryId)
@@ -141,7 +141,7 @@ function toggleDirectory(directoryId: number): void {
   expandedDirectoryIds.value = nextExpandedIds
 }
 
-function isDirectoryExpanded(directoryId: number): boolean {
+function isDirectoryExpanded(directoryId: string): boolean {
   return expandedDirectoryIds.value.has(directoryId)
 }
 
@@ -151,7 +151,7 @@ function navigateToTab(tab: VisitedLayoutTab): void {
   }
 }
 
-function closeTab(tabId: number): void {
+function closeTab(tabId: string): void {
   if (tabId === pinnedEntry.value?.id) {
     return
   }

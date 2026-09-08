@@ -4,7 +4,7 @@ Pipker Framework 是一个由 Spring Boot 后端与 Vue 前端组成的后台基
 
 ## 本期能力与边界
 
-- `system_` 前缀的 Liquibase 系统表，以及由 changeset 管理的唯一初始管理员。
+- `system_` 前缀的框架 Liquibase 系统表，以及由 changeset 管理的唯一初始管理员；用户表和对框架表的扩展保留在数据库专属的 `business` 迁移入口。
 - 统一的 `SYSTEM` 登录域；用户—角色—权限 RBAC 由数据库裁决，`SUPER_ADMIN` 自动拥有全部启用权限。
 - 角色—菜单关联控制数据库页面路由，`API` 权限通过 `HTTP 方法 + MVC 路径模板` 的数据库资源映射控制后端接口。
 - Sa-Token Filter 统一执行认证和数据库 API 权限校验：匿名白名单以外的 `/api/**` 未登记或未授权即拒绝；用户快照和 API 规则使用本地 60 秒 TTL 缓存。
@@ -50,7 +50,7 @@ npm run dev
 # 开发环境 + PostgreSQL
 cd backend
 mvn -pl pipker-server -am spring-boot:run \
-  -Dspring-boot.run.profiles=dev,postgresql
+  -Dspring-boot.run.profiles=dev,pg
 ```
 
 ```bash
@@ -63,7 +63,7 @@ mvn -pl pipker-server -am spring-boot:run \
   -Dspring-boot.run.profiles=prod,mysql
 ```
 
-可用数据库 Profile 为 `sqlite`、`mysql` 和 `postgresql`；生产环境必须显式指定数据库，不能只使用 `prod`。数据库连接信息使用 `PIPKER_DATABASE_URL`、`PIPKER_DATABASE_USERNAME` 和 `PIPKER_DATABASE_PASSWORD` 提供，SQLite 文件路径可通过 `PIPKER_SQLITE_PATH` 覆盖。文件模块可用 `PIPKER_FILE_ENABLED`、`PIPKER_FILE_LOCAL_ROOT` 和 `PIPKER_FILE_ACCESS_PATH` 覆盖开关、物理目录和根相对读取前缀；文件服务返回 `/files/...` 一类的相对路径而不是完整 URL。不要把真实密码提交到配置文件或命令历史中。
+可用数据库 Profile 为 `sqlite`、`mysql` 和 `pg`；生产环境必须显式指定数据库，不能只使用 `prod`。数据库连接信息使用 `PIPKER_DATABASE_URL`、`PIPKER_DATABASE_USERNAME` 和 `PIPKER_DATABASE_PASSWORD` 提供，SQLite 文件路径可通过 `PIPKER_SQLITE_PATH` 覆盖。文件模块可用 `PIPKER_FILE_ENABLED`、`PIPKER_FILE_LOCAL_ROOT` 和 `PIPKER_FILE_ACCESS_PATH` 覆盖开关、物理目录和根相对读取前缀；文件服务返回 `/files/...` 一类的相对路径而不是完整 URL。不要把真实密码提交到配置文件或命令历史中。
 
 空数据库的初始账户是 `admin / admin123`。该口令仅用于首次本地初始化，绝不能用于公开部署；上线前必须使用与 `SecurityCryptoService` 兼容的 `{bcrypt}` 哈希替换它。主配置中提交的 AES-GCM Base64 密钥同样只是本地开发默认值，生产部署必须替换。
 
@@ -79,4 +79,4 @@ cd frontend
 npm run build
 ```
 
-后端集成测试使用 H2 与 SQLite 验证 Liquibase 空库初始化、种子幂等性、密码不以明文保存、数据库 API 过滤器、页面菜单和本地授权缓存行为。MySQL 或 PostgreSQL 是实际部署数据库；Docker/Testcontainers 不是本项目测试前置条件。
+后端集成测试统一使用隔离的 SQLite 空库，验证 Liquibase 初始化、种子幂等性、密码不以明文保存、数据库 API 过滤器、页面菜单和本地授权缓存行为。MySQL 与 PostgreSQL 迁移资源用于实际部署；Docker/Testcontainers 不是本项目测试前置条件。

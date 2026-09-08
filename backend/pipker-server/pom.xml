@@ -6,7 +6,7 @@
     @description 构建可执行 HTTP Server，并承载 Pipker 应用的启动、运行配置和集成测试。
     @logic 组装业务 API、Redis、日志、文件存储、Liquibase 和多数据库运行时能力，最后通过 Spring Boot 打包应用。
     @dependencies pipker-framework、pipker-business-api、Pipker Redis Starter、Pipker Log Starter、Pipker File Starter、Liquibase、数据库驱动、Spring Boot Test
-    @index_tags maven、模块、server、spring-boot、sqlite、mysql、postgresql、file-storage
+    @index_tags maven、模块、server、spring-boot、sqlite、mysql、pg、postgresql、file-storage
     @author holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -70,11 +70,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -3,7 +3,7 @@
  * @project Pipker Framework
  * @module Pipker Server
  * @description 校验运行时环境和数据库是否选择了合法且唯一的 Profile。
- * @logic 测试 Profile 使用测试资源中的 H2；其他环境必须且只能启用 dev 或 prod 之一，以及 sqlite、mysql 或 postgresql 之一。
+ * @logic 测试 Profile 使用 SQLite 测试数据库；其他环境必须且只能启用 dev 或 prod 之一，以及 sqlite、mysql 或 pg 之一。
  * @dependencies Spring Core Environment、Spring Context
  * @index_tags server、configuration、profile、database、validation
  * @author holic512
@@ -26,7 +26,7 @@ import java.util.List;
 public final class DatabaseProfileValidator implements InitializingBean {
 
     private static final List<String> ENVIRONMENT_PROFILES = List.of("dev", "prod");
-    private static final List<String> DATABASE_PROFILES = List.of("sqlite", "mysql", "postgresql");
+    private static final List<String> DATABASE_PROFILES = List.of("sqlite", "mysql", "pg");
 
     private final Environment environment;
 
@@ -52,7 +52,7 @@ public final class DatabaseProfileValidator implements InitializingBean {
                 .toList();
         if (activeDatabaseProfiles.size() != 1) {
             throw new IllegalStateException(
-                    "Exactly one database profile must be active: sqlite, mysql, or postgresql; "
+                    "Exactly one database profile must be active: sqlite, mysql, or pg; "
                             + "active database profiles: " + activeDatabaseProfiles
             );
         }

@@ -13,9 +13,6 @@ spring:
     default: dev,sqlite
   config:
     import: classpath:/config/base/application.yml
-  liquibase:
-    change-log: classpath:db/changelog/db.changelog-master.yaml
-
 mybatis:
   configuration:
     map-underscore-to-camel-case: true

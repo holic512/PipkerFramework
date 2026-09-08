@@ -33,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class FileStorageMvcIntegrationTests {
 
     private static final Path FILE_ROOT = createTemporaryDirectory();
+    private static final Path SQLITE_DATABASE = SqliteTestDatabase.create("pipker-file-mvc-");
 
     @Autowired
     private MockMvc mockMvc;
@@ -43,10 +44,12 @@ class FileStorageMvcIntegrationTests {
     @DynamicPropertySource
     static void fileStorageProperties(DynamicPropertyRegistry registry) {
         registry.add("pipker.file.local.root", () -> FILE_ROOT.toString());
+        SqliteTestDatabase.register(registry, SQLITE_DATABASE);
     }
 
     @AfterAll
     static void cleanTemporaryDirectory() throws IOException {
+        SqliteTestDatabase.delete(SQLITE_DATABASE);
         List<Path> paths;
         try (Stream<Path> pathStream = Files.walk(FILE_ROOT)) {
             paths = pathStream.sorted(Comparator.reverseOrder()).toList();

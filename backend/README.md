@@ -15,8 +15,8 @@ backend/
 │   └── pipker-spring-boot-starter-file/      # 本地文件持久化与公开只读资源映射
 ├── pipker-business/
 │   ├── pipker-business-common/               # API 响应、通用登录身份和公共异常契约
-│   └── pipker-business-api/                  # system 功能包、HTTP 接口、数据访问与 Liquibase changelog
-└── pipker-server/                             # Spring Boot 启动入口、运行配置和集成测试
+│   └── pipker-business-api/                  # system 功能包、HTTP 接口与数据访问
+└── pipker-server/                             # Spring Boot 启动入口、数据库迁移、运行配置和集成测试
 ```
 
 依赖方向固定如下：
@@ -47,23 +47,25 @@ backend/
 
 ## 数据库与 Liquibase
 
-主 changelog 位于：
+全部 changelog 由可执行的 `pipker-server` 承载，并按数据库优先组织：
 
 ```text
-pipker-business/pipker-business-api/src/main/resources/db/changelog/
-├── db.changelog-master.yaml
-└── system/
-    ├── 001-system-user.yaml
-    ├── 002-system-role.yaml
-    ├── 003-system-user-role.yaml
-    ├── 004-system-permission.yaml
-    ├── 005-system-role-permission.yaml
-    ├── 006-system-menu.yaml
-    ├── 007-system-role-menu.yaml
-    ├── 008-system-init-data.yaml
-    ├── 009-system-database-rbac.yaml
-    └── 010-system-role-route-menu.yaml
+pipker-server/src/main/resources/db/changelog/
+├── sqlite/
+│   ├── db.changelog-master.yaml
+│   ├── system/                               # 001…010 框架系统迁移
+│   └── business/                             # 用户 SQLite 表与框架扩展入口
+├── mysql/
+│   ├── db.changelog-master.yaml
+│   ├── system/                               # 001…010 框架系统迁移
+│   └── business/                             # 用户 MySQL 表与框架扩展入口
+└── pg/
+    ├── db.changelog-master.yaml
+    ├── system/                               # 001…010 框架系统迁移
+    └── business/                             # 用户 PostgreSQL 表与框架扩展入口
 ```
+
+每个数据库总入口固定先加载 `system/db.changelog-master.yaml`，再加载 `business/db.changelog-master.yaml`。当前三个 `business` 入口均为空；后续用户新增业务表、自定义角色、权限、菜单，或对框架系统表的调整，必须作为新 changeset 追加到所选数据库的 `business` 目录，而不是修改既有 `system` changeset。
 
 Liquibase 的 `DATABASECHANGELOG` 记录已执行 changeset；重复启动不会重复建表或写入种子数据。所有框架业务表均以 `system_` 开头：
 
@@ -78,7 +80,7 @@ Liquibase 的 `DATABASECHANGELOG` 记录已执行 changeset；重复启动不会
 | `system_role_menu` | 角色与可访问页面菜单的联合主键关联 |
 | `system_api_resource` | `API` 权限与 `HTTP 方法 + MVC 路径模板` 的联合唯一映射 |
 
-MySQL、PostgreSQL 和 H2 使用上面的通用 changelog。SQLite 使用单独的 `db/changelog/sqlite/` changelog：它在建表阶段直接声明外键、联合主键、唯一约束和检查约束，以适配 SQLite 不支持后置 `addForeignKeyConstraint`、`addUniqueConstraint` 的限制。`009-system-database-rbac` 删除按钮和旧菜单关系；`010-system-role-route-menu` 恢复角色菜单关系，并在 SQLite 中重建去除 `PAGE`/`permission_code` 的表。两套 changelog 保持同一目标表结构，已有数据库只新增后续 changeset。
+SQLite、MySQL 和 PostgreSQL 均使用独立的迁移树。SQLite 在建表阶段直接声明外键、联合主键、唯一约束和检查约束，以适配其不支持后置 `addForeignKeyConstraint`、`addUniqueConstraint` 的限制；MySQL 与 PostgreSQL 各自保留适用的约束调整 SQL。`009-system-database-rbac` 删除按钮和旧菜单关系；`010-system-role-route-menu` 恢复角色菜单关系。当前项目处于可重建阶段，不兼容改造前的 changelog 文件路径、changeset 历史或 `postgresql` Profile 别名。
 
 初始数据包含 `SUPER_ADMIN`、`ADMIN`、系统概览与角色路由菜单、当前授权/后台授权读取/角色路由管理 API 权限。`SUPER_ADMIN` 不需要任何显式角色关联；`ADMIN` 初始拥有当前授权和后台授权读取 API 权限，以及系统概览菜单。不存在 `MERCHANT`、`USER` 或任何业务表。唯一初始管理员由 Liquibase 写入：`admin / admin123`，数据库只保存当前 `SecurityCryptoService` 可验证的 `{bcrypt}` 密码哈希。
 
@@ -99,7 +101,7 @@ pipker-server/src/main/resources/
     │   ├── database/
     │       ├── sqlite.yml
     │       ├── mysql.yml
-    │       └── postgresql.yml
+    │       └── pg.yml
     │   └── file.yml                        # 本地文件存储开关、目录与访问前缀
     ├── dev/
     │   ├── application.yml                 # 开发配置
@@ -122,16 +124,16 @@ mvn -pl pipker-server -am spring-boot:run
 mvn -pl pipker-server -am spring-boot:run -Dspring-boot.run.profiles=dev,sqlite
 
 # 开发环境 + PostgreSQL
-mvn -pl pipker-server -am spring-boot:run -Dspring-boot.run.profiles=dev,postgresql
+mvn -pl pipker-server -am spring-boot:run -Dspring-boot.run.profiles=dev,pg
 
 # 生产环境 + MySQL
 mvn -pl pipker-server -am spring-boot:run -Dspring-boot.run.profiles=prod,mysql
 
 # 生产环境 + PostgreSQL
-mvn -pl pipker-server -am spring-boot:run -Dspring-boot.run.profiles=prod,postgresql
+mvn -pl pipker-server -am spring-boot:run -Dspring-boot.run.profiles=prod,pg
 ```
 
-每次启动必须选择一个环境 Profile（`dev` 或 `prod`）和一个数据库 Profile（`sqlite`、`mysql` 或 `postgresql`）。只启用 `prod` 不会回退到开发环境的 SQLite 默认值，因缺少数据源配置而快速失败。
+每次启动必须选择一个环境 Profile（`dev` 或 `prod`）和一个数据库 Profile（`sqlite`、`mysql` 或 `pg`）。只启用 `prod` 不会回退到开发环境的 SQLite 默认值，因缺少数据源配置而快速失败。
 
 MySQL 和 PostgreSQL 的连接参数通过以下环境变量提供，避免开发和生产共用仓库内的连接信息：
 
@@ -215,4 +217,4 @@ Sa-Token 只显式放行 `GET /api/ping` 和 `POST /api/auth/login`。其他 `/a
 mvn clean test
 ```
 
-Server 集成测试使用 H2 和 SQLite 空库：H2 回归验证通用 changelog、数据库 API 过滤器、角色并集、页面菜单和本地缓存；SQLite 验证 SQLite 专用 changelog、七张目标 `system_` 表、约束、种子数据以及重复执行幂等性。H2 为兼容 `system_user` 标识符仅在测试连接中设置 `NON_KEYWORDS=SYSTEM_USER`；不影响 MySQL、PostgreSQL 与 SQLite 的实际表名。
+Server 集成测试统一使用隔离的临时 SQLite 空库，验证 SQLite 专用 changelog、8 张目标 `system_` 表、约束、种子数据、数据库 API 过滤器、角色并集、页面菜单、本地缓存及重复执行幂等性。MySQL 与 PostgreSQL 迁移资源在部署环境使用；本项目不将 Docker 或 Testcontainers 作为测试前置条件。

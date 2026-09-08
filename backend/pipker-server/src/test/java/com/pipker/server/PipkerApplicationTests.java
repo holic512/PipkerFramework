@@ -7,18 +7,22 @@ import com.pipker.business.common.exception.ApiBusinessException;
 import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
 import com.pipker.starter.security.service.SecurityCryptoService;
 import liquibase.integration.spring.SpringLiquibase;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.Locale;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
@@ -33,6 +37,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 class PipkerApplicationTests {
+
+    private static final Path SQLITE_DATABASE = SqliteTestDatabase.create("pipker-application-");
 
     @Autowired
     private MockMvc mockMvc;
@@ -49,10 +55,20 @@ class PipkerApplicationTests {
     @Autowired
     private SystemAuthorizationCache systemAuthorizationCache;
 
+    @DynamicPropertySource
+    static void sqliteProperties(DynamicPropertyRegistry registry) {
+        SqliteTestDatabase.register(registry, SQLITE_DATABASE);
+    }
+
+    @AfterAll
+    static void removeTemporaryDatabase() throws Exception {
+        SqliteTestDatabase.delete(SQLITE_DATABASE);
+    }
+
     @Test
     void liquibaseCreatesOnlyFrameworkSystemTablesAndExecutesChangesetsOnce() throws Exception {
         Set<String> tableNames = jdbcTemplate.queryForList(
-                        "SELECT table_name FROM information_schema.tables WHERE LOWER(table_name) LIKE 'system_%'",
+                        "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'system_%'",
                         String.class
                 ).stream()
                 .map(tableName -> tableName.toLowerCase(Locale.ROOT))
@@ -77,7 +93,7 @@ class PipkerApplicationTests {
         assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM system_user WHERE username = 'admin'", Integer.class))
                 .isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'SYSTEM_MENU' AND column_name = 'PERMISSION_CODE'",
+                "SELECT COUNT(*) FROM pragma_table_info('system_menu') WHERE name = 'permission_code'",
                 Integer.class
         )).isZero();
         assertThat(jdbcTemplate.queryForObject(

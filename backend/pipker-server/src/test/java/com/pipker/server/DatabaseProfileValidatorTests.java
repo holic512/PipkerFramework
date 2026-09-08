@@ -26,6 +26,19 @@ class DatabaseProfileValidatorTests {
     }
 
     @Test
+    void acceptsPgDatabaseProfile() {
+        assertThatCode(() -> validator("dev", "pg").afterPropertiesSet())
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void rejectsDeprecatedPostgresqlProfile() {
+        assertThatThrownBy(() -> validator("dev", "postgresql").afterPropertiesSet())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Exactly one database profile");
+    }
+
+    @Test
     void rejectsMissingDatabaseProfile() {
         assertThatThrownBy(() -> validator("prod").afterPropertiesSet())
                 .isInstanceOf(IllegalStateException.class)

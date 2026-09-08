@@ -11,5 +11,5 @@ spring:
     import:
       - classpath:/config/base/database/sqlite.yml
       - classpath:/config/base/database/mysql.yml
-      - classpath:/config/base/database/postgresql.yml
+      - classpath:/config/base/database/pg.yml
       - classpath:/config/base/file.yml

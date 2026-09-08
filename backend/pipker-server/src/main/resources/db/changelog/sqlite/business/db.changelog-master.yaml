@@ -1,0 +1,9 @@
+# @file db/changelog/sqlite/business/db.changelog-master.yaml
+# @project Pipker Framework
+# @module Pipker Server
+# @description SQLite 用户业务与框架扩展迁移入口。
+# @logic 在系统迁移完成后按声明顺序加载用户新增表、角色、权限、菜单和系统调整 changeset。
+# @dependencies Liquibase、SQLite JDBC、SQLite 系统迁移
+# @index_tags liquibase、sqlite、database、business、extension
+# @author holic512
+databaseChangeLog: []

@@ -4,9 +4,9 @@
     @project Pipker Framework
     @module Parent and Aggregator
     @description 定义统一构建基线，并聚合 Starter、业务和 Server 模块。
-    @logic 继承 Spring Boot 的依赖与插件管理；聚合执行 spring-boot:run 时跳过无主类模块，仅由 Server 模块启动应用，并统一管理框架 Starter 依赖版本。
-    @dependencies Spring Boot Maven 父工程、Spring Boot Maven Plugin、Pipker 内部 Starter 模块
-    @index_tags maven、父工程、聚合、java-21、spring-boot、run
+    @logic 继承 Spring Boot 的依赖与插件管理；聚合执行 spring-boot:run 时跳过无主类模块，仅由 Server 模块启动应用，并统一管理框架 Starter 与 MyBatis-Plus 依赖版本。
+    @dependencies Spring Boot Maven 父工程、Spring Boot Maven Plugin、MyBatis-Plus、Pipker 内部 Starter 模块
+    @index_tags maven、父工程、聚合、java-21、spring-boot、mybatis-plus、run
     @author holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -39,7 +39,7 @@
     <properties>
         <java.version>21</java.version>
         <sa-token.version>1.46.0</sa-token.version>
-        <mybatis-spring-boot.version>4.0.1</mybatis-spring-boot.version>
+        <mybatis-plus.version>3.5.16</mybatis-plus.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

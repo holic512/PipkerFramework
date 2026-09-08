@@ -18,7 +18,7 @@
     <!-- 当前授权模型不再保留历史 PAGE 和 BUTTON 权限类型。 -->
     <changeSet id="system-permission-schema-mysql-postgresql" author="holic512" dbms="mysql,postgresql">
         <createTable tableName="system_permission">
-            <column name="id" type="BIGINT" autoIncrement="true">
+            <column name="id" type="BIGINT">
                 <constraints primaryKey="true" primaryKeyName="pk_system_permission" nullable="false"/>
             </column>
             <column name="permission_code" type="VARCHAR(128)">
@@ -49,7 +49,7 @@
     <changeSet id="system-permission-schema-sqlite" author="holic512" dbms="sqlite">
         <sql splitStatements="false"><![CDATA[
             CREATE TABLE system_permission (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              id BIGINT NOT NULL,
               permission_code VARCHAR(128) NOT NULL,
               permission_name VARCHAR(100) NOT NULL,
               permission_type VARCHAR(16) NOT NULL,
@@ -57,6 +57,7 @@
               status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
               created_at TIMESTAMP NOT NULL,
               updated_at TIMESTAMP NOT NULL,
+              CONSTRAINT pk_system_permission PRIMARY KEY (id),
               CONSTRAINT uk_system_permission_code UNIQUE (permission_code),
               CONSTRAINT ck_system_permission_type CHECK (permission_type = 'API')
             )
@@ -65,6 +66,7 @@
 
     <changeSet id="system-permission-seed" author="holic512">
         <insert tableName="system_permission">
+            <column name="id" valueNumeric="2090000000000000201"/>
             <column name="permission_code" value="system:authorization:read"/>
             <column name="permission_name" value="读取当前授权信息"/>
             <column name="permission_type" value="API"/>
@@ -74,6 +76,7 @@
             <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
         </insert>
         <insert tableName="system_permission">
+            <column name="id" valueNumeric="2090000000000000202"/>
             <column name="permission_code" value="system:auth:me"/>
             <column name="permission_name" value="读取当前授权信息"/>
             <column name="permission_type" value="API"/>
@@ -83,6 +86,7 @@
             <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
         </insert>
         <insert tableName="system_permission">
+            <column name="id" valueNumeric="2090000000000000203"/>
             <column name="permission_code" value="system:role-menu:manage"/>
             <column name="permission_name" value="管理角色路由菜单"/>
             <column name="permission_type" value="API"/>

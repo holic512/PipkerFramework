@@ -1,11 +1,11 @@
 /**
- * @file SystemUser.java
+ * @file SystemRole.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 映射 system_user 中的系统登录账户记录。
- * @logic 使用 MyBatis-Plus 雪花主键和审计字段填充，密码哈希不会投影到 HTTP 响应。
+ * @description 映射 system_role 中的系统角色及其生命周期字段。
+ * @logic 使用 MyBatis-Plus 雪花主键和审计字段填充，供角色菜单和授权查询共用。
  * @dependencies MyBatis-Plus、Lombok、Java 标准库
- * @index_tags system-user、rbac、persistence、mybatis-plus
+ * @index_tags system-role、rbac、persistence、mybatis-plus
  * @author holic512
  */
 package com.pipker.business.api.common.model;
@@ -22,42 +22,31 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/**
- * 系统登录账户持久化模型。
- */
+/** 系统角色实体。 */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("system_user")
-public class SystemUser {
+@TableName("system_role")
+public class SystemRole {
 
     @TableId(value = "id", type = IdType.ASSIGN_ID)
     private Long id;
 
-    @TableField("username")
-    private String username;
+    @TableField("role_code")
+    private String roleCode;
 
-    @TableField("password_hash")
-    private String passwordHash;
+    @TableField("role_name")
+    private String roleName;
 
-    @TableField("nickname")
-    private String nickname;
-
-    @TableField("avatar")
-    private String avatar;
-
-    @TableField("phone")
-    private String phone;
-
-    @TableField("email")
-    private String email;
+    @TableField("description")
+    private String description;
 
     @TableField("status")
     private String status;
 
-    @TableField("last_login_time")
-    private LocalDateTime lastLoginTime;
+    @TableField("sort")
+    private Integer sort;
 
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
@@ -65,11 +54,7 @@ public class SystemUser {
     @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 
-    /**
-     * 账户是否可登录。
-     *
-     * @return 启用时返回 {@code true}
-     */
+    /** @return 角色处于启用状态时返回 {@code true}。 */
     public boolean isEnabled() {
         return "ENABLED".equals(status);
     }

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    文件：pom.xml
-    项目：Pipker Framework
-    模块：Pipker Business API
-    说明：定义可由 Server 启动的 Pipker 应用业务、HTTP 接口和数据访问能力。
-    处理逻辑：按系统功能聚合认证、用户、授权和健康检查，直接注入认证与安全 Starter 提供的公共服务，不依赖 Server 源码。
-    依赖：pipker-framework 父工程、pipker-business-common、Pipker Sa-Token Starter、Pipker Security Starter、MyBatis、Spring Web、Spring Validation、Caffeine
-    检索关键词：maven、模块、业务、api
-    作者：holic512
+    @file pom.xml
+    @project Pipker Framework
+    @module Pipker Business API
+    @description 定义可由 Server 启动的 Pipker 应用业务、HTTP 接口和 MyBatis-Plus 数据访问能力。
+    @logic 按系统功能聚合认证、用户、授权和健康检查，使用 MyBatis-Plus 与 Lombok 提供系统表持久化能力，且不依赖 Server 源码。
+    @dependencies pipker-framework、pipker-business-common、Pipker Sa-Token Starter、Pipker Security Starter、MyBatis-Plus、Lombok、Spring Web、Spring Validation、Caffeine
+    @index_tags maven、模块、业务、api、mybatis-plus、lombok
+    @author holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -42,9 +42,15 @@
             <artifactId>pipker-spring-boot-starter-security</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.mybatis.spring.boot</groupId>
-            <artifactId>mybatis-spring-boot-starter</artifactId>
-            <version>${mybatis-spring-boot.version}</version>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+            <version>${mybatis-plus.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -64,5 +70,22 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

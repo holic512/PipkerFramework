@@ -11,6 +11,7 @@
 package com.pipker.business.api.system.auth;
 
 import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
+import com.pipker.business.api.system.auth.dto.SystemLoginTypes;
 import com.pipker.business.api.system.authorization.SystemAuthorizationService;
 import com.pipker.business.common.api.CommonApiCode;
 import com.pipker.business.common.auth.LoginIdentity;

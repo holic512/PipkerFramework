@@ -8,7 +8,7 @@
  * @index_tags auth、login、response
  * @author holic512
  */
-package com.pipker.business.api.system.auth;
+package com.pipker.business.api.system.auth.dto;
 
 import com.pipker.business.api.common.model.SystemUserProfile;
 

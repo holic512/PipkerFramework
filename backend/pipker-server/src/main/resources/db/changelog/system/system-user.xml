@@ -18,7 +18,7 @@
     <!-- 三种数据库均支持由 Liquibase 生成用户表及内联约束。 -->
     <changeSet id="system-user-schema" author="holic512">
         <createTable tableName="system_user">
-            <column name="id" type="BIGINT" autoIncrement="true">
+            <column name="id" type="BIGINT">
                 <constraints primaryKey="true" primaryKeyName="pk_system_user" nullable="false"/>
             </column>
             <column name="username" type="VARCHAR(64)">
@@ -47,6 +47,7 @@
     <!-- 管理员密码保留 bcrypt 哈希，明文初始密码仍由现有运维约定管理。 -->
     <changeSet id="system-user-seed" author="holic512">
         <insert tableName="system_user">
+            <column name="id" valueNumeric="2090000000000000001"/>
             <column name="username" value="admin"/>
             <column name="password_hash" value="{bcrypt}$2a$12$jtnBe8ju./KkxopocsK1ku669f2qwfKcQ.HiHCM2Kwmb0dp0p9I82"/>
             <column name="nickname" value="Pipker 管理员"/>

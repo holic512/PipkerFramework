@@ -4,7 +4,7 @@
     @project Pipker Framework
     @module Pipker Server
     @description 定义系统角色与 API 权限的多对多关联及系统管理员默认授权。
-    @logic 创建角色权限联合主键、级联外键和权限索引，再授予 ADMIN 基础鉴权 API 权限。
+    @logic 创建独立雪花主键、关联唯一约束、级联外键和权限索引，再授予 ADMIN 基础鉴权 API 权限。
     @dependencies Liquibase、system_role、system_permission、system_role_permission
     @index_tags liquibase、database、system_role_permission、seed、rbac、api
     @author holic512
@@ -17,6 +17,9 @@
 
     <changeSet id="system-role-permission-schema-mysql-postgresql" author="holic512" dbms="mysql,postgresql">
         <createTable tableName="system_role_permission">
+            <column name="id" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="pk_system_role_permission" nullable="false"/>
+            </column>
             <column name="role_id" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
@@ -24,8 +27,8 @@
                 <constraints nullable="false"/>
             </column>
         </createTable>
-        <addPrimaryKey tableName="system_role_permission" columnNames="role_id, permission_id"
-                       constraintName="pk_system_role_permission"/>
+        <addUniqueConstraint tableName="system_role_permission" columnNames="role_id, permission_id"
+                             constraintName="uk_system_role_permission_role_permission"/>
         <addForeignKeyConstraint baseTableName="system_role_permission" baseColumnNames="role_id"
                                  constraintName="fk_system_role_permission_role" referencedTableName="system_role"
                                  referencedColumnNames="id" onDelete="CASCADE"/>
@@ -40,9 +43,11 @@
     <changeSet id="system-role-permission-schema-sqlite" author="holic512" dbms="sqlite">
         <sql splitStatements="true"><![CDATA[
             CREATE TABLE system_role_permission (
+              id BIGINT NOT NULL,
               role_id BIGINT NOT NULL,
               permission_id BIGINT NOT NULL,
-              CONSTRAINT pk_system_role_permission PRIMARY KEY (role_id, permission_id),
+              CONSTRAINT pk_system_role_permission PRIMARY KEY (id),
+              CONSTRAINT uk_system_role_permission_role_permission UNIQUE (role_id, permission_id),
               CONSTRAINT fk_system_role_permission_role FOREIGN KEY (role_id)
                 REFERENCES system_role (id) ON DELETE CASCADE,
               CONSTRAINT fk_system_role_permission_permission FOREIGN KEY (permission_id)
@@ -54,12 +59,14 @@
 
     <changeSet id="system-role-permission-seed" author="holic512">
         <insert tableName="system_role_permission">
-            <column name="role_id" valueComputed="(SELECT id FROM system_role WHERE role_code = 'ADMIN')"/>
-            <column name="permission_id" valueComputed="(SELECT id FROM system_permission WHERE permission_code = 'system:authorization:read')"/>
+            <column name="id" valueNumeric="2090000000000000601"/>
+            <column name="role_id" valueNumeric="2090000000000000102"/>
+            <column name="permission_id" valueNumeric="2090000000000000201"/>
         </insert>
         <insert tableName="system_role_permission">
-            <column name="role_id" valueComputed="(SELECT id FROM system_role WHERE role_code = 'ADMIN')"/>
-            <column name="permission_id" valueComputed="(SELECT id FROM system_permission WHERE permission_code = 'system:auth:me')"/>
+            <column name="id" valueNumeric="2090000000000000602"/>
+            <column name="role_id" valueNumeric="2090000000000000102"/>
+            <column name="permission_id" valueNumeric="2090000000000000202"/>
         </insert>
     </changeSet>
 </databaseChangeLog>

@@ -27,6 +27,6 @@ public record SystemUserProfile(
      * @return 安全公开资料
      */
     public static SystemUserProfile from(SystemUser user) {
-        return new SystemUserProfile(user.id(), user.username(), user.nickname(), user.avatar());
+        return new SystemUserProfile(user.getId(), user.getUsername(), user.getNickname(), user.getAvatar());
     }
 }

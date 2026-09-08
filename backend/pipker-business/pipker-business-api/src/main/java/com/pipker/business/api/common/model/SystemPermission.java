@@ -1,11 +1,11 @@
 /**
- * @file SystemUser.java
+ * @file SystemPermission.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 映射 system_user 中的系统登录账户记录。
- * @logic 使用 MyBatis-Plus 雪花主键和审计字段填充，密码哈希不会投影到 HTTP 响应。
+ * @description 映射 system_permission 中受保护 API 的权限定义。
+ * @logic 保存权限标识、类型、状态和审计信息，不混入页面或按钮权限投影。
  * @dependencies MyBatis-Plus、Lombok、Java 标准库
- * @index_tags system-user、rbac、persistence、mybatis-plus
+ * @index_tags system-permission、rbac、api、persistence
  * @author holic512
  */
 package com.pipker.business.api.common.model;
@@ -22,55 +22,35 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/**
- * 系统登录账户持久化模型。
- */
+/** 系统权限实体。 */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("system_user")
-public class SystemUser {
+@TableName("system_permission")
+public class SystemPermission {
 
     @TableId(value = "id", type = IdType.ASSIGN_ID)
     private Long id;
 
-    @TableField("username")
-    private String username;
+    @TableField("permission_code")
+    private String permissionCode;
 
-    @TableField("password_hash")
-    private String passwordHash;
+    @TableField("permission_name")
+    private String permissionName;
 
-    @TableField("nickname")
-    private String nickname;
+    @TableField("permission_type")
+    private String permissionType;
 
-    @TableField("avatar")
-    private String avatar;
-
-    @TableField("phone")
-    private String phone;
-
-    @TableField("email")
-    private String email;
+    @TableField("description")
+    private String description;
 
     @TableField("status")
     private String status;
-
-    @TableField("last_login_time")
-    private LocalDateTime lastLoginTime;
 
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
     @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
-
-    /**
-     * 账户是否可登录。
-     *
-     * @return 启用时返回 {@code true}
-     */
-    public boolean isEnabled() {
-        return "ENABLED".equals(status);
-    }
 }

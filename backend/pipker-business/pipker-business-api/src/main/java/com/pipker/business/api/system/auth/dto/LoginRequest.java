@@ -8,7 +8,7 @@
  * @index_tags auth、login、request
  * @author holic512
  */
-package com.pipker.business.api.system.auth;
+package com.pipker.business.api.system.auth.dto;
 
 import jakarta.validation.constraints.NotBlank;
 

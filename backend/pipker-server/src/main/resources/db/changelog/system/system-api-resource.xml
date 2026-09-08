@@ -17,7 +17,7 @@
 
     <changeSet id="system-api-resource-schema-mysql-postgresql" author="holic512" dbms="mysql,postgresql">
         <createTable tableName="system_api_resource">
-            <column name="id" type="BIGINT" autoIncrement="true">
+            <column name="id" type="BIGINT">
                 <constraints primaryKey="true" primaryKeyName="pk_system_api_resource" nullable="false"/>
             </column>
             <column name="permission_id" type="BIGINT">
@@ -44,10 +44,11 @@
     <changeSet id="system-api-resource-schema-sqlite" author="holic512" dbms="sqlite">
         <sql splitStatements="true"><![CDATA[
             CREATE TABLE system_api_resource (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              id BIGINT NOT NULL,
               permission_id BIGINT NOT NULL,
               http_method VARCHAR(16) NOT NULL,
               path_pattern VARCHAR(255) NOT NULL,
+              CONSTRAINT pk_system_api_resource PRIMARY KEY (id),
               CONSTRAINT uk_system_api_resource_method_path UNIQUE (http_method, path_pattern),
               CONSTRAINT fk_system_api_resource_permission FOREIGN KEY (permission_id)
                 REFERENCES system_permission (id) ON DELETE CASCADE
@@ -58,22 +59,26 @@
 
     <changeSet id="system-api-resource-seed" author="holic512">
         <insert tableName="system_api_resource">
-            <column name="permission_id" valueComputed="(SELECT id FROM system_permission WHERE permission_code = 'system:auth:me')"/>
+            <column name="id" valueNumeric="2090000000000000401"/>
+            <column name="permission_id" valueNumeric="2090000000000000202"/>
             <column name="http_method" value="GET"/>
             <column name="path_pattern" value="/api/auth/me"/>
         </insert>
         <insert tableName="system_api_resource">
-            <column name="permission_id" valueComputed="(SELECT id FROM system_permission WHERE permission_code = 'system:authorization:read')"/>
+            <column name="id" valueNumeric="2090000000000000402"/>
+            <column name="permission_id" valueNumeric="2090000000000000201"/>
             <column name="http_method" value="GET"/>
             <column name="path_pattern" value="/api/admin/authorization"/>
         </insert>
         <insert tableName="system_api_resource">
-            <column name="permission_id" valueComputed="(SELECT id FROM system_permission WHERE permission_code = 'system:role-menu:manage')"/>
+            <column name="id" valueNumeric="2090000000000000403"/>
+            <column name="permission_id" valueNumeric="2090000000000000203"/>
             <column name="http_method" value="GET"/>
             <column name="path_pattern" value="/api/admin/role-menu-config"/>
         </insert>
         <insert tableName="system_api_resource">
-            <column name="permission_id" valueComputed="(SELECT id FROM system_permission WHERE permission_code = 'system:role-menu:manage')"/>
+            <column name="id" valueNumeric="2090000000000000404"/>
+            <column name="permission_id" valueNumeric="2090000000000000203"/>
             <column name="http_method" value="PUT"/>
             <column name="path_pattern" value="/api/admin/role-menu-config/{roleId}"/>
         </insert>

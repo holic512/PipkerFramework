@@ -80,14 +80,21 @@ class LiquibaseChangelogStructureTests {
 
         if (sqlite) {
             assertThat(normalizedSql)
-                    .contains("PRIMARY KEY AUTOINCREMENT")
+                    .doesNotContain("AUTOINCREMENT")
+                    .contains("PRIMARY KEY (ID)")
                     .contains("FOREIGN KEY (PARENT_ID)")
+                    .contains("UK_SYSTEM_USER_ROLE_USER_ROLE")
+                    .contains("UK_SYSTEM_ROLE_PERMISSION_ROLE_PERMISSION")
+                    .contains("UK_SYSTEM_ROLE_MENU_ROLE_MENU")
                     .doesNotContain("ALTER TABLE SYSTEM_ROLE_MENU ADD CONSTRAINT");
             return;
         }
 
         assertThat(normalizedSql)
                 .doesNotContain("AUTOINCREMENT")
+                .contains("UK_SYSTEM_USER_ROLE_USER_ROLE")
+                .contains("UK_SYSTEM_ROLE_PERMISSION_ROLE_PERMISSION")
+                .contains("UK_SYSTEM_ROLE_MENU_ROLE_MENU")
                 .contains("ALTER TABLE SYSTEM_ROLE_MENU ADD CONSTRAINT")
                 .contains("FK_SYSTEM_ROLE_MENU_ROLE");
     }

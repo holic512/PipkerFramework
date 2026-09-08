@@ -1,12 +1,15 @@
 package com.pipker.business.api.system.authorization;
 
+import com.pipker.business.api.common.mapper.SystemApiResourceMapper;
+import com.pipker.business.api.common.model.SystemApiResourceRule;
 import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
-import com.pipker.business.api.system.auth.SystemLoginTypes;
+import com.pipker.business.api.system.auth.dto.SystemLoginTypes;
 import com.pipker.business.common.auth.LoginIdentity;
 import com.pipker.starter.satoken.config.PipkerAuthProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Proxy;
 import java.time.Duration;
 import java.util.List;
 
@@ -14,19 +17,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SystemApiAuthorizationServiceTests {
 
-    private SystemAuthorizationMapper systemAuthorizationMapper;
+    private TestSystemApiResourceMapper testSystemApiResourceMapper;
     private TestSystemAuthorizationService systemAuthorizationService;
     private SystemApiAuthorizationService systemApiAuthorizationService;
 
     @BeforeEach
     void setUp() {
-        systemAuthorizationMapper = new TestSystemAuthorizationMapper();
+        testSystemApiResourceMapper = new TestSystemApiResourceMapper();
         systemAuthorizationService = new TestSystemAuthorizationService();
         PipkerAuthProperties authProperties = new PipkerAuthProperties();
         authProperties.setAuthorizationCacheTtl(Duration.ofSeconds(60));
         authProperties.setAuthorizationCacheMaximumSize(10);
         systemApiAuthorizationService = new SystemApiAuthorizationService(
-                systemAuthorizationMapper,
+                testSystemApiResourceMapper.mapper,
                 systemAuthorizationService,
                 new SystemAuthorizationCache(authProperties)
         );
@@ -34,9 +37,8 @@ class SystemApiAuthorizationServiceTests {
 
     @Test
     void grantsOnlyAUniqueMethodAndMvcTemplateMatchWithTheRequiredPermission() {
-        TestSystemAuthorizationMapper mapper = (TestSystemAuthorizationMapper) systemAuthorizationMapper;
-        mapper.apiResources = List.of(
-                new SystemApiResource(1L, "widget:read", "GET", "/api/widgets/{id}")
+        testSystemApiResourceMapper.apiResourceRules = List.of(
+                new SystemApiResourceRule(1L, "widget:read", "GET", "/api/widgets/{id}")
         );
         systemAuthorizationService.snapshot = snapshotWith("widget:read");
 
@@ -47,15 +49,14 @@ class SystemApiAuthorizationServiceTests {
         assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "GET", "/api/widgets"))
                 .isFalse();
 
-        assertThat(mapper.apiResourceReads).isEqualTo(1);
+        assertThat(testSystemApiResourceMapper.apiResourceReads).isEqualTo(1);
     }
 
     @Test
     void deniesOverlappingRulesBeforeReadingTheUserPermissionSnapshot() {
-        TestSystemAuthorizationMapper mapper = (TestSystemAuthorizationMapper) systemAuthorizationMapper;
-        mapper.apiResources = List.of(
-                new SystemApiResource(1L, "widget:read", "GET", "/api/widgets/{id}"),
-                new SystemApiResource(2L, "widget:all", "GET", "/api/widgets/*")
+        testSystemApiResourceMapper.apiResourceRules = List.of(
+                new SystemApiResourceRule(1L, "widget:read", "GET", "/api/widgets/{id}"),
+                new SystemApiResourceRule(2L, "widget:all", "GET", "/api/widgets/*")
         );
 
         assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "GET", "/api/widgets/7"))
@@ -72,69 +73,31 @@ class SystemApiAuthorizationServiceTests {
         return new SystemAuthorizationSnapshot(null, List.of(), List.of(permissions), List.of());
     }
 
-    private static final class TestSystemAuthorizationMapper implements SystemAuthorizationMapper {
+    private static final class TestSystemApiResourceMapper {
 
-        private List<SystemApiResource> apiResources = List.of();
+        private List<SystemApiResourceRule> apiResourceRules = List.of();
         private int apiResourceReads;
 
-        @Override
-        public List<String> findRoleCodesByUserId(long userId) {
-            return List.of();
-        }
-
-        @Override
-        public List<String> findPermissionCodesByUserId(long userId) {
-            return List.of();
-        }
-
-        @Override
-        public List<String> findAllEnabledPermissionCodes() {
-            return List.of();
-        }
-
-        @Override
-        public List<SystemMenu> findAllVisibleMenus() {
-            return List.of();
-        }
-
-        @Override
-        public List<SystemMenu> findVisiblePageMenusByUserId(long userId) {
-            return List.of();
-        }
-
-        @Override
-        public List<SystemRole> findAllEnabledRoles() {
-            return List.of();
-        }
-
-        @Override
-        public SystemRole findRoleById(long roleId) {
-            return null;
-        }
-
-        @Override
-        public List<SystemRoleMenuAssignment> findAllEnabledRoleMenuAssignments() {
-            return List.of();
-        }
-
-        @Override
-        public List<Long> findEnabledVisiblePageMenuIds(List<Long> menuIds) {
-            return List.of();
-        }
-
-        @Override
-        public void deleteRoleMenuAssignments(long roleId) {
-        }
-
-        @Override
-        public void insertRoleMenuAssignments(long roleId, List<Long> menuIds) {
-        }
-
-        @Override
-        public List<SystemApiResource> findAllEnabledApiResources() {
-            apiResourceReads++;
-            return apiResources;
-        }
+        private final SystemApiResourceMapper mapper = (SystemApiResourceMapper) Proxy.newProxyInstance(
+                SystemApiResourceMapper.class.getClassLoader(),
+                new Class<?>[]{SystemApiResourceMapper.class},
+                (proxy, method, arguments) -> {
+                    if ("findAllEnabledAuthorizationRules".equals(method.getName())) {
+                        apiResourceReads++;
+                        return apiResourceRules;
+                    }
+                    if ("toString".equals(method.getName())) {
+                        return "TestSystemApiResourceMapper";
+                    }
+                    if ("hashCode".equals(method.getName())) {
+                        return System.identityHashCode(proxy);
+                    }
+                    if ("equals".equals(method.getName())) {
+                        return proxy == arguments[0];
+                    }
+                    throw new UnsupportedOperationException(method.getName());
+                }
+        );
     }
 
     private static final class TestSystemAuthorizationService extends SystemAuthorizationService {
@@ -143,7 +106,7 @@ class SystemApiAuthorizationServiceTests {
         private int snapshotReads;
 
         private TestSystemAuthorizationService() {
-            super(null, null, null);
+            super(null, null, null, null, null);
         }
 
         @Override

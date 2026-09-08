@@ -18,7 +18,7 @@
     <!-- MySQL 和 PostgreSQL 可直接使用 Liquibase 的外键和索引标签。 -->
     <changeSet id="system-menu-schema-mysql-postgresql" author="holic512" dbms="mysql,postgresql">
         <createTable tableName="system_menu">
-            <column name="id" type="BIGINT" autoIncrement="true">
+            <column name="id" type="BIGINT">
                 <constraints primaryKey="true" primaryKeyName="pk_system_menu" nullable="false"/>
             </column>
             <column name="parent_id" type="BIGINT"/>
@@ -64,7 +64,7 @@
     <changeSet id="system-menu-schema-sqlite" author="holic512" dbms="sqlite">
         <sql splitStatements="true"><![CDATA[
             CREATE TABLE system_menu (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              id BIGINT NOT NULL,
               parent_id BIGINT,
               menu_name VARCHAR(100) NOT NULL,
               menu_type VARCHAR(16) NOT NULL,
@@ -77,6 +77,7 @@
               status VARCHAR(16) NOT NULL DEFAULT 'ENABLED',
               created_at TIMESTAMP NOT NULL,
               updated_at TIMESTAMP NOT NULL,
+              CONSTRAINT pk_system_menu PRIMARY KEY (id),
               CONSTRAINT uk_system_menu_route_path UNIQUE (route_path),
               CONSTRAINT uk_system_menu_route_name UNIQUE (route_name),
               CONSTRAINT ck_system_menu_type CHECK (menu_type IN ('DIRECTORY', 'MENU')),
@@ -89,6 +90,7 @@
 
     <changeSet id="system-menu-seed" author="holic512">
         <insert tableName="system_menu">
+            <column name="id" valueNumeric="2090000000000000301"/>
             <column name="menu_name" value="系统管理"/>
             <column name="menu_type" value="DIRECTORY"/>
             <column name="route_path" value="/system"/>
@@ -101,7 +103,8 @@
             <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
         </insert>
         <insert tableName="system_menu">
-            <column name="parent_id" valueComputed="(SELECT id FROM system_menu WHERE route_name = 'System')"/>
+            <column name="id" valueNumeric="2090000000000000302"/>
+            <column name="parent_id" valueNumeric="2090000000000000301"/>
             <column name="menu_name" value="系统概览"/>
             <column name="menu_type" value="MENU"/>
             <column name="route_path" value="/system/overview"/>
@@ -115,7 +118,8 @@
             <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
         </insert>
         <insert tableName="system_menu">
-            <column name="parent_id" valueComputed="(SELECT id FROM system_menu WHERE route_name = 'System')"/>
+            <column name="id" valueNumeric="2090000000000000303"/>
+            <column name="parent_id" valueNumeric="2090000000000000301"/>
             <column name="menu_name" value="角色路由"/>
             <column name="menu_type" value="MENU"/>
             <column name="route_path" value="/system/role-menu"/>

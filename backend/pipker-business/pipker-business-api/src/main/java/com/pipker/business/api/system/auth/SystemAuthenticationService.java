@@ -12,6 +12,9 @@ package com.pipker.business.api.system.auth;
 
 import com.pipker.business.api.common.model.SystemUser;
 import com.pipker.business.api.common.model.SystemUserProfile;
+import com.pipker.business.api.system.auth.dto.LoginRequest;
+import com.pipker.business.api.system.auth.dto.LoginResponse;
+import com.pipker.business.api.system.auth.dto.SystemLoginTypes;
 import com.pipker.business.api.system.user.SystemAccountService;
 import com.pipker.business.common.api.CommonApiCode;
 import com.pipker.business.common.auth.LoginIdentity;
@@ -58,7 +61,7 @@ public class SystemAuthenticationService {
      */
     public LoginResponse login(LoginRequest request) {
         SystemUser user = systemAccountService.findByUsername(request.username().trim());
-        if (user == null || !securityCryptoService.matchesPassword(request.password(), user.password())) {
+        if (user == null || !securityCryptoService.matchesPassword(request.password(), user.getPasswordHash())) {
             throw new ApiBusinessException(CommonApiCode.AUTH_INVALID_CREDENTIALS);
         }
         if (!user.isEnabled()) {
@@ -66,13 +69,13 @@ public class SystemAuthenticationService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        if (securityCryptoService.needsPasswordUpgrade(user.password())) {
-            systemAccountService.updatePasswordHash(user.id(), securityCryptoService.hashPassword(request.password()), now);
+        if (securityCryptoService.needsPasswordUpgrade(user.getPasswordHash())) {
+            systemAccountService.updatePasswordHash(user.getId(), securityCryptoService.hashPassword(request.password()), now);
         }
         AuthToken token = authSessionService.login(
-                new LoginIdentity(SystemLoginTypes.SYSTEM, String.valueOf(user.id()))
+                new LoginIdentity(SystemLoginTypes.SYSTEM, String.valueOf(user.getId()))
         );
-        systemAccountService.recordSuccessfulLogin(user.id(), now);
+        systemAccountService.recordSuccessfulLogin(user.getId(), now);
         return new LoginResponse(token.value(), "Bearer", SystemUserProfile.from(user));
     }
 }

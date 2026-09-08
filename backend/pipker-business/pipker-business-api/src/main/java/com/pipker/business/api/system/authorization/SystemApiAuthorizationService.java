@@ -4,14 +4,15 @@
  * @module Pipker Business API
  * @description Implements the Sa-Token API authorization callback from database API-resource mappings and cached user RBAC snapshots.
  * @logic Accepts only SYSTEM identities, requires exactly one enabled MVC resource match, then checks its API permission in the cached role-permission union.
- * @dependencies ApiAuthorizationService, SystemAuthorizationCache, SystemAuthorizationMapper, SystemAuthorizationService, PathPattern
- * @index_tags rbac, api, authorization, filter, cache
+ * @dependencies ApiAuthorizationService, SystemAuthorizationCache, SystemApiResourceMapper, SystemAuthorizationService, PathPattern
+ * @index_tags rbac, api, authorization, filter, cache, mybatis-plus
  * @author holic512
  */
 package com.pipker.business.api.system.authorization;
 
 import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
-import com.pipker.business.api.system.auth.SystemLoginTypes;
+import com.pipker.business.api.common.mapper.SystemApiResourceMapper;
+import com.pipker.business.api.system.auth.dto.SystemLoginTypes;
 import com.pipker.business.common.auth.LoginIdentity;
 import com.pipker.starter.satoken.service.ApiAuthorizationService;
 import org.springframework.http.server.PathContainer;
@@ -26,23 +27,23 @@ import java.util.Locale;
 @Service
 public class SystemApiAuthorizationService implements ApiAuthorizationService {
 
-    private final SystemAuthorizationMapper systemAuthorizationMapper;
+    private final SystemApiResourceMapper systemApiResourceMapper;
     private final SystemAuthorizationService systemAuthorizationService;
     private final SystemAuthorizationCache systemAuthorizationCache;
 
     /**
      * 创建数据库 API 授权服务。
      *
-     * @param systemAuthorizationMapper API 资源查询 Mapper
+     * @param systemApiResourceMapper API 资源查询 Mapper
      * @param systemAuthorizationService 用户授权快照服务
      * @param systemAuthorizationCache 本地授权缓存
      */
     public SystemApiAuthorizationService(
-            SystemAuthorizationMapper systemAuthorizationMapper,
+            SystemApiResourceMapper systemApiResourceMapper,
             SystemAuthorizationService systemAuthorizationService,
             SystemAuthorizationCache systemAuthorizationCache
     ) {
-        this.systemAuthorizationMapper = systemAuthorizationMapper;
+        this.systemApiResourceMapper = systemApiResourceMapper;
         this.systemAuthorizationService = systemAuthorizationService;
         this.systemAuthorizationCache = systemAuthorizationCache;
     }
@@ -66,7 +67,7 @@ public class SystemApiAuthorizationService implements ApiAuthorizationService {
         String method = httpMethod.toUpperCase(Locale.ROOT);
         PathContainer path = PathContainer.parsePath(requestPath);
         List<SystemAuthorizationCache.ApiRouteRule> matchedRules = systemAuthorizationCache
-                .getApiRouteRules(systemAuthorizationMapper::findAllEnabledApiResources)
+                .getApiRouteRules(systemApiResourceMapper::findAllEnabledAuthorizationRules)
                 .stream()
                 .filter(rule -> rule.matches(method, path))
                 .toList();

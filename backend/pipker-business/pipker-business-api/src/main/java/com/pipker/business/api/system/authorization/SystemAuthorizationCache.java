@@ -4,7 +4,7 @@
  * @module Pipker Business API
  * @description Provides process-local TTL caches for user authorization snapshots and protected API resource rules.
  * @logic Caches both successful and absent user snapshots, compiles API path templates once per refresh, and never synchronizes state between application instances.
- * @dependencies Caffeine, PipkerAuthProperties, SystemAuthorizationSnapshot, SystemApiResource
+ * @dependencies Caffeine, PipkerAuthProperties, SystemAuthorizationSnapshot, SystemApiResourceRule
  * @index_tags rbac, cache, caffeine, api-resource
  * @author holic512
  */
@@ -13,6 +13,7 @@ package com.pipker.business.api.system.authorization;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
+import com.pipker.business.api.common.model.SystemApiResourceRule;
 import com.pipker.starter.satoken.config.PipkerAuthProperties;
 import org.springframework.http.server.PathContainer;
 import org.springframework.stereotype.Component;
@@ -78,7 +79,7 @@ public class SystemAuthorizationCache {
      * @param loader 数据库资源加载函数
      * @return API 路由规则
      */
-    public List<ApiRouteRule> getApiRouteRules(Supplier<List<SystemApiResource>> loader) {
+    public List<ApiRouteRule> getApiRouteRules(Supplier<List<SystemApiResourceRule>> loader) {
         return apiRouteRulesCache.get(API_ROUTE_RULES_CACHE_KEY, ignored -> loader.get().stream()
                 .map(ApiRouteRule::from)
                 .toList());
@@ -114,7 +115,7 @@ public class SystemAuthorizationCache {
 
         private static final PathPatternParser PATH_PATTERN_PARSER = new PathPatternParser();
 
-        private static ApiRouteRule from(SystemApiResource resource) {
+        private static ApiRouteRule from(SystemApiResourceRule resource) {
             return new ApiRouteRule(
                     resource.permissionCode(),
                     resource.httpMethod(),

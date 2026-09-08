@@ -4,12 +4,15 @@
  * @module Pipker Business API
  * @description 封装系统账户的认证读取和持久化更新，不依赖任何会话或密码算法实现。
  * @logic 为认证和授权功能提供账户查询、登录时间和密码哈希升级操作，不参与会话或密码算法编排。
- * @dependencies SystemUserMapper、SystemUser、Spring Framework
- * @index_tags system-user、service、authentication
+ * @dependencies SystemUserMapper、SystemUser、MyBatis-Plus、Spring Framework
+ * @index_tags system-user、service、authentication、mybatis-plus
  * @author holic512
  */
 package com.pipker.business.api.system.user;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.pipker.business.api.common.mapper.SystemUserMapper;
 import com.pipker.business.api.common.model.SystemUser;
 import org.springframework.stereotype.Service;
 
@@ -39,7 +42,8 @@ public class SystemAccountService {
      * @return 账户；不存在时返回 {@code null}
      */
     public SystemUser findByUsername(String username) {
-        return systemUserMapper.findByUsername(username);
+        return systemUserMapper.selectOne(new LambdaQueryWrapper<SystemUser>()
+                .eq(SystemUser::getUsername, username));
     }
 
     /**
@@ -49,7 +53,7 @@ public class SystemAccountService {
      * @return 账户；不存在时返回 {@code null}
      */
     public SystemUser findById(long userId) {
-        return systemUserMapper.findById(userId);
+        return systemUserMapper.selectById(userId);
     }
 
     /**
@@ -59,7 +63,10 @@ public class SystemAccountService {
      * @param loginTime 登录时间
      */
     public void recordSuccessfulLogin(long userId, LocalDateTime loginTime) {
-        systemUserMapper.updateLastLoginTime(userId, loginTime);
+        systemUserMapper.update(null, new LambdaUpdateWrapper<SystemUser>()
+                .eq(SystemUser::getId, userId)
+                .set(SystemUser::getLastLoginTime, loginTime)
+                .set(SystemUser::getUpdatedAt, loginTime));
     }
 
     /**
@@ -70,6 +77,9 @@ public class SystemAccountService {
      * @param updatedAt 更新时间
      */
     public void updatePasswordHash(long userId, String passwordHash, LocalDateTime updatedAt) {
-        systemUserMapper.updatePasswordHash(userId, passwordHash, updatedAt);
+        systemUserMapper.update(null, new LambdaUpdateWrapper<SystemUser>()
+                .eq(SystemUser::getId, userId)
+                .set(SystemUser::getPasswordHash, passwordHash)
+                .set(SystemUser::getUpdatedAt, updatedAt));
     }
 }

@@ -26,7 +26,12 @@ src/
 │   ├── auth/sessionStorage.ts      # 当前浏览器会话的 Bearer token
 │   ├── config/runtime.ts            # API 前缀与超时配置
 │   └── http/client.ts               # Axios、认证头和统一解包
-├── layouts/AppLayout.vue            # 基于已授权菜单渲染的应用壳
+├── layouts/
+│   ├── AppLayout.vue                # 受保护路由稳定父级；按配置选择应用布局
+│   ├── api/config.ts                # sidebar / tabbed 布局的唯一源码选择配置
+│   └── pages/
+│       ├── sidebar/index.vue        # 当前侧栏控制台布局，默认启用
+│       └── tabbed/index.vue         # 页签工作区布局
 ├── components/ThemeSwitcher.vue      # 设计语言与明暗模式切换器
 ├── modules/
 │   ├── auth/                        # 登录 API 与登录页
@@ -52,6 +57,23 @@ src/
 ```
 
 `src/modules/overview/pages/OverviewPage.vue` 是系统概览的展示实现；`src/modules/system/overview/index.vue` 是数据库菜单 `componentKey = system/overview/index` 对应的稳定入口。
+
+## 应用布局
+
+登录后的应用壳由 `src/layouts/AppLayout.vue` 作为动态路由的稳定父级，但它只负责选择页面布局，不再直接持有具体布局实现。两套布局均从同一个会话 Store 读取 `/api/auth/me` 返回的数据库菜单树，因此切换布局不会改变菜单授权、动态路由、登录守卫或退出登录行为。
+
+| 布局值 | 页面实现 | 说明 |
+| --- | --- | --- |
+| `sidebar` | `src/layouts/pages/sidebar/index.vue` | 当前侧栏控制台布局，也是默认配置。 |
+| `tabbed` | `src/layouts/pages/tabbed/index.vue` | 顶部工作区栏、紧凑侧导航与授权页签组成的第二套布局。 |
+
+切换入口是 `src/layouts/api/config.ts`：
+
+```ts
+export const applicationLayoutVariant = 'sidebar'
+```
+
+设为 `tabbed` 后，受保护应用会在原有 URL 下直接渲染页签工作区；该设置是源码配置，不使用环境变量、后端字段或 `localStorage`。新增布局时，应在 `src/layouts/pages/` 下创建独立页面并仅扩展 `ApplicationLayoutVariant` 联合类型，不应在布局中硬编码业务菜单或新增静态业务路由。
 
 ## 公开首页
 
@@ -140,7 +162,7 @@ system/overview/index  →  src/modules/system/overview/index.vue
 
 未找到对应组件的菜单不会被伪造成静态页面：它会被跳过，并只在开发环境输出诊断。退出登录或授权刷新时，前一份数据库菜单注册的路由会被移除；导航守卫还会检查路由的菜单 ID 是否仍在当前授权菜单集合中。要新增页面，应先增加 Vue 组件，再通过后端的 Liquibase 增量 changeset 增加菜单并为角色配置菜单关联；页面调用 API 所需权限仍通过独立 API 权限配置。`SUPER_ADMIN` 可通过“角色路由”页面为普通角色勾选页面菜单，本期不实现按钮级权限控制。
 
-`AppLayout` 仅渲染会话 Store 中的菜单，不再硬编码“系统概览”导航。后端不再提供开发 Route Manifest；页面数据唯一来自已登录用户的 `/api/auth/me`。
+当前启用的应用布局只渲染会话 Store 中的菜单，不再硬编码“系统概览”导航。后端不再提供开发 Route Manifest；页面数据唯一来自已登录用户的 `/api/auth/me`。
 
 ## 本地运行与构建
 

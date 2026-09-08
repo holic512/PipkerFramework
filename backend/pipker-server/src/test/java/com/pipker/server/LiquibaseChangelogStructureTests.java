@@ -69,7 +69,9 @@ class LiquibaseChangelogStructureTests {
                 .contains("CREATE TABLE SYSTEM_ROLE_MENU")
                 .contains("SYSTEM:AUTH:ME")
                 .contains("SYSTEM:ROLE-MENU:MANAGE")
+                .contains("SYSTEM:ROLE:MANAGE")
                 .contains("SYSTEMOVERVIEW")
+                .contains("SYSTEMROLEMANAGEMENT")
                 .contains("CK_SYSTEM_PERMISSION_TYPE")
                 .contains("CK_SYSTEM_MENU_TYPE");
 

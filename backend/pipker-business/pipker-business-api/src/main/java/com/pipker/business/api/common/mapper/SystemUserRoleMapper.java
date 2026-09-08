@@ -11,7 +11,9 @@
 package com.pipker.business.api.common.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.pipker.business.api.common.model.SystemMenu;
+import com.pipker.business.api.common.model.SystemUser;
 import com.pipker.business.api.common.model.SystemUserRole;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -20,6 +22,32 @@ import java.util.List;
 
 /** 用户角色关联 Mapper。 */
 public interface SystemUserRoleMapper extends BaseMapper<SystemUserRole> {
+
+    /**
+     * 分页读取指定角色下的账户成员；密码哈希永不进入该读取投影。
+     *
+     * @param page MyBatis-Plus 分页参数
+     * @param roleId 角色主键
+     * @param likeKeyword 可选的用户名或昵称 LIKE 条件
+     * @return 成员账户分页
+     */
+    @Select("""
+            <script>
+            SELECT u.id, u.username, u.nickname, u.status, u.last_login_time, u.created_at
+            FROM system_user_role ur
+            JOIN system_user u ON u.id = ur.user_id
+            WHERE ur.role_id = #{roleId}
+            <if test="likeKeyword != null">
+              AND (u.username LIKE #{likeKeyword} OR u.nickname LIKE #{likeKeyword})
+            </if>
+            ORDER BY u.created_at DESC, u.id DESC
+            </script>
+            """)
+    Page<SystemUser> findMemberPageByRoleId(
+            Page<SystemUser> page,
+            @Param("roleId") long roleId,
+            @Param("likeKeyword") String likeKeyword
+    );
 
     /** 查询用户启用的角色编码。 */
     @Select("""

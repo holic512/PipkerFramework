@@ -4,7 +4,7 @@
     @project Pipker Framework
     @module Pipker Server
     @description 定义系统动态菜单与前端路由数据。
-    @logic 创建仅支持目录和菜单的最终菜单结构及父子关联，再写入系统管理目录、概览和角色路由菜单。
+    @logic 创建仅支持目录和菜单的最终菜单结构及父子关联，写入系统管理目录、概览、角色路由与角色管理菜单。
     @dependencies Liquibase、system_menu
     @index_tags liquibase、database、system_menu、seed、route、rbac
     @author holic512
@@ -127,6 +127,26 @@
             <column name="component_key" value="system/role-menu/index"/>
             <column name="icon" value="Share"/>
             <column name="sort" valueNumeric="20"/>
+            <column name="visible" valueBoolean="true"/>
+            <column name="status" value="ENABLED"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <!-- 角色管理页面通过数据库菜单动态装载，供具备管理 API 权限的账户维护普通角色与成员账户。 -->
+    <changeSet id="system-menu-role-management-seed" author="holic512">
+        <comment>新增角色管理菜单：支持角色增删改、批量状态处理、详情成员查看和成员密码重置。</comment>
+        <insert tableName="system_menu">
+            <column name="id" valueNumeric="2090000000000000304"/>
+            <column name="parent_id" valueNumeric="2090000000000000301"/>
+            <column name="menu_name" value="角色管理"/>
+            <column name="menu_type" value="MENU"/>
+            <column name="route_path" value="/system/roles"/>
+            <column name="route_name" value="SystemRoleManagement"/>
+            <column name="component_key" value="system/role/index"/>
+            <column name="icon" value="UserFilled"/>
+            <column name="sort" valueNumeric="30"/>
             <column name="visible" valueBoolean="true"/>
             <column name="status" value="ENABLED"/>
             <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>

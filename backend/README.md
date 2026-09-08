@@ -29,7 +29,7 @@ backend/
 - Sa-Token Starter 只提供会话与过滤器，不放置 User、Role、Mapper 或任何数据库授权逻辑。
 - `pipker-spring-boot-starter-file` 提供本地文件服务、逻辑存储键和根相对访问路径；Servlet Web 应用中可按开关注册公开只读资源映射，但不提供 HTTP 上传、删除或目录枚举能力。
 
-`pipker-business-api` 以业务功能而非分层目录组织：`system/auth` 负责认证和当前会话，`system/user` 负责账户，`system/authorization` 负责 RBAC 与菜单，`system/health` 负责存活检测；仅跨功能模型和 Web 异常映射位于 API 自身的 `common` 包。根 POM 管理 Spring Boot `4.1.1`、Java `21` 与内部模块版本。系统查询 Mapper 使用 MyBatis Spring Boot Starter `4.0.1`，由 `PipkerApplication` 的 `@MapperScan` 扫描。
+`pipker-business-api` 以业务功能而非分层目录组织：`system/auth` 负责认证和当前会话，`system/user` 负责账户，`system/authorization` 负责 RBAC 与菜单，`system/role` 负责角色生命周期与成员密码重置，`system/health` 负责存活检测；仅跨功能模型、Mapper 和 Web 异常映射位于 API 自身的 `common` 包。根 POM 管理 Spring Boot `4.1.1`、Java `21` 与内部模块版本。系统表 Mapper 使用 MyBatis-Plus `3.5.16`，由 `PipkerApplication` 的 `@MapperScan` 扫描；管理列表统一使用 MyBatis-Plus 分页拦截器，单页最大 100 条。
 
 ## 系统身份与 RBAC
 
@@ -75,16 +75,16 @@ Liquibase 的 `DATABASECHANGELOG` 记录已执行 changeset；重复启动不会
 | `system_role` | 角色编码、名称、状态和排序 |
 | `system_permission` | `API` 权限编码 |
 | `system_menu` | 目录或页面菜单；自关联 `parent_id`、路由与逻辑 `component_key` |
-| `system_user_role` | 用户与角色的联合主键关联 |
-| `system_role_permission` | 角色与权限的联合主键关联 |
-| `system_role_menu` | 角色与可访问页面菜单的联合主键关联 |
+| `system_user_role` | 用户与角色的独立雪花主键关联，并以外键对保持唯一 |
+| `system_role_permission` | 角色与权限的独立雪花主键关联，并以外键对保持唯一 |
+| `system_role_menu` | 角色与可访问页面菜单的独立雪花主键关联，并以外键对保持唯一 |
 | `system_api_resource` | `API` 权限与 `HTTP 方法 + MVC 路径模板` 的联合唯一映射 |
 
 SQLite、MySQL 和 PostgreSQL 均使用独立的迁移树。SQLite 在建表阶段直接声明外键、联合主键、唯一约束和检查约束，以适配其不支持后置 `addForeignKeyConstraint`、`addUniqueConstraint` 的限制；MySQL 与 PostgreSQL 各自保留适用的约束调整 SQL。`009-system-database-rbac` 删除按钮和旧菜单关系；`010-system-role-route-menu` 恢复角色菜单关系。当前项目处于可重建阶段，不兼容改造前的 changelog 文件路径、changeset 历史或 `postgresql` Profile 别名。
 
-初始数据包含 `SUPER_ADMIN`、`ADMIN`、系统概览与角色路由菜单、当前授权/后台授权读取/角色路由管理 API 权限。`SUPER_ADMIN` 不需要任何显式角色关联；`ADMIN` 初始拥有当前授权和后台授权读取 API 权限，以及系统概览菜单。不存在 `MERCHANT`、`USER` 或任何业务表。唯一初始管理员由 Liquibase 写入：`admin / admin123`，数据库只保存当前 `SecurityCryptoService` 可验证的 `{bcrypt}` 密码哈希。
+初始数据包含 `SUPER_ADMIN`、`ADMIN`、系统概览、角色路由与角色管理菜单，以及当前授权、后台授权读取、角色路由管理、角色管理 API 权限。`SUPER_ADMIN` 不需要任何显式角色关联；`ADMIN` 初始拥有当前授权、后台授权读取与角色管理 API 权限，以及系统概览和角色管理菜单。不存在 `MERCHANT`、`USER` 或任何业务表。唯一初始管理员由 Liquibase 写入：`admin / admin123`，数据库只保存当前 `SecurityCryptoService` 可验证的 `{bcrypt}` 密码哈希。
 
-> 安全警告：默认管理员口令只可用于首次本地初始化。公开部署前必须立即更换为受控的 `{bcrypt}` 哈希；不要把 `admin123` 用于共享或生产数据库。首期没有密码重置、随机 Bootstrap 密码或 `system_bootstrap_state` 表。
+> 安全警告：默认管理员口令只可用于首次本地初始化。公开部署前必须立即更换为受控的 `{bcrypt}` 哈希；不要把 `admin123` 用于共享或生产数据库。角色管理页面可为该角色成员设置新密码，但不会返回、记录或保存任何明文密码；非 `SUPER_ADMIN` 不能重置超级管理员账户。
 
 ### 选择部署数据库 Profile
 
@@ -216,6 +216,7 @@ Authorization: Bearer <accessToken>
 | `POST /api/auth/login` | 匿名 | `accessToken`、`tokenType: Bearer` 和不含密码/电话/邮箱的用户资料 |
 | `GET /api/auth/me` | 已登录且具备 `system:auth:me` | 当前用户、角色编码、权限编码和数据库页面菜单树 |
 | `GET /api/admin/authorization` | 已登录且具备 `system:authorization:read` | 当前授权投影 |
+| `/api/admin/roles` | 已登录且具备 `system:role:manage` | 角色筛选分页、增删改、批量状态/删除、详情、成员分页与成员密码重置 |
 
 Sa-Token 只显式放行 `GET /api/ping` 和 `POST /api/auth/login`。其他 `/api/**` 请求必须先登录，并且必须唯一命中 `system_api_resource` 中的启用 `API` 资源映射；无映射、HTTP 方法不匹配、路径模板重叠或权限不足都返回 `AUTH_FORBIDDEN`。Filter 本身从不依赖 Controller 注解；开发 Route Manifest 已删除，前端唯一的页面路由来源是 `/api/auth/me`。
 
@@ -227,4 +228,4 @@ Sa-Token 只显式放行 `GET /api/ping` 和 `POST /api/auth/login`。其他 `/a
 mvn clean test
 ```
 
-Server 集成测试统一使用隔离的临时 SQLite 空库，验证 SQLite 专用 changelog、8 张目标 `system_` 表、约束、种子数据、数据库 API 过滤器、角色并集、页面菜单、本地缓存及重复执行幂等性。MySQL 与 PostgreSQL 迁移资源在部署环境使用；本项目不将 Docker 或 Testcontainers 作为测试前置条件。
+Server 集成测试统一使用隔离的临时 SQLite 空库，验证 SQLite 专用 changelog、8 张目标 `system_` 表、约束、种子数据、数据库 API 过滤器、角色并集、页面菜单、本地缓存、角色 CRUD、分页、批量操作、成员密码重置及重复执行幂等性。MySQL 与 PostgreSQL 迁移资源在部署环境使用；本项目不将 Docker 或 Testcontainers 作为测试前置条件。

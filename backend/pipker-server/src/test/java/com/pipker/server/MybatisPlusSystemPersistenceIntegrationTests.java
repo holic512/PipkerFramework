@@ -2,10 +2,10 @@
  * @file MybatisPlusSystemPersistenceIntegrationTests.java
  * @project Pipker Framework
  * @module Pipker Server
- * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键和授权初始化数据。
- * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 写入并回读实体、校验关联去重和管理员授权投影。
- * @dependencies Spring Boot Test、Liquibase、SQLite JDBC、MyBatis-Plus、Pipker Business API
- * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac
+ * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键、授权初始化数据和角色管理服务。
+ * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 和角色管理服务验证实体读写、授权、真实分页、批量角色操作和密码重置。
+ * @dependencies Spring Boot Test、Liquibase、SQLite JDBC、MyBatis-Plus、Pipker Business API、Pipker Security Starter
+ * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、role、password-reset
  * @author holic512
  */
 package com.pipker.server;
@@ -30,6 +30,17 @@ import com.pipker.business.api.common.model.SystemUserRole;
 import com.pipker.business.api.system.authorization.SystemAuthorizationService;
 import com.pipker.business.api.system.authorization.RoleMenuConfigurationService;
 import com.pipker.business.api.system.authorization.RoleMenuUpdateResult;
+import com.pipker.business.api.system.role.RoleManagementService;
+import com.pipker.business.api.system.role.RoleManagementRequest.BatchDelete;
+import com.pipker.business.api.system.role.RoleManagementRequest.BatchStatus;
+import com.pipker.business.api.system.role.RoleManagementRequest.Create;
+import com.pipker.business.api.system.role.RoleManagementRequest.ResetMemberPassword;
+import com.pipker.business.api.system.role.RoleManagementRequest.Update;
+import com.pipker.business.api.system.role.RoleManagementResponse.PageResult;
+import com.pipker.business.api.system.role.RoleManagementResponse.RoleMember;
+import com.pipker.business.api.system.role.RoleManagementResponse.RoleSummary;
+import com.pipker.business.common.exception.ApiBusinessException;
+import com.pipker.starter.security.service.SecurityCryptoService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -79,6 +90,12 @@ class MybatisPlusSystemPersistenceIntegrationTests {
 
     @Autowired
     private RoleMenuConfigurationService roleMenuConfigurationService;
+
+    @Autowired
+    private RoleManagementService roleManagementService;
+
+    @Autowired
+    private SecurityCryptoService securityCryptoService;
 
     @DynamicPropertySource
     static void configureTemporaryStorage(DynamicPropertyRegistry registry) {
@@ -184,6 +201,81 @@ class MybatisPlusSystemPersistenceIntegrationTests {
                 .singleElement()
                 .satisfies(roleConfiguration -> assertThat(roleConfiguration.menuIds())
                         .containsExactly(2090000000000000303L));
+    }
+
+    @Test
+    void managesOrdinaryRolesWithPaginationBatchOperationsAndMemberPasswordResets() {
+        String suffix = String.valueOf(System.nanoTime());
+        RoleSummary createdRole = roleManagementService.createRole(new Create(
+                "ROLE_TEST_" + suffix,
+                "角色管理测试",
+                "验证角色生命周期与成员账户操作",
+                "ENABLED",
+                432
+        ));
+        assertThat(createdRole.id()).matches("\\d+");
+        assertThat(createdRole.roleCode()).isEqualTo("ROLE_TEST_" + suffix);
+
+        PageResult<RoleSummary> filteredRoles = roleManagementService.findRolePage(
+                1,
+                10,
+                suffix,
+                "ENABLED"
+        );
+        assertThat(filteredRoles.total()).isEqualTo(1);
+        assertThat(filteredRoles.records()).extracting(RoleSummary::id).containsExactly(createdRole.id());
+
+        RoleSummary updatedRole = roleManagementService.updateRole(createdRole.id(), new Update(
+                "已更新的角色管理测试",
+                "更新后的说明",
+                "ENABLED",
+                433
+        ));
+        assertThat(updatedRole.roleName()).isEqualTo("已更新的角色管理测试");
+        assertThat(updatedRole.sort()).isEqualTo(433);
+
+        SystemUser member = new SystemUser();
+        member.setUsername("role-member-" + suffix);
+        member.setPasswordHash(securityCryptoService.hashPassword("InitialPass123"));
+        member.setNickname("角色成员");
+        member.setStatus("ENABLED");
+        systemUserMapper.insert(member);
+
+        SystemUserRole memberAssignment = new SystemUserRole();
+        memberAssignment.setUserId(member.getId());
+        memberAssignment.setRoleId(Long.parseLong(createdRole.id()));
+        systemUserRoleMapper.insert(memberAssignment);
+
+        PageResult<RoleMember> members = roleManagementService.findMemberPage(
+                createdRole.id(),
+                1,
+                10,
+                "role-member"
+        );
+        assertThat(members.total()).isEqualTo(1);
+        assertThat(members.records()).extracting(RoleMember::id)
+                .containsExactly(String.valueOf(member.getId()));
+
+        assertThat(roleManagementService.findRoleDetail(createdRole.id()).memberCount()).isEqualTo(1);
+        roleManagementService.resetMemberPassword(
+                createdRole.id(),
+                String.valueOf(member.getId()),
+                new ResetMemberPassword("ChangedPass123")
+        );
+        assertThat(securityCryptoService.matchesPassword(
+                "ChangedPass123",
+                systemUserMapper.selectById(member.getId()).getPasswordHash()
+        )).isTrue();
+
+        roleManagementService.updateRoleStatus(new BatchStatus(List.of(createdRole.id()), "DISABLED"));
+        assertThat(systemRoleMapper.selectById(Long.parseLong(createdRole.id())).getStatus()).isEqualTo("DISABLED");
+
+        assertThatThrownBy(() -> roleManagementService.deleteRoles(new BatchDelete(List.of("2090000000000000101"))))
+                .isInstanceOf(ApiBusinessException.class);
+
+        roleManagementService.deleteRoles(new BatchDelete(List.of(createdRole.id())));
+        assertThat(systemRoleMapper.selectById(Long.parseLong(createdRole.id()))).isNull();
+        assertThat(systemUserRoleMapper.selectById(memberAssignment.getId())).isNull();
     }
 
     private static Path createTemporaryDataRoot() {

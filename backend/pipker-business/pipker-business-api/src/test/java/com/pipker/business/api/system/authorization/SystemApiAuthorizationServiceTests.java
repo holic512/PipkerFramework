@@ -65,6 +65,36 @@ class SystemApiAuthorizationServiceTests {
         assertThat(systemAuthorizationService.snapshotReads).isZero();
     }
 
+    @Test
+    void grantsEachRoleManagementOperationThroughOneUnambiguousRule() {
+        testSystemApiResourceMapper.apiResourceRules = List.of(
+                new SystemApiResourceRule(1L, "system:role:manage", "GET", "/api/admin/roles"),
+                new SystemApiResourceRule(2L, "system:role:manage", "POST", "/api/admin/roles"),
+                new SystemApiResourceRule(3L, "system:role:manage", "GET", "/api/admin/roles/{roleId}"),
+                new SystemApiResourceRule(4L, "system:role:manage", "PUT", "/api/admin/roles/{roleId}"),
+                new SystemApiResourceRule(5L, "system:role:manage", "DELETE", "/api/admin/roles/{roleId}"),
+                new SystemApiResourceRule(6L, "system:role:manage", "PATCH", "/api/admin/roles/batch-status"),
+                new SystemApiResourceRule(7L, "system:role:manage", "POST", "/api/admin/roles/batch-delete"),
+                new SystemApiResourceRule(8L, "system:role:manage", "GET", "/api/admin/roles/{roleId}/members"),
+                new SystemApiResourceRule(9L, "system:role:manage", "PUT", "/api/admin/roles/{roleId}/members/{userId}/password")
+        );
+        systemAuthorizationService.snapshot = snapshotWith("system:role:manage");
+
+        assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "GET", "/api/admin/roles")).isTrue();
+        assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "POST", "/api/admin/roles")).isTrue();
+        assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "GET", "/api/admin/roles/42")).isTrue();
+        assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "PUT", "/api/admin/roles/42")).isTrue();
+        assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "DELETE", "/api/admin/roles/42")).isTrue();
+        assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "PATCH", "/api/admin/roles/batch-status")).isTrue();
+        assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "POST", "/api/admin/roles/batch-delete")).isTrue();
+        assertThat(systemApiAuthorizationService.isAuthorized(systemIdentity(), "GET", "/api/admin/roles/42/members")).isTrue();
+        assertThat(systemApiAuthorizationService.isAuthorized(
+                systemIdentity(),
+                "PUT",
+                "/api/admin/roles/42/members/7/password"
+        )).isTrue();
+    }
+
     private LoginIdentity systemIdentity() {
         return new LoginIdentity(SystemLoginTypes.SYSTEM, "42");
     }

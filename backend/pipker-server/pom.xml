@@ -5,7 +5,7 @@
     @module Pipker Server
     @description 构建可执行 HTTP Server，并承载 Pipker 应用的启动、运行配置和集成测试。
     @logic 组装业务 API、Redis、日志、文件存储、Liquibase 和多数据库运行时能力，最后通过 Spring Boot 打包应用。
-    @dependencies pipker-framework、pipker-business-api、Pipker Redis Starter、Pipker Log Starter、Pipker File Starter、Liquibase、数据库驱动、Spring Boot Test
+    @dependencies pipker-framework、pipker-business-api、Pipker Redis Starter、Pipker Log Starter、Pipker File Starter、MyBatis-Plus JSQLParser、Liquibase、数据库驱动、Spring Boot Test
     @index_tags maven、模块、server、spring-boot、sqlite、mysql、pg、postgresql、file-storage
     @author holic512
 -->
@@ -30,6 +30,11 @@
         <dependency>
             <groupId>com.pipker</groupId>
             <artifactId>pipker-business-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-jsqlparser</artifactId>
+            <version>${mybatis-plus.version}</version>
         </dependency>
         <dependency>
             <groupId>com.pipker</groupId>

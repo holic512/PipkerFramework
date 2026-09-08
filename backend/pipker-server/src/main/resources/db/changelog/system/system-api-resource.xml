@@ -4,7 +4,7 @@
     @project Pipker Framework
     @module Pipker Server
     @description 定义 API 资源与 API 权限的映射。
-    @logic 创建 API 资源表、方法路径唯一约束和权限外键，再写入框架受保护 API 的默认资源映射。
+    @logic 创建 API 资源表、方法路径唯一约束和权限外键，再写入框架受保护 API 与角色管理操作的资源映射。
     @dependencies Liquibase、system_api_resource、system_permission
     @index_tags liquibase、database、system_api_resource、seed、api、rbac
     @author holic512
@@ -81,6 +81,64 @@
             <column name="permission_id" valueNumeric="2090000000000000203"/>
             <column name="http_method" value="PUT"/>
             <column name="path_pattern" value="/api/admin/role-menu-config/{roleId}"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="system-api-resource-role-management-seed" author="holic512">
+        <comment>为角色管理的列表、详情、增删改、批量操作、成员查询与密码重置注册唯一 API 资源规则。</comment>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000405"/>
+            <column name="permission_id" valueNumeric="2090000000000000204"/>
+            <column name="http_method" value="GET"/>
+            <column name="path_pattern" value="/api/admin/roles"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000406"/>
+            <column name="permission_id" valueNumeric="2090000000000000204"/>
+            <column name="http_method" value="POST"/>
+            <column name="path_pattern" value="/api/admin/roles"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000407"/>
+            <column name="permission_id" valueNumeric="2090000000000000204"/>
+            <column name="http_method" value="GET"/>
+            <column name="path_pattern" value="/api/admin/roles/{roleId}"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000408"/>
+            <column name="permission_id" valueNumeric="2090000000000000204"/>
+            <column name="http_method" value="PUT"/>
+            <column name="path_pattern" value="/api/admin/roles/{roleId}"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000409"/>
+            <column name="permission_id" valueNumeric="2090000000000000204"/>
+            <column name="http_method" value="DELETE"/>
+            <column name="path_pattern" value="/api/admin/roles/{roleId}"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000410"/>
+            <column name="permission_id" valueNumeric="2090000000000000204"/>
+            <column name="http_method" value="PATCH"/>
+            <column name="path_pattern" value="/api/admin/roles/batch-status"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000411"/>
+            <column name="permission_id" valueNumeric="2090000000000000204"/>
+            <column name="http_method" value="POST"/>
+            <column name="path_pattern" value="/api/admin/roles/batch-delete"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000412"/>
+            <column name="permission_id" valueNumeric="2090000000000000204"/>
+            <column name="http_method" value="GET"/>
+            <column name="path_pattern" value="/api/admin/roles/{roleId}/members"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000413"/>
+            <column name="permission_id" valueNumeric="2090000000000000204"/>
+            <column name="http_method" value="PUT"/>
+            <column name="path_pattern" value="/api/admin/roles/{roleId}/members/{userId}/password"/>
         </insert>
     </changeSet>
 </databaseChangeLog>

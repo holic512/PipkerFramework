@@ -4,7 +4,7 @@
     @project Pipker Framework
     @module Pipker Server
     @description 定义系统角色与 API 权限的多对多关联及系统管理员默认授权。
-    @logic 创建独立雪花主键、关联唯一约束、级联外键和权限索引，再授予 ADMIN 基础鉴权 API 权限。
+    @logic 创建独立雪花主键、关联唯一约束、级联外键和权限索引，再授予 ADMIN 基础鉴权与角色管理 API 权限。
     @dependencies Liquibase、system_role、system_permission、system_role_permission
     @index_tags liquibase、database、system_role_permission、seed、rbac、api
     @author holic512
@@ -67,6 +67,15 @@
             <column name="id" valueNumeric="2090000000000000602"/>
             <column name="role_id" valueNumeric="2090000000000000102"/>
             <column name="permission_id" valueNumeric="2090000000000000202"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="system-role-permission-role-management-seed" author="holic512">
+        <comment>授予 ADMIN 角色管理权限，使普通系统管理员可以维护非保护角色及其成员账户。</comment>
+        <insert tableName="system_role_permission">
+            <column name="id" valueNumeric="2090000000000000603"/>
+            <column name="role_id" valueNumeric="2090000000000000102"/>
+            <column name="permission_id" valueNumeric="2090000000000000204"/>
         </insert>
     </changeSet>
 </databaseChangeLog>

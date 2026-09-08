@@ -2,10 +2,10 @@
  * @file contracts.ts
  * @project Pipker Framework
  * @module Frontend API Contracts
- * @description Defines the server envelope, RBAC projections, and typed error surface shared by frontend features.
- * @logic Keeps all backend field names and business result codes at the transport boundary so pages only consume verified data.
+ * @description Defines the server envelope, RBAC and role-management projections, and typed error surface shared by frontend features.
+ * @logic Keeps all backend field names and business result codes at the transport boundary so pages only consume verified data, including string-form Snowflake IDs.
  * @dependencies TypeScript
- * @index_tags api, contracts, rbac, authentication
+ * @index_tags api, contracts, rbac, role, authentication
  * @author holic512
  */
 
@@ -92,4 +92,41 @@ export interface LoginResponse {
 export interface LoginRequest {
   username: string
   password: string
+}
+
+export type SystemRoleStatus = 'ENABLED' | 'DISABLED'
+
+export interface SystemRoleSummary {
+  id: string
+  roleCode: string
+  roleName: string
+  description: string | null
+  status: SystemRoleStatus
+  sort: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SystemRoleDetail extends SystemRoleSummary {
+  memberCount: number
+}
+
+export interface SystemRoleMember {
+  id: string
+  username: string
+  nickname: string | null
+  status: SystemRoleStatus
+  lastLoginTime: string | null
+  createdAt: string
+}
+
+export interface PageResult<T> {
+  page: number
+  pageSize: number
+  total: number
+  records: T[]
+}
+
+export interface RoleManagementOperationResult {
+  affectedIds: string[]
 }

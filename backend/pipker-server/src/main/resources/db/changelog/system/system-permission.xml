@@ -4,7 +4,7 @@
     @project Pipker Framework
     @module Pipker Server
     @description 定义最终 API 权限模型和框架内置 API 权限数据。
-    @logic 创建权限表、权限编码唯一约束和仅允许 API 的检查约束，再写入鉴权与角色菜单管理权限。
+    @logic 创建权限表、权限编码唯一约束和仅允许 API 的检查约束，再写入鉴权、角色菜单和角色生命周期管理权限。
     @dependencies Liquibase、system_permission
     @index_tags liquibase、database、system_permission、seed、rbac、api
     @author holic512
@@ -91,6 +91,20 @@
             <column name="permission_name" value="管理角色路由菜单"/>
             <column name="permission_type" value="API"/>
             <column name="description" value="读取和保存角色可访问页面菜单"/>
+            <column name="status" value="ENABLED"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="system-permission-role-management-seed" author="holic512">
+        <comment>角色管理 API：筛选、增删改、批量状态处理、角色成员查看及成员密码重置。</comment>
+        <insert tableName="system_permission">
+            <column name="id" valueNumeric="2090000000000000204"/>
+            <column name="permission_code" value="system:role:manage"/>
+            <column name="permission_name" value="管理系统角色"/>
+            <column name="permission_type" value="API"/>
+            <column name="description" value="管理普通角色、查看角色成员并重置成员账户密码"/>
             <column name="status" value="ENABLED"/>
             <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>

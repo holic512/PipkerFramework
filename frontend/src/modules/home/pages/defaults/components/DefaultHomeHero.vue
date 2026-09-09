@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
+import { runtimeConfig } from '../../../../../core/config/runtime'
 
 defineProps<{
   consoleActionCopy: string
@@ -16,13 +17,13 @@ const technologyTags = [
 
 <template>
   <section id="overview" class="home-hero" aria-labelledby="default-home-heading">
-    <p class="home-hero__eyebrow ui-eyebrow">PIPKER FRAMEWORK / DELIVERY BASELINE</p>
+    <p class="home-hero__eyebrow ui-eyebrow">{{ runtimeConfig.appName }} / DELIVERY BASELINE</p>
     <h1 id="default-home-heading">
       让授权定义页面，
       <span>让交付持续向前。</span>
     </h1>
     <p class="home-hero__intro">
-      Pipker 为后台系统整理 SYSTEM 会话、数据库驱动 RBAC、动态菜单路由与统一 API
+      {{ runtimeConfig.appName }} 为后台系统整理 SYSTEM 会话、数据库驱动 RBAC、动态菜单路由与统一 API
       契约，让每一个业务模块从清晰边界开始。
     </p>
 
@@ -37,7 +38,7 @@ const technologyTags = [
       </a>
     </div>
 
-    <ul class="home-hero__tags" aria-label="Pipker 技术与能力标签">
+    <ul class="home-hero__tags" :aria-label="`${runtimeConfig.appName} 技术与能力标签`">
       <li v-for="tag in technologyTags" :key="tag">{{ tag }}</li>
     </ul>
 

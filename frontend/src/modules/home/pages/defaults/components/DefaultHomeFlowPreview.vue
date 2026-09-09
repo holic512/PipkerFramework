@@ -1,3 +1,7 @@
+<script setup lang="ts">
+import { runtimeConfig } from '../../../../../core/config/runtime'
+</script>
+
 <template>
   <section id="flow" class="home-flow" aria-labelledby="home-flow-heading">
     <div class="home-flow__heading ui-page-frame">
@@ -10,14 +14,14 @@
       </p>
     </div>
 
-    <div class="home-flow__console ui-page-frame" aria-label="Pipker 授权运行时预览">
+    <div class="home-flow__console ui-page-frame" :aria-label="`${runtimeConfig.appName} 授权运行时预览`">
       <div class="home-flow__toolbar">
         <div class="home-flow__window-controls" aria-hidden="true">
           <span></span>
           <span></span>
           <span></span>
         </div>
-        <p>PIPKER / RUNTIME INSPECTOR</p>
+        <p>{{ runtimeConfig.appName }} / RUNTIME INSPECTOR</p>
         <span class="home-flow__online"><i aria-hidden="true"></i> AUTHORIZED</span>
       </div>
 
@@ -46,7 +50,7 @@
             <span>4 STAGES</span>
           </div>
 
-          <ol class="home-flow__stages" aria-label="Pipker 系统处理阶段">
+          <ol class="home-flow__stages" :aria-label="`${runtimeConfig.appName} 系统处理阶段`">
             <li>
               <span class="home-flow__stage-number">01</span>
               <strong>SESSION</strong>

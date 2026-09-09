@@ -21,6 +21,7 @@ import {
 } from '@element-plus/icons-vue'
 import { useRoute, useRouter } from 'vue-router'
 import ThemeSwitcher from '../../../components/ThemeSwitcher.vue'
+import { runtimeConfig } from '../../../core/config/runtime'
 import { useAppStore } from '../../../stores/app'
 import { useSessionStore } from '../../../stores/session'
 import {
@@ -194,11 +195,11 @@ function markAvatarLoadFailed(): void {
     }"
   >
     <header class="tabbed-layout__header">
-      <RouterLink class="tabbed-layout__brand ui-focusable" to="/" aria-label="Pipker Framework 首页">
+      <RouterLink class="tabbed-layout__brand ui-focusable" to="/" :aria-label="`${runtimeConfig.appName} 首页`">
         <img class="tabbed-layout__brand-mark" src="/brand/pipker-logo.webp" alt="" />
         <span class="tabbed-layout__brand-copy">
-          <strong>PIPKER</strong>
-          <small>FRAMEWORK</small>
+          <strong>{{ runtimeConfig.appName }}</strong>
+          <small>管理控制台</small>
         </span>
       </RouterLink>
 
@@ -354,7 +355,7 @@ function markAvatarLoadFailed(): void {
       </section>
 
       <footer class="tabbed-layout__footer">
-        <span>PIPKER FRAMEWORK</span>
+        <span>{{ runtimeConfig.appName }}</span>
         <p>DATABASE-DRIVEN AUTHORIZED NAVIGATION</p>
       </footer>
     </main>

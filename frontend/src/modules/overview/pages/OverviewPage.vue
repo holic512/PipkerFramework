@@ -10,6 +10,7 @@
 -->
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { runtimeConfig } from '../../../core/config/runtime'
 import { getBackendHealth } from '../api/health'
 
 const platformCapabilities = [
@@ -67,7 +68,7 @@ onMounted(() => {
 <template>
   <div class="overview-page">
     <section class="intro-section">
-      <p class="eyebrow ui-eyebrow">PIPKER / FOUNDATION 01</p>
+      <p class="eyebrow ui-eyebrow">{{ runtimeConfig.appName }} / FOUNDATION 01</p>
       <h1>前端不是一组页面，<br />而是一条清晰的交付链路。</h1>
       <p class="intro-section__copy">
         Vue、路由、状态和请求层已经建立独立边界。第一个业务模块可以从

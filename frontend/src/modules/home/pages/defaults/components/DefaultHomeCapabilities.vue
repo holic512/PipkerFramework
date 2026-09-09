@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { runtimeConfig } from '../../../../../core/config/runtime'
+
 const deliveryPillars = [
   {
     index: '01',
@@ -34,7 +36,7 @@ const deliveryPillars = [
       <div>
         <h2 id="architecture-heading">角色、菜单与组件，都来自同一条授权链路。</h2>
         <p>
-          Pipker 不把页面可见性分散在静态导航、路由表和接口分支中。后端授权快照分别提供可见菜单树与已授权路由，前端据此注册页面，并在下一次会话变化时同步清理旧路由。
+          {{ runtimeConfig.appName }} 不把页面可见性分散在静态导航、路由表和接口分支中。后端授权快照分别提供可见菜单树与已授权路由，前端据此注册页面，并在下一次会话变化时同步清理旧路由。
         </p>
       </div>
     </div>

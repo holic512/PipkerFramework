@@ -10,6 +10,7 @@
  */
 const DEFAULT_API_BASE_URL = '/api'
 const DEFAULT_HTTP_TIMEOUT_MS = 10_000
+const DEFAULT_APP_NAME = 'Pipker'
 
 function readNonEmpty(value: string | undefined, fallback: string): string {
   const normalizedValue = value?.trim()
@@ -22,6 +23,7 @@ function readPositiveInteger(value: string | undefined, fallback: number): numbe
 }
 
 export const runtimeConfig = {
+  appName: readNonEmpty(import.meta.env.VITE_APP_NAME, DEFAULT_APP_NAME),
   apiBaseUrl: readNonEmpty(import.meta.env.VITE_API_BASE_URL, DEFAULT_API_BASE_URL),
   httpTimeoutMs: readPositiveInteger(
     import.meta.env.VITE_HTTP_TIMEOUT_MS,

@@ -13,6 +13,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Expand, Fold, House, SwitchButton, User } from '@element-plus/icons-vue'
 import { useRoute } from 'vue-router'
 import ThemeSwitcher from '../../../components/ThemeSwitcher.vue'
+import { runtimeConfig } from '../../../core/config/runtime'
 import { useAppStore } from '../../../stores/app'
 import { useSessionStore } from '../../../stores/session'
 import {
@@ -80,10 +81,10 @@ function markAvatarLoadFailed(): void {
     }"
   >
     <aside id="sidebar-layout-navigation" class="sidebar-layout__sidebar" aria-label="主导航">
-      <RouterLink class="sidebar-layout__brand ui-focusable" to="/" aria-label="Pipker Framework 首页">
+      <RouterLink class="sidebar-layout__brand ui-focusable" to="/" :aria-label="`${runtimeConfig.appName} 首页`">
         <img class="sidebar-layout__brand-mark" src="/brand/pipker-logo.webp" alt="" />
         <span class="sidebar-layout__brand-copy">
-          <strong>PIPKER</strong>
+          <strong>{{ runtimeConfig.appName }}</strong>
           <small>管理控制台</small>
         </span>
       </RouterLink>

@@ -23,6 +23,7 @@ import type {
 import {
   clearAccessToken,
   readAccessToken,
+  type SessionPersistence,
   writeAccessToken,
 } from '../core/auth/sessionStorage'
 import { clearDatabaseRoutes, router, replaceDatabaseRoutes } from '../router'
@@ -65,12 +66,15 @@ export const useSessionStore = defineStore('session', () => {
     return snapshot
   }
 
-  async function login(credentials: LoginRequest): Promise<SystemAuthorizationSnapshot> {
+  async function login(
+    credentials: LoginRequest,
+    persistence: SessionPersistence = 'session',
+  ): Promise<SystemAuthorizationSnapshot> {
     const result = await loginSystemUser({
       username: credentials.username.trim(),
       password: credentials.password,
     })
-    writeAccessToken(result.accessToken)
+    writeAccessToken(result.accessToken, persistence)
     accessToken.value = result.accessToken
     return refreshAuthorization()
   }

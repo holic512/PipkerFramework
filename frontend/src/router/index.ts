@@ -14,6 +14,7 @@ import type { Component } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import type { SystemRouteDefinition } from '../core/api/contracts'
 import { readAccessToken } from '../core/auth/sessionStorage'
+import { runtimeConfig } from '../core/config/runtime'
 import AppLayout from '../layouts/AppLayout.vue'
 import LoginPage from '../modules/auth/pages/LoginPage.vue'
 
@@ -79,7 +80,7 @@ router.beforeEach((to) => {
 
 router.afterEach((to) => {
   const pageTitle = typeof to.meta.title === 'string' ? to.meta.title : '管理控制台'
-  document.title = `${pageTitle} · Pipker Framework`
+  document.title = `${pageTitle} · ${runtimeConfig.appName}`
 })
 
 export function replaceDatabaseRoutes(

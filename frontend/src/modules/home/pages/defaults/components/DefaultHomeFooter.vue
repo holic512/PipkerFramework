@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
+import { runtimeConfig } from '../../../../../core/config/runtime'
 
 defineProps<{
   consoleActionCopy: string
@@ -42,7 +43,7 @@ defineProps<{
     <div class="home-footer__bottom ui-page-frame">
       <RouterLink class="home-footer__brand ui-focusable" to="/">
         <img class="home-footer__logo" src="/brand/pipker-logo.webp" alt="" />
-        PIPKER FRAMEWORK
+        {{ runtimeConfig.appName }}
       </RouterLink>
       <p>PUBLIC DELIVERY BASELINE</p>
     </div>

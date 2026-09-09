@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RouteLocationRaw } from 'vue-router'
 import ThemeSwitcher from '../../../../../components/ThemeSwitcher.vue'
+import { runtimeConfig } from '../../../../../core/config/runtime'
 
 defineProps<{
   consoleActionCopy: string
@@ -11,11 +12,11 @@ defineProps<{
 <template>
   <header class="home-header">
     <div class="home-header__frame">
-      <RouterLink class="home-header__brand ui-focusable" to="/" aria-label="Pipker Framework 首页">
+      <RouterLink class="home-header__brand ui-focusable" to="/" :aria-label="`${runtimeConfig.appName} 首页`">
         <img class="home-header__mark" src="/brand/pipker-logo.webp" alt="" />
         <span class="home-header__brand-copy">
-          <strong>PIPKER</strong>
-          <small>FRAMEWORK</small>
+          <strong>{{ runtimeConfig.appName }}</strong>
+          <small>系统门户</small>
         </span>
       </RouterLink>
 

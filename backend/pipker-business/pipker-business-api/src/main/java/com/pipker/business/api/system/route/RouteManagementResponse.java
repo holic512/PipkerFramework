@@ -2,10 +2,10 @@
  * @file RouteManagementResponse.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 定义只读路由管理列表与详情的安全响应投影。
- * @logic 将数据库雪花主键作为字符串输出，并显式标示目录不需要页面索引、页面菜单需要组件索引。
+ * @description 定义路由管理的分页、树形与详情安全响应投影。
+ * @logic 将数据库雪花主键作为字符串输出；树形投影以 children 表达任意目录层级，目录不需要页面索引、页面菜单需要组件索引。
  * @dependencies Java 标准库
- * @index_tags route、system-menu、response、pagination、administration
+ * @index_tags route、system-menu、response、pagination、tree、administration
  * @author holic512
  */
 package com.pipker.business.api.system.route;
@@ -33,6 +33,24 @@ public final class RouteManagementResponse {
             boolean visible,
             String status,
             boolean componentIndexRequired
+    ) {
+    }
+
+    /** 路由管理树节点，保留完整只读结构字段并递归携带子节点。 */
+    public record RouteTreeNode(
+            String id,
+            String parentId,
+            String menuName,
+            String menuType,
+            String routePath,
+            String routeName,
+            String componentKey,
+            String icon,
+            Integer sort,
+            boolean visible,
+            String status,
+            boolean componentIndexRequired,
+            List<RouteTreeNode> children
     ) {
     }
 

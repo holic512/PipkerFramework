@@ -3,7 +3,7 @@
  * @project Pipker Framework
  * @module Pipker Business API
  * @description 聚合缓存的接口权限、导航菜单与页面路由授权投影。
- * @logic 通过专属表 Mapper 读取角色、角色保存的权限编码和菜单；PermissionRegistry 过滤历史权限编码，SUPER_ADMIN 自动获得全部当前枚举权限和页面路由，目录不要求页面索引，而可授予 MENU 必须具备完整动态路由定义，菜单展示仅由 visible 决定。
+ * @logic 通过专属表 Mapper 读取角色、角色保存的权限编码和菜单；PermissionRegistry 过滤历史权限编码，SUPER_ADMIN 自动获得全部当前枚举权限和页面路由，目录不要求页面索引，而可授予 MENU 必须具备完整动态路由定义，普通用户校验完整祖先状态与展示链，超管始终获得全部有效页面和导航。
  * @dependencies SystemAccountService、SystemUserRoleMapper、SystemMenuMapper、PermissionRegistry、SystemAuthorizationCache
  * @index_tags rbac、authorization、permission、system-menu、route、route-guard、cache、mybatis-plus
  * @author holic512
@@ -89,82 +89,98 @@ public class SystemAuthorizationService {
                 SystemUserProfile.from(user),
                 roles,
                 List.copyOf(permissions),
-                buildMenuTree(findVisibleMenusForUser(authorizedPageMenus)),
+                buildMenuTree(findVisibleMenusForUser(authorizedPageMenus, superAdmin)),
                 toRouteDefinitions(authorizedPageMenus)
         );
     }
 
-    /** @return 可用于只读投影的全部启用可见菜单树。 */
+    /** 普通用户可见的有效菜单树。 */
     public List<SystemMenuNode> findAllVisibleMenuTree() {
-        return buildMenuTree(findAllEnabledVisibleMenus());
+        List<SystemMenu> menus = findAllMenus();
+        Map<Long, SystemMenu> byId = indexMenus(menus);
+        return buildMenuTree(menus.stream().filter(menu -> matchesAncestorChain(menu, byId, true)).toList());
     }
 
-    /** @return 供角色路由配置页授权页面访问（包括隐藏导航菜单）使用的全部启用菜单树。 */
+    /** 全部有效启用目录与页面，包括隐藏导航页面。 */
     public List<SystemMenuNode> findAllEnabledMenuTree() {
-        return buildMenuTree(systemMenuMapper.selectList(new LambdaQueryWrapper<SystemMenu>()
-                .eq(SystemMenu::getStatus, "ENABLED")
-                .orderByAsc(SystemMenu::getSort)
-                .orderByAsc(SystemMenu::getId)));
+        return findAllEnabledRoutePermissionTree();
     }
 
-    /**
-     * @return 供角色页面权限配置使用的目录和可动态注册页面树；尚未配置页面索引的 MENU 不可授予。
-     */
     public List<SystemMenuNode> findAllEnabledRoutePermissionTree() {
-        List<SystemMenu> menus = systemMenuMapper.selectList(new LambdaQueryWrapper<SystemMenu>()
-                .eq(SystemMenu::getStatus, "ENABLED")
-                .orderByAsc(SystemMenu::getSort)
-                .orderByAsc(SystemMenu::getId));
+        return findRoutePermissionTree(false);
+    }
+
+    /** 超管配置视图包含停用和隐藏页面，普通角色只包含有效启用页面。 */
+    public List<SystemMenuNode> findRoutePermissionTree(boolean superAdmin) {
+        List<SystemMenu> menus = findAllMenus();
+        Map<Long, SystemMenu> byId = indexMenus(menus);
         return buildMenuTree(menus.stream()
                 .filter(menu -> "DIRECTORY".equals(menu.getMenuType()) || menu.isRouteMenu())
+                .filter(menu -> superAdmin || matchesAncestorChain(menu, byId, false))
                 .toList());
     }
 
-    private List<SystemMenu> findAllEnabledVisibleMenus() {
-        return systemMenuMapper.selectList(new LambdaQueryWrapper<SystemMenu>()
-                .eq(SystemMenu::getStatus, "ENABLED")
-                .eq(SystemMenu::isVisible, true)
-                .orderByAsc(SystemMenu::getSort)
-                .orderByAsc(SystemMenu::getId));
+    /** 与角色保存校验共用的页面资格集合。 */
+    public List<SystemMenu> findAvailablePageMenus(boolean superAdmin) {
+        List<SystemMenu> menus = findAllMenus();
+        Map<Long, SystemMenu> byId = indexMenus(menus);
+        return menus.stream().filter(SystemMenu::isRouteMenu)
+                .filter(menu -> superAdmin || matchesAncestorChain(menu, byId, false)).toList();
     }
 
-    private List<SystemMenu> findAllEnabledPageMenus() {
+    private List<SystemMenu> findAllMenus() {
         return systemMenuMapper.selectList(new LambdaQueryWrapper<SystemMenu>()
-                .eq(SystemMenu::getStatus, "ENABLED")
-                .eq(SystemMenu::getMenuType, "MENU")
-                .orderByAsc(SystemMenu::getSort)
-                .orderByAsc(SystemMenu::getId)).stream()
-                .filter(SystemMenu::isRouteMenu)
-                .toList();
+                .orderByAsc(SystemMenu::getSort).orderByAsc(SystemMenu::getId));
+    }
+
+    private Map<Long, SystemMenu> indexMenus(List<SystemMenu> menus) {
+        Map<Long, SystemMenu> byId = new HashMap<>();
+        menus.forEach(menu -> byId.put(menu.getId(), menu));
+        return byId;
+    }
+
+    /** 缺失祖先或环形关联不生成普通用户可访问路由。 */
+    private boolean matchesAncestorChain(SystemMenu menu, Map<Long, SystemMenu> byId, boolean visible) {
+        Set<Long> visited = new HashSet<>();
+        SystemMenu current = menu;
+        while (current != null) {
+            if (!visited.add(current.getId()) || !"ENABLED".equals(current.getStatus())
+                    || (visible && !current.isVisible())) {
+                return false;
+            }
+            if (current.getParentId() == null) {
+                return true;
+            }
+            current = byId.get(current.getParentId());
+        }
+        return false;
     }
 
     private List<SystemMenu> findAuthorizedPageMenus(long userId, boolean superAdmin) {
-        return superAdmin
-                ? findAllEnabledPageMenus()
-                : systemUserRoleMapper.findEnabledPageMenusByUserId(userId);
+        List<SystemMenu> available = findAvailablePageMenus(superAdmin);
+        if (superAdmin) {
+            return available;
+        }
+        Set<Long> assigned = new HashSet<>();
+        systemUserRoleMapper.findEnabledPageMenusByUserId(userId)
+                .forEach(menu -> assigned.add(menu.getId()));
+        return available.stream().filter(menu -> assigned.contains(menu.getId())).toList();
     }
 
-    private List<SystemMenu> findVisibleMenusForUser(List<SystemMenu> authorizedPageMenus) {
-        List<SystemMenu> allVisibleMenus = findAllEnabledVisibleMenus();
-        Map<Long, SystemMenu> menusById = new HashMap<>();
-        for (SystemMenu menu : allVisibleMenus) {
-            menusById.put(menu.getId(), menu);
-        }
-
-        Set<Long> includedMenuIds = new HashSet<>();
-        for (SystemMenu selectedPageMenu : authorizedPageMenus) {
-            if (!selectedPageMenu.isVisible()) {
+    private List<SystemMenu> findVisibleMenusForUser(List<SystemMenu> authorizedPages, boolean superAdmin) {
+        List<SystemMenu> menus = findAllMenus();
+        Map<Long, SystemMenu> byId = indexMenus(menus);
+        Set<Long> included = new HashSet<>();
+        for (SystemMenu page : authorizedPages) {
+            if (!superAdmin && !matchesAncestorChain(page, byId, true)) {
                 continue;
             }
-            SystemMenu current = menusById.get(selectedPageMenu.getId());
-            while (current != null && includedMenuIds.add(current.getId())) {
-                Long parentId = current.getParentId();
-                current = parentId == null ? null : menusById.get(parentId);
+            SystemMenu current = byId.get(page.getId());
+            while (current != null && included.add(current.getId())) {
+                current = current.getParentId() == null ? null : byId.get(current.getParentId());
             }
         }
-        return allVisibleMenus.stream()
-                .filter(menu -> includedMenuIds.contains(menu.getId()))
-                .toList();
+        return menus.stream().filter(menu -> included.contains(menu.getId())).toList();
     }
 
     private List<SystemRouteDefinition> toRouteDefinitions(List<SystemMenu> authorizedPageMenus) {

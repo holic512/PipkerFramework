@@ -154,7 +154,7 @@ public class RoleManagementService {
                 configuration.status(),
                 configuration.allMenus(),
                 configuration.menuIds(),
-                roleMenuConfigurationService.findAssignableMenuTree()
+                roleMenuConfigurationService.findAssignableMenuTree(configuration.allMenus())
         );
     }
 

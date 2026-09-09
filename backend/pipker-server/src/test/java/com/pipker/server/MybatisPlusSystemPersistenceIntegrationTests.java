@@ -2,8 +2,8 @@
  * @file MybatisPlusSystemPersistenceIntegrationTests.java
  * @project Pipker Framework
  * @module Pipker Server
- * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键、Java 枚举接口权限、角色管理、页面权限与只读路由管理服务。
- * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 和应用服务验证实体读写、权限枚举加载、角色接口与页面权限替换、历史权限保留、密码重置和已落库路由定义。
+ * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键、Java 枚举接口权限、角色管理、页面权限与路由管理服务。
+ * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 和应用服务验证实体读写、权限枚举加载、角色接口与页面权限替换、历史权限保留、密码重置，以及路由的扁平查询、树形结构和受限配置更新。
  * @dependencies Spring Boot Test、Liquibase、SQLite JDBC、MyBatis-Plus、Pipker Business API、Pipker Security Starter
  * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、role、route、permission、hidden-menu、password-reset
  * @author holic512
@@ -52,6 +52,7 @@ import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteUpdat
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleSummary;
 import com.pipker.business.api.system.route.RouteManagementResponse.RouteDetail;
 import com.pipker.business.api.system.route.RouteManagementResponse.RouteSummary;
+import com.pipker.business.api.system.route.RouteManagementResponse.RouteTreeNode;
 import com.pipker.business.api.system.route.RouteManagementService;
 import com.pipker.business.common.exception.ApiBusinessException;
 import com.pipker.starter.security.service.SecurityCryptoService;
@@ -60,6 +61,19 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+
+import com.pipker.business.api.system.route.RouteConfigurationRequest;
+import com.pipker.business.api.system.route.RouteManagementController;
+import com.pipker.business.api.system.auth.CurrentSystemAuthorizationService;
+import com.pipker.business.api.system.permission.PermissionAuthorizationInterceptor;
+import com.pipker.business.api.common.web.ApiExceptionHandler;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.http.MediaType;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -120,12 +134,134 @@ class MybatisPlusSystemPersistenceIntegrationTests {
     @Autowired
     private PermissionRegistry permissionRegistry;
 
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
     @DynamicPropertySource
     static void configureTemporaryStorage(DynamicPropertyRegistry registry) {
         registry.add("pipker.data.database-root", DATA_ROOT::toString);
         registry.add("pipker.data.log-root", () -> DATA_ROOT.resolve("log").toString());
         registry.add("pipker.file.local.root", () -> DATA_ROOT.resolve("file").toString());
         registry.add("pipker.file.enabled", () -> "false");
+    }
+
+    @Test
+    void routeConfigurationHttpContractProtectsStructureAndManagePermission() throws Exception {
+        SystemMenu menu = configurationTestMenu(null, "MENU");
+        String id = menu.getId().toString();
+        MockMvc manager = routeHttp(true);
+        manager.perform(get("/api/admin/routes").param("keyword", menu.getRouteName()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.records[0].id").value(id));
+        manager.perform(get("/api/admin/routes/{id}", id))
+                .andExpect(jsonPath("$.data.routePath").value(menu.getRoutePath()));
+        String body = """
+                {"menuName":"  配置测试  ","icon":"UserFilled","sort":7,"visible":false,"status":"DISABLED"}
+                """;
+        routeHttp(false).perform(put("/api/admin/routes/{id}/configuration", id)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(jsonPath("$.code").value(403));
+        assertThat(systemMenuMapper.selectById(menu.getId()).getMenuName()).isEqualTo(menu.getMenuName());
+        manager.perform(put("/api/admin/routes/{id}/configuration", id)
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.menuName").value("配置测试"))
+                .andExpect(jsonPath("$.data.icon").value("UserFilled"))
+                .andExpect(jsonPath("$.data.visible").value(false));
+        SystemMenu saved = systemMenuMapper.selectById(menu.getId());
+        assertThat(saved.getRoutePath()).isEqualTo(menu.getRoutePath());
+        assertThat(saved.getComponentKey()).isEqualTo(menu.getComponentKey());
+        assertThat(saved.getCreatedAt()).isEqualTo(menu.getCreatedAt());
+        manager.perform(put("/api/admin/routes/{id}/configuration", id).contentType(MediaType.APPLICATION_JSON)
+                        .content(body.replace("UserFilled", "")))
+                .andExpect(jsonPath("$.code").value(200));
+        assertThat(systemMenuMapper.selectById(menu.getId()).getIcon()).isNull();
+        // Unknown structural fields may be rejected by the JSON mapper or ignored, but never persisted.
+        manager.perform(put("/api/admin/routes/{id}/configuration", id).contentType(MediaType.APPLICATION_JSON)
+                .content(body.replace("\"sort\":7", "\"sort\":7,\"routePath\":\"/tampered\",\"parentId\":\"1\"")));
+        assertThat(systemMenuMapper.selectById(menu.getId()).getRoutePath()).isEqualTo(menu.getRoutePath());
+        assertThat(systemMenuMapper.selectById(menu.getId()).getParentId()).isNull();
+        for (String invalid : List.of(body.replace("  配置测试  ", " "), body.replace("\"sort\":7", "\"sort\":-1"),
+                body.replace("DISABLED", "INVALID"), body.replace("false", "null"), body.replace("UserFilled", "x".repeat(101)))) {
+            manager.perform(put("/api/admin/routes/{id}/configuration", id).contentType(MediaType.APPLICATION_JSON).content(invalid))
+                    .andExpect(jsonPath("$.code").value(400));
+        }
+        manager.perform(put("/api/admin/routes/1/configuration").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(jsonPath("$.code").value(400));
+        manager.perform(post("/api/admin/routes").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(jsonPath("$.code").value(400));
+        manager.perform(delete("/api/admin/routes/{id}", id)).andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    void routeSubtreeConfigurationRefreshesSnapshotsAndPreservesSuperAdminAccess() {
+        SystemMenu directory = configurationTestMenu(null, "DIRECTORY");
+        SystemMenu page = configurationTestMenu(directory.getId(), "MENU");
+        String pageId = page.getId().toString();
+        String directoryId = directory.getId().toString();
+        String suffix = String.valueOf(System.nanoTime());
+        SystemRole role = new SystemRole();
+        role.setRoleCode("ROUTE_CONFIG_" + suffix); role.setRoleName("Route config"); role.setStatus("ENABLED"); role.setSort(99);
+        systemRoleMapper.insert(role);
+        SystemUser user = new SystemUser();
+        user.setUsername("route-config-" + suffix); user.setPasswordHash("test-only"); user.setNickname("Route config"); user.setStatus("ENABLED");
+        systemUserMapper.insert(user);
+        SystemUserRole link = new SystemUserRole(); link.setUserId(user.getId()); link.setRoleId(role.getId()); systemUserRoleMapper.insert(link);
+        roleMenuConfigurationService.replaceRoleMenuAssignments(role.getId().toString(), List.of(pageId));
+        assertThat(systemAuthorizationService.findSnapshot(user.getId()).routes()).extracting(SystemRouteDefinition::id).contains(pageId);
+        SystemAuthorizationSnapshot cachedSuper = systemAuthorizationService.findSnapshot(2090000000000000001L);
+        routeManagementService.updateConfiguration(directoryId, new RouteConfigurationRequest("隐藏目录", "Folder", 11, false, "ENABLED"));
+        assertThat(systemAuthorizationService.findSnapshot(user.getId()).routes()).extracting(SystemRouteDefinition::id).contains(pageId);
+        assertThat(systemAuthorizationService.findSnapshot(user.getId()).menus()).isEmpty();
+        assertThat(systemAuthorizationService.findSnapshot(2090000000000000001L)).isNotSameAs(cachedSuper);
+        routeManagementService.updateConfiguration(directoryId, new RouteConfigurationRequest("停用目录", "Folder", 11, false, "DISABLED"));
+        assertThat(systemAuthorizationService.findSnapshot(user.getId()).routes()).isEmpty();
+        assertThat(systemAuthorizationService.findAvailablePageMenus(false)).extracting(SystemMenu::getId).doesNotContain(page.getId());
+        assertThatThrownBy(() -> roleMenuConfigurationService.replaceRoleMenuAssignments(role.getId().toString(), List.of(pageId)))
+                .isInstanceOf(ApiBusinessException.class);
+        assertThat(systemAuthorizationService.findSnapshot(2090000000000000001L).routes()).extracting(SystemRouteDefinition::id).contains(pageId);
+        assertThat(systemAuthorizationService.findSnapshot(2090000000000000001L).menus()).extracting(menu -> menu.id()).contains(directoryId);
+        assertThat(roleMenuConfigurationService.findRoleMenuConfiguration("2090000000000000101").menuIds()).contains(pageId);
+        assertThatThrownBy(() -> roleMenuConfigurationService.replaceRoleMenuAssignments("2090000000000000101", List.of()))
+                .isInstanceOf(ApiBusinessException.class);
+        routeManagementService.updateConfiguration(pageId, new RouteConfigurationRequest(page.getMenuName(), null, 2, true, "DISABLED"));
+        routeManagementService.updateConfiguration(directoryId, new RouteConfigurationRequest(directory.getMenuName(), null, 0, true, "ENABLED"));
+        assertThat(systemAuthorizationService.findSnapshot(user.getId()).routes()).isEmpty();
+        routeManagementService.updateConfiguration(pageId, new RouteConfigurationRequest("恢复页面", "House", 1, true, "ENABLED"));
+        assertThat(systemAuthorizationService.findSnapshot(user.getId()).routes()).extracting(SystemRouteDefinition::id).contains(pageId);
+        var cached = systemAuthorizationService.findSnapshot(user.getId());
+        new TransactionTemplate(transactionManager).executeWithoutResult(transaction -> {
+            routeManagementService.updateConfiguration(pageId, new RouteConfigurationRequest("回滚", null, 0, false, "DISABLED"));
+            assertThat(systemAuthorizationService.findSnapshot(user.getId())).isSameAs(cached);
+            transaction.setRollbackOnly();
+        });
+        assertThat(routeManagementService.findRouteDetail(pageId).menuName()).isEqualTo("恢复页面");
+        assertThat(systemAuthorizationService.findSnapshot(user.getId())).isSameAs(cached);
+    }
+
+    private SystemMenu configurationTestMenu(Long parentId, String type) {
+        String suffix = String.valueOf(System.nanoTime());
+        SystemMenu menu = new SystemMenu();
+        menu.setParentId(parentId); menu.setMenuName("Route test " + suffix); menu.setMenuType(type);
+        menu.setRouteName("RouteTest" + suffix); menu.setRoutePath("/route-test/" + suffix);
+        if ("MENU".equals(type)) menu.setComponentKey("system/overview/index");
+        menu.setSort(999); menu.setVisible(true); menu.setStatus("ENABLED");
+        systemMenuMapper.insert(menu);
+        return menu;
+    }
+
+    private MockMvc routeHttp(boolean manage) {
+        CurrentSystemAuthorizationService authorization = new CurrentSystemAuthorizationService(null, null) {
+            @Override
+            public SystemAuthorizationSnapshot currentSnapshot() {
+                return new SystemAuthorizationSnapshot(null, List.of(), manage
+                        ? List.of(PermissionEnum.SYSTEM_ROUTE_VIEW.getCode(), PermissionEnum.SYSTEM_ROUTE_MANAGE.getCode())
+                        : List.of(PermissionEnum.SYSTEM_ROUTE_VIEW.getCode()), List.of(), List.of());
+            }
+        };
+        return MockMvcBuilders.standaloneSetup(new RouteManagementController(routeManagementService))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .addInterceptors(new PermissionAuthorizationInterceptor(authorization)).build();
     }
 
     @Test
@@ -371,7 +507,30 @@ class MybatisPlusSystemPersistenceIntegrationTests {
     }
 
     @Test
-    void registersAuthorizedHiddenPageRoutesWithoutPlacingThemInNavigationMenus() {
+    void readsArbitrarilyNestedRouteManagementTree() throws Exception {
+        SystemMenu root = configurationTestMenu(null, "DIRECTORY");
+        SystemMenu nestedDirectory = configurationTestMenu(root.getId(), "DIRECTORY");
+        SystemMenu page = configurationTestMenu(nestedDirectory.getId(), "MENU");
+
+        List<RouteTreeNode> tree = routeManagementService.findRouteTree();
+        RouteTreeNode rootNode = tree.stream()
+                .filter(node -> node.id().equals(root.getId().toString()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(rootNode.children()).singleElement().satisfies(child -> {
+            assertThat(child.id()).isEqualTo(nestedDirectory.getId().toString());
+            assertThat(child.children()).singleElement()
+                    .extracting(RouteTreeNode::id)
+                    .isEqualTo(page.getId().toString());
+        });
+
+        routeHttp(false).perform(get("/api/admin/routes/tree"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+    }
+
+    @Test
+    void superAdminSeesHiddenRoutesWhileOrdinaryRoleCanStillBeGrantedAccess() {
         String suffix = String.valueOf(System.nanoTime());
         SystemMenu hiddenRoute = new SystemMenu();
         hiddenRoute.setParentId(2090000000000000301L);
@@ -394,7 +553,7 @@ class MybatisPlusSystemPersistenceIntegrationTests {
         assertThat(superAdminSnapshot.menus().stream()
                 .flatMap(menu -> menu.children().stream())
                 .map(menu -> menu.id()))
-                .doesNotContain(String.valueOf(hiddenRoute.getId()));
+                .contains(String.valueOf(hiddenRoute.getId()));
 
         RoleMenuConfiguration configuration = roleMenuConfigurationService.getConfiguration();
         assertThat(configuration.menus().stream()

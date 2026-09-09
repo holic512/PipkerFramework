@@ -33,6 +33,11 @@ public enum PermissionEnum {
             "查看系统路由",
             "查看已落库页面路径、路由索引、菜单展示状态和目录分类"
     ),
+    SYSTEM_ROUTE_MANAGE(
+            "system-route-manage",
+            "管理系统路由配置",
+            "维护菜单名称、图标、排序、展示和启用状态，不改变路由结构"
+    ),
     SYSTEM_USER_VIEW(
             "system-user-view",
             "查看系统用户",

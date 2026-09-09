@@ -2,8 +2,8 @@
  * @file contracts.ts
  * @project Pipker Framework
  * @module Frontend API Contracts
- * @description Defines the server envelope, enum permission points, role-management including page and interface permissions, and read-only route-management projections shared by frontend features.
- * @logic Keeps all backend field names and business result codes at the transport boundary so pages only consume verified data, including string-form Snowflake IDs, the separate navigation/route authorization model, and the memory-defined interface permission model.
+ * @description Defines the server envelope, enum permission points, role-management including page and interface permissions, and route-management list, tree, detail and configuration projections shared by frontend features.
+ * @logic Keeps all backend field names and business result codes at the transport boundary so pages only consume verified data, including string-form Snowflake IDs, recursive route-management trees, the separate navigation/route authorization model, and the memory-defined interface permission model.
  * @dependencies TypeScript
  * @index_tags api, contracts, rbac, role, route, permission, authorization, authentication
  * @author holic512
@@ -196,6 +196,10 @@ export interface SystemRouteSummary {
   visible: boolean
   status: SystemRouteStatus
   componentIndexRequired: boolean
+}
+
+export interface SystemRouteTreeNode extends SystemRouteSummary {
+  children: SystemRouteTreeNode[]
 }
 
 export interface SystemRouteDetail extends SystemRouteSummary {

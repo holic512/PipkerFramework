@@ -30,7 +30,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /** 角色路由菜单配置服务。 */
 @Service
@@ -81,6 +80,10 @@ public class RoleMenuConfigurationService {
         return systemAuthorizationService.findAllEnabledRoutePermissionTree();
     }
 
+    public List<SystemMenuNode> findAssignableMenuTree(boolean superAdmin) {
+        return systemAuthorizationService.findRoutePermissionTree(superAdmin);
+    }
+
     /**
      * 返回一个角色当前的页面权限选择；停用角色可查看但不能保存，SUPER_ADMIN 始终显示全部页面。
      */
@@ -93,9 +96,10 @@ public class RoleMenuConfigurationService {
         List<Long> allPageMenuIds = findEnabledPageMenuIds();
         boolean allMenus = SystemAuthorizationService.SUPER_ADMIN_ROLE.equals(role.getRoleCode());
         List<Long> menuIds = allMenus
-                ? allPageMenuIds
+                ? findAllPageMenuIds()
                 : systemRoleMenuMapper.findEnabledPageMenuAssignmentsByRoleId(roleId).stream()
                         .map(SystemRoleMenu::getMenuId)
+                        .filter(allPageMenuIds::contains)
                         .toList();
         return toConfigurationRole(role, menuIds, allMenus);
     }
@@ -109,19 +113,12 @@ public class RoleMenuConfigurationService {
             throw validationError("角色不存在或已停用");
         }
         if (SystemAuthorizationService.SUPER_ADMIN_ROLE.equals(role.getRoleCode())) {
-            throw validationError("SUPER_ADMIN 自动拥有全部启用菜单，不能手工配置");
+            throw validationError("SUPER_ADMIN 自动拥有全部有效页面，不能手工配置");
         }
 
         List<Long> menuIds = normalizeMenuIds(requestedMenuIds);
         if (!menuIds.isEmpty()) {
-            Set<Long> validMenuIds = systemMenuMapper.selectList(new LambdaQueryWrapper<SystemMenu>()
-                            .in(SystemMenu::getId, menuIds)
-                            .eq(SystemMenu::getStatus, "ENABLED")
-                            .eq(SystemMenu::getMenuType, "MENU"))
-                    .stream()
-                    .filter(SystemMenu::isRouteMenu)
-                    .map(SystemMenu::getId)
-                    .collect(Collectors.toSet());
+            Set<Long> validMenuIds = Set.copyOf(findEnabledPageMenuIds());
             if (validMenuIds.size() != menuIds.size() || !validMenuIds.containsAll(menuIds)) {
                 throw validationError("页面必须启用且具备完整的路径、路由名和页面索引");
             }
@@ -146,8 +143,9 @@ public class RoleMenuConfigurationService {
     ) {
         boolean allMenus = SystemAuthorizationService.SUPER_ADMIN_ROLE.equals(role.getRoleCode());
         List<Long> menuIds = allMenus
-                ? allPageMenuIds
-                : menuIdsByRoleId.getOrDefault(role.getId(), List.of());
+                ? findAllPageMenuIds()
+                : menuIdsByRoleId.getOrDefault(role.getId(), List.of()).stream()
+                        .filter(allPageMenuIds::contains).toList();
         return toConfigurationRole(role, menuIds, allMenus);
     }
 
@@ -178,15 +176,13 @@ public class RoleMenuConfigurationService {
     }
 
     private List<Long> findEnabledPageMenuIds() {
-        return systemMenuMapper.selectList(new LambdaQueryWrapper<SystemMenu>()
-                        .eq(SystemMenu::getStatus, "ENABLED")
-                .eq(SystemMenu::getMenuType, "MENU")
-                .orderByAsc(SystemMenu::getSort)
-                .orderByAsc(SystemMenu::getId))
-                .stream()
-                .filter(SystemMenu::isRouteMenu)
-                .map(SystemMenu::getId)
-                .toList();
+        return systemAuthorizationService.findAvailablePageMenus(false).stream()
+                .map(SystemMenu::getId).toList();
+    }
+
+    private List<Long> findAllPageMenuIds() {
+        return systemAuthorizationService.findAvailablePageMenus(true).stream()
+                .map(SystemMenu::getId).toList();
     }
 
     private List<Long> normalizeMenuIds(List<String> requestedMenuIds) {

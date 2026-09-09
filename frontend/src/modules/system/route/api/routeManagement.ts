@@ -2,36 +2,32 @@
  * @file routeManagement.ts
  * @project Pipker Framework
  * @module Frontend Route Management
- * @description 封装只读系统路由管理页的分页和详情 API 调用。
- * @logic 以字符串形式传递雪花主键，全部请求仅使用 GET，不暴露任何新建、编辑或删除命令。
+ * @description 封装系统路由树、详情及配置更新 API。
+ * @logic 字符串传递雪花主键，完整树用于保留任意目录层级；PUT 仅更新展示配置，不提供新增删除或路由结构写入。
  * @dependencies requestApi、frontend API contracts
- * @index_tags api、route、system-menu、pagination、read-only
+ * @index_tags api、route、system-menu、tree、configuration、read-only
  * @author holic512
  */
 import type {
-  PageResult,
   SystemRouteDetail,
   SystemRouteMenuType,
   SystemRouteStatus,
-  SystemRouteSummary,
+  SystemRouteTreeNode,
 } from '../../../../core/api/contracts'
 import { requestApi } from '../../../../core/http/client'
 
-export interface RoutePageQuery {
-  page: number
-  pageSize: number
+export interface RouteTreeQuery {
   keyword?: string
   menuType?: SystemRouteMenuType
   visible?: boolean
   status?: SystemRouteStatus
 }
 
-/** 读取已落库路由与目录定义的分页视图。 */
-export function getRoutePage(query: RoutePageQuery): Promise<PageResult<SystemRouteSummary>> {
-  return requestApi<PageResult<SystemRouteSummary>>({
+/** 读取完整的目录—页面管理树，避免跨页丢失父子层级。 */
+export function getRouteTree(): Promise<SystemRouteTreeNode[]> {
+  return requestApi<SystemRouteTreeNode[]>({
     method: 'GET',
-    url: '/api/admin/routes',
-    params: query,
+    url: '/admin/routes/tree',
   })
 }
 
@@ -39,6 +35,22 @@ export function getRoutePage(query: RoutePageQuery): Promise<PageResult<SystemRo
 export function getRouteDetail(routeId: string): Promise<SystemRouteDetail> {
   return requestApi<SystemRouteDetail>({
     method: 'GET',
-    url: `/api/admin/routes/${encodeURIComponent(routeId)}`,
+    url: `/admin/routes/${encodeURIComponent(routeId)}`,
+  })
+}
+
+export interface RouteConfiguration {
+  menuName: string
+  icon: string | null
+  sort: number
+  visible: boolean
+  status: SystemRouteStatus
+}
+
+export function updateRouteConfiguration(routeId: string, data: RouteConfiguration): Promise<SystemRouteDetail> {
+  return requestApi<SystemRouteDetail>({
+    method: 'PUT',
+    url: `/admin/routes/${encodeURIComponent(routeId)}/configuration`,
+    data,
   })
 }

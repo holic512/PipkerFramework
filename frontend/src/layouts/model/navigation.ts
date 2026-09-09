@@ -10,12 +10,7 @@
  */
 
 import type { Component } from 'vue'
-import {
-  House,
-  Menu as MenuIcon,
-  Setting,
-  Share,
-} from '@element-plus/icons-vue'
+import { resolveMenuIcon } from './menuIcons'
 import type { SystemMenuNode } from '../../core/api/contracts'
 
 export interface LayoutNavigationEntry {
@@ -29,13 +24,6 @@ export interface LayoutNavigationEntry {
   iconName: string | null
   depth: number
   ancestorIds: string[]
-}
-
-const ICON_COMPONENTS: Readonly<Record<string, Component>> = {
-  House,
-  Menu: MenuIcon,
-  Setting,
-  Share,
 }
 
 export function buildLayoutNavigation(menus: SystemMenuNode[]): LayoutNavigationEntry[] {
@@ -128,13 +116,6 @@ function toNavigationEntry(
     depth,
     ancestorIds,
   }
-}
-
-function resolveMenuIcon(iconName: string | null): Component {
-  if (!iconName) {
-    return MenuIcon
-  }
-  return ICON_COMPONENTS[iconName] ?? MenuIcon
 }
 
 function sortMenus(menus: SystemMenuNode[]): SystemMenuNode[] {

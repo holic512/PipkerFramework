@@ -41,12 +41,12 @@ public enum PermissionEnum {
     SYSTEM_USER_VIEW(
             "system-user-view",
             "查看系统用户",
-            "预留给系统用户查询与详情读取操作"
+            "查看系统用户列表、账户资料、角色分配和登录记录"
     ),
     SYSTEM_USER_MANAGE(
             "system-user-manage",
             "管理系统用户",
-            "预留给系统用户创建、编辑、状态维护和密码重置操作"
+            "创建、编辑、删除、启停用户，分配角色并重置密码"
     );
 
     private final String code;

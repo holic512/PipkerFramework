@@ -57,6 +57,15 @@
         ]]></sql>
     </changeSet>
 
+    <changeSet id="system-role-menu-user-management-seed" author="holic512">
+        <comment>为 ADMIN 分配用户管理菜单，用于维护普通用户、角色分配和账户状态。</comment>
+        <insert tableName="system_role_menu">
+            <column name="id" valueNumeric="2090000000000000704"/>
+            <column name="role_id" valueNumeric="2090000000000000102"/>
+            <column name="menu_id" valueNumeric="2090000000000000303"/>
+        </insert>
+    </changeSet>
+
     <changeSet id="system-role-menu-role-management-seed" author="holic512">
         <comment>为 ADMIN 分配角色管理菜单，页面用于角色增删改、批量处理、详情成员查看及密码重置。</comment>
         <insert tableName="system_role_menu">

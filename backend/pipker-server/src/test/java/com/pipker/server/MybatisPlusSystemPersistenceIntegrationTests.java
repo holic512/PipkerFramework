@@ -2,10 +2,10 @@
  * @file MybatisPlusSystemPersistenceIntegrationTests.java
  * @project Pipker Framework
  * @module Pipker Server
- * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键、Java 枚举接口权限、角色管理、页面权限与路由管理服务。
- * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 和应用服务验证实体读写、权限枚举加载、角色接口与页面权限替换、历史权限保留、密码重置，以及路由的扁平查询、树形结构和受限配置更新。
+ * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键、Java 枚举接口权限、用户与角色管理、页面权限和路由管理服务。
+ * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 和应用服务验证实体读写、权限枚举加载、用户角色分配和保护账户约束、用户查看与管理 HTTP 权限分离、角色接口与页面权限替换、历史权限保留、密码重置，以及路由的扁平查询、树形结构和受限配置更新。
  * @dependencies Spring Boot Test、Liquibase、SQLite JDBC、MyBatis-Plus、Pipker Business API、Pipker Security Starter
- * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、role、route、permission、hidden-menu、password-reset
+ * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、user、role、route、permission、hidden-menu、password-reset
  * @author holic512
  */
 package com.pipker.server;
@@ -33,6 +33,8 @@ import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
 import com.pipker.business.api.system.permission.PermissionEnum;
 import com.pipker.business.api.system.permission.PermissionRegistry;
 import com.pipker.business.api.system.role.RoleManagementService;
+import com.pipker.business.api.system.user.UserManagementService;
+import com.pipker.business.api.system.user.UserManagementController;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchDelete;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchStatus;
 import com.pipker.business.api.system.role.RoleManagementRequest.Create;
@@ -118,6 +120,9 @@ class MybatisPlusSystemPersistenceIntegrationTests {
 
     @Autowired
     private RoleManagementService roleManagementService;
+
+    @Autowired
+    private UserManagementService userManagementService;
 
     @Autowired
     private RouteManagementService routeManagementService;
@@ -256,6 +261,48 @@ class MybatisPlusSystemPersistenceIntegrationTests {
             }
         };
         return MockMvcBuilders.standaloneSetup(new RouteManagementController(routeManagementService))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .addInterceptors(new PermissionAuthorizationInterceptor(authorization)).build();
+    }
+
+    @Test
+    void userManagementHttpContractSeparatesViewAndManagePermissions() throws Exception {
+        String suffix = String.valueOf(System.nanoTime());
+        RoleSummary role = roleManagementService.createRole(new Create(
+                "USER_HTTP_" + suffix,
+                "用户 HTTP 测试角色",
+                null,
+                "ENABLED",
+                521
+        ));
+        MockMvc viewer = userHttp(false);
+        viewer.perform(get("/api/admin/users"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+        viewer.perform(get("/api/admin/users/assignable-roles"))
+                .andExpect(jsonPath("$.code").value(403));
+
+        String body = """
+                {"username":"user_http_%s","password":"InitialPass123","nickname":"HTTP 测试用户","status":"ENABLED","roleIds":["%s"]}
+                """.formatted(suffix, role.id());
+        viewer.perform(post("/api/admin/users").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(jsonPath("$.code").value(403));
+        userHttp(true).perform(post("/api/admin/users").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.username").value("user_http_" + suffix));
+    }
+
+    private MockMvc userHttp(boolean manage) {
+        CurrentSystemAuthorizationService authorization = new CurrentSystemAuthorizationService(null, null) {
+            @Override
+            public SystemAuthorizationSnapshot currentSnapshot() {
+                return new SystemAuthorizationSnapshot(null, List.of(), manage
+                        ? List.of(PermissionEnum.SYSTEM_USER_VIEW.getCode(), PermissionEnum.SYSTEM_USER_MANAGE.getCode())
+                        : List.of(PermissionEnum.SYSTEM_USER_VIEW.getCode()), List.of(), List.of());
+            }
+        };
+        return MockMvcBuilders.standaloneSetup(new UserManagementController(userManagementService))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .addInterceptors(new PermissionAuthorizationInterceptor(authorization)).build();
     }
@@ -468,6 +515,83 @@ class MybatisPlusSystemPersistenceIntegrationTests {
         roleManagementService.deleteRoles(new BatchDelete(List.of(createdRole.id())));
         assertThat(systemRoleMapper.selectById(Long.parseLong(createdRole.id()))).isNull();
         assertThat(systemUserRoleMapper.selectById(memberAssignment.getId())).isNull();
+    }
+
+    @Test
+    void managesUsersWithRoleAssignmentsAndProtectsSuperAdminAccounts() {
+        String suffix = String.valueOf(System.nanoTime());
+        RoleSummary role = roleManagementService.createRole(new Create(
+                "USER_MANAGER_" + suffix,
+                "用户管理测试角色",
+                "用于用户管理集成测试",
+                "ENABLED",
+                520
+        ));
+        var createdUser = userManagementService.createUser(
+                new com.pipker.business.api.system.user.UserManagementRequest.Create(
+                        "user-management-" + suffix,
+                        "InitialPass123",
+                        "用户管理测试",
+                        "13800000000",
+                        "user-" + suffix + "@example.test",
+                        "ENABLED",
+                        List.of(role.id())
+                )
+        );
+        assertThat(createdUser.id()).matches("\\d+");
+        assertThat(createdUser.roles()).extracting(userRole -> userRole.roleCode())
+                .containsExactly(role.roleCode());
+        assertThat(createdUser.protectedAccount()).isFalse();
+
+        var userPage = userManagementService.findUserPage(1, 10, suffix, "ENABLED");
+        assertThat(userPage.records()).extracting(user -> user.id()).contains(createdUser.id());
+        assertThat(userManagementService.findAssignableRoles()).extracting(assignableRole -> assignableRole.id())
+                .contains(role.id())
+                .doesNotContain("2090000000000000101");
+
+        var updatedUser = userManagementService.updateUser(
+                createdUser.id(),
+                new com.pipker.business.api.system.user.UserManagementRequest.Update(
+                        "已更新的用户管理测试",
+                        null,
+                        "updated-" + suffix + "@example.test",
+                        "ENABLED",
+                        List.of(role.id())
+                )
+        );
+        assertThat(updatedUser.nickname()).isEqualTo("已更新的用户管理测试");
+        assertThat(userManagementService.findUserDetail(createdUser.id()).roles())
+                .extracting(userRole -> userRole.id())
+                .containsExactly(role.id());
+
+        userManagementService.resetPassword(
+                createdUser.id(),
+                new com.pipker.business.api.system.user.UserManagementRequest.ResetPassword("ChangedPass123")
+        );
+        assertThat(securityCryptoService.matchesPassword(
+                "ChangedPass123",
+                systemUserMapper.selectById(Long.parseLong(createdUser.id())).getPasswordHash()
+        )).isTrue();
+
+        userManagementService.updateUserStatus(
+                new com.pipker.business.api.system.user.UserManagementRequest.BatchStatus(
+                        List.of(createdUser.id()),
+                        "DISABLED"
+                )
+        );
+        assertThat(systemUserMapper.selectById(Long.parseLong(createdUser.id())).getStatus()).isEqualTo("DISABLED");
+
+        assertThat(userManagementService.findUserDetail("2090000000000000001").protectedAccount()).isTrue();
+        assertThatThrownBy(() -> userManagementService.resetPassword(
+                "2090000000000000001",
+                new com.pipker.business.api.system.user.UserManagementRequest.ResetPassword("ChangedPass123")
+        )).isInstanceOf(ApiBusinessException.class);
+
+        userManagementService.deleteUsers(
+                new com.pipker.business.api.system.user.UserManagementRequest.BatchDelete(List.of(createdUser.id()))
+        );
+        assertThat(systemUserMapper.selectById(Long.parseLong(createdUser.id()))).isNull();
+        assertThat(systemUserRoleMapper.findRolesByUserId(Long.parseLong(createdUser.id()))).isEmpty();
     }
 
     @Test

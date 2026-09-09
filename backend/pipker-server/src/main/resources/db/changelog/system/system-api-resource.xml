@@ -161,4 +161,62 @@
             <column name="path_pattern" value="/api/admin/roles/{roleId}/routes"/>
         </insert>
     </changeSet>
+
+    <changeSet id="system-api-resource-user-management-seed" author="holic512">
+        <comment>为用户管理的查询、详情、角色候选、增删改、密码重置和批量操作注册唯一 API 资源规则。</comment>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000418"/>
+            <column name="permission_id" valueNumeric="2090000000000000206"/>
+            <column name="http_method" value="GET"/>
+            <column name="path_pattern" value="/api/admin/users"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000419"/>
+            <column name="permission_id" valueNumeric="2090000000000000206"/>
+            <column name="http_method" value="GET"/>
+            <column name="path_pattern" value="/api/admin/users/{userId}"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000420"/>
+            <column name="permission_id" valueNumeric="2090000000000000207"/>
+            <column name="http_method" value="GET"/>
+            <column name="path_pattern" value="/api/admin/users/assignable-roles"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000421"/>
+            <column name="permission_id" valueNumeric="2090000000000000207"/>
+            <column name="http_method" value="POST"/>
+            <column name="path_pattern" value="/api/admin/users"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000422"/>
+            <column name="permission_id" valueNumeric="2090000000000000207"/>
+            <column name="http_method" value="PUT"/>
+            <column name="path_pattern" value="/api/admin/users/{userId}"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000423"/>
+            <column name="permission_id" valueNumeric="2090000000000000207"/>
+            <column name="http_method" value="DELETE"/>
+            <column name="path_pattern" value="/api/admin/users/{userId}"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000424"/>
+            <column name="permission_id" valueNumeric="2090000000000000207"/>
+            <column name="http_method" value="PUT"/>
+            <column name="path_pattern" value="/api/admin/users/{userId}/password"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000425"/>
+            <column name="permission_id" valueNumeric="2090000000000000207"/>
+            <column name="http_method" value="PATCH"/>
+            <column name="path_pattern" value="/api/admin/users/batch-status"/>
+        </insert>
+        <insert tableName="system_api_resource">
+            <column name="id" valueNumeric="2090000000000000426"/>
+            <column name="permission_id" valueNumeric="2090000000000000207"/>
+            <column name="http_method" value="POST"/>
+            <column name="path_pattern" value="/api/admin/users/batch-delete"/>
+        </insert>
+    </changeSet>
 </databaseChangeLog>

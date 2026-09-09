@@ -13,6 +13,7 @@ package com.pipker.business.api.common.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.pipker.business.api.common.model.SystemMenu;
+import com.pipker.business.api.common.model.SystemRole;
 import com.pipker.business.api.common.model.SystemUser;
 import com.pipker.business.api.common.model.SystemUserRole;
 import org.apache.ibatis.annotations.Param;
@@ -48,6 +49,16 @@ public interface SystemUserRoleMapper extends BaseMapper<SystemUserRole> {
             @Param("roleId") long roleId,
             @Param("likeKeyword") String likeKeyword
     );
+
+    /** 查询一个账户当前关联的全部角色，包括已停用角色。 */
+    @Select("""
+            SELECT r.id, r.role_code, r.role_name, r.description, r.status, r.sort, r.created_at, r.updated_at
+            FROM system_user_role ur
+            JOIN system_role r ON r.id = ur.role_id
+            WHERE ur.user_id = #{userId}
+            ORDER BY r.sort, r.role_code
+            """)
+    List<SystemRole> findRolesByUserId(@Param("userId") long userId);
 
     /** 查询用户启用的角色编码。 */
     @Select("""

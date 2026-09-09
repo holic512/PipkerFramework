@@ -2,10 +2,10 @@
  * @file contracts.ts
  * @project Pipker Framework
  * @module Frontend API Contracts
- * @description Defines the server envelope, enum permission points, role-management including page and interface permissions, and route-management list, tree, detail and configuration projections shared by frontend features.
- * @logic Keeps all backend field names and business result codes at the transport boundary so pages only consume verified data, including string-form Snowflake IDs, recursive route-management trees, the separate navigation/route authorization model, and the memory-defined interface permission model.
+ * @description Defines the server envelope, enum permission points, user and role management projections, and route-management list, tree, detail and configuration projections shared by frontend features.
+ * @logic Keeps all backend field names and business result codes at the transport boundary so pages only consume verified data, including string-form Snowflake IDs, user role assignments, recursive route-management trees, the separate navigation/route authorization model, and the memory-defined interface permission model.
  * @dependencies TypeScript
- * @index_tags api, contracts, rbac, role, route, permission, authorization, authentication
+ * @index_tags api, contracts, rbac, user, role, route, permission, authorization, authentication
  * @author holic512
  */
 
@@ -158,6 +158,38 @@ export interface RolePermissionConfiguration {
 export interface RolePermissionUpdateResult {
   roleId: string
   permissionCodes: string[]
+}
+
+export type SystemUserStatus = 'ENABLED' | 'DISABLED'
+
+export interface SystemUserRoleAssignment {
+  id: string
+  roleCode: string
+  roleName: string
+  status: SystemRoleStatus
+}
+
+export interface SystemUserSummary {
+  id: string
+  username: string
+  nickname: string | null
+  phone: string | null
+  email: string | null
+  status: SystemUserStatus
+  lastLoginTime: string | null
+  createdAt: string
+  roles: SystemUserRoleAssignment[]
+  protectedAccount: boolean
+}
+
+export interface SystemUserDetail extends SystemUserSummary {
+  updatedAt: string
+}
+
+export interface AssignableSystemRole {
+  id: string
+  roleCode: string
+  roleName: string
 }
 
 export type SystemRouteMenuType = 'DIRECTORY' | 'MENU'

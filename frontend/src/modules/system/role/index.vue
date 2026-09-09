@@ -4,7 +4,7 @@
   @module Frontend Role Management
   @description 提供系统角色的筛选分页、生命周期维护、页面与接口权限弹窗、批量操作、详情成员查看和成员密码重置工作台。
   @logic 优先显示可批量处理的角色清单；页面权限弹窗复用已落库路由树，接口权限弹窗只读取 Java 枚举权限点并把历史编码作为只读提示；所有雪花 ID 均以字符串传递以避免 JavaScript 精度丢失。
-  @dependencies Vue、Element Plus、RoleMenuTree、角色管理 API、frontend API contracts
+  @dependencies Vue、Element Plus、角色页面权限树、角色管理 API、frontend API contracts
   @index_tags page、rbac、role、route、permission、pagination、batch、password-reset、administration
   @author holic512
 -->
@@ -38,7 +38,7 @@ import {
   replaceRoleRouteConfiguration,
   updateRole,
 } from './api/roleManagement'
-import RoleMenuTree from '../role-menu/components/RoleMenuTree.vue'
+import RoleMenuTree from './components/RoleMenuTree.vue'
 
 interface RoleFormState {
   roleCode: string

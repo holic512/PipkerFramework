@@ -70,18 +70,6 @@
             <column name="http_method" value="GET"/>
             <column name="path_pattern" value="/api/admin/authorization"/>
         </insert>
-        <insert tableName="system_api_resource">
-            <column name="id" valueNumeric="2090000000000000403"/>
-            <column name="permission_id" valueNumeric="2090000000000000203"/>
-            <column name="http_method" value="GET"/>
-            <column name="path_pattern" value="/api/admin/role-menu-config"/>
-        </insert>
-        <insert tableName="system_api_resource">
-            <column name="id" valueNumeric="2090000000000000404"/>
-            <column name="permission_id" valueNumeric="2090000000000000203"/>
-            <column name="http_method" value="PUT"/>
-            <column name="path_pattern" value="/api/admin/role-menu-config/{roleId}"/>
-        </insert>
     </changeSet>
 
     <changeSet id="system-api-resource-role-management-seed" author="holic512">

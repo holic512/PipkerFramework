@@ -30,9 +30,6 @@ import com.pipker.business.api.common.model.SystemUser;
 import com.pipker.business.api.common.model.SystemUserRole;
 import com.pipker.business.api.system.authorization.SystemAuthorizationService;
 import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
-import com.pipker.business.api.system.authorization.RoleMenuConfiguration;
-import com.pipker.business.api.system.authorization.RoleMenuConfigurationService;
-import com.pipker.business.api.system.authorization.RoleMenuUpdateResult;
 import com.pipker.business.api.system.permission.PermissionEnum;
 import com.pipker.business.api.system.permission.PermissionRegistry;
 import com.pipker.business.api.system.role.RoleManagementService;
@@ -120,9 +117,6 @@ class MybatisPlusSystemPersistenceIntegrationTests {
     private SystemAuthorizationCache systemAuthorizationCache;
 
     @Autowired
-    private RoleMenuConfigurationService roleMenuConfigurationService;
-
-    @Autowired
     private RoleManagementService roleManagementService;
 
     @Autowired
@@ -207,7 +201,7 @@ class MybatisPlusSystemPersistenceIntegrationTests {
         user.setUsername("route-config-" + suffix); user.setPasswordHash("test-only"); user.setNickname("Route config"); user.setStatus("ENABLED");
         systemUserMapper.insert(user);
         SystemUserRole link = new SystemUserRole(); link.setUserId(user.getId()); link.setRoleId(role.getId()); systemUserRoleMapper.insert(link);
-        roleMenuConfigurationService.replaceRoleMenuAssignments(role.getId().toString(), List.of(pageId));
+        roleManagementService.replaceRoleRouteConfiguration(role.getId().toString(), new ReplaceRoutes(List.of(pageId)));
         assertThat(systemAuthorizationService.findSnapshot(user.getId()).routes()).extracting(SystemRouteDefinition::id).contains(pageId);
         SystemAuthorizationSnapshot cachedSuper = systemAuthorizationService.findSnapshot(2090000000000000001L);
         routeManagementService.updateConfiguration(directoryId, new RouteConfigurationRequest("隐藏目录", "Folder", 11, false, "ENABLED"));
@@ -217,12 +211,14 @@ class MybatisPlusSystemPersistenceIntegrationTests {
         routeManagementService.updateConfiguration(directoryId, new RouteConfigurationRequest("停用目录", "Folder", 11, false, "DISABLED"));
         assertThat(systemAuthorizationService.findSnapshot(user.getId()).routes()).isEmpty();
         assertThat(systemAuthorizationService.findAvailablePageMenus(false)).extracting(SystemMenu::getId).doesNotContain(page.getId());
-        assertThatThrownBy(() -> roleMenuConfigurationService.replaceRoleMenuAssignments(role.getId().toString(), List.of(pageId)))
+        assertThatThrownBy(() -> roleManagementService.replaceRoleRouteConfiguration(
+                role.getId().toString(), new ReplaceRoutes(List.of(pageId))))
                 .isInstanceOf(ApiBusinessException.class);
         assertThat(systemAuthorizationService.findSnapshot(2090000000000000001L).routes()).extracting(SystemRouteDefinition::id).contains(pageId);
         assertThat(systemAuthorizationService.findSnapshot(2090000000000000001L).menus()).extracting(menu -> menu.id()).contains(directoryId);
-        assertThat(roleMenuConfigurationService.findRoleMenuConfiguration("2090000000000000101").menuIds()).contains(pageId);
-        assertThatThrownBy(() -> roleMenuConfigurationService.replaceRoleMenuAssignments("2090000000000000101", List.of()))
+        assertThat(roleManagementService.findRoleRouteConfiguration("2090000000000000101").routeIds()).contains(pageId);
+        assertThatThrownBy(() -> roleManagementService.replaceRoleRouteConfiguration(
+                "2090000000000000101", new ReplaceRoutes(List.of())))
                 .isInstanceOf(ApiBusinessException.class);
         routeManagementService.updateConfiguration(pageId, new RouteConfigurationRequest(page.getMenuName(), null, 2, true, "DISABLED"));
         routeManagementService.updateConfiguration(directoryId, new RouteConfigurationRequest(directory.getMenuName(), null, 0, true, "ENABLED"));
@@ -358,16 +354,13 @@ class MybatisPlusSystemPersistenceIntegrationTests {
                         .map(PermissionEnum::getCode)
                         .toList());
 
-        RoleMenuUpdateResult menuUpdate = roleMenuConfigurationService.replaceRoleMenuAssignments(
+        RoleRouteUpdateResult routeUpdate = roleManagementService.replaceRoleRouteConfiguration(
                 "2090000000000000102",
-                List.of("2090000000000000303")
+                new ReplaceRoutes(List.of("2090000000000000304"))
         );
-        assertThat(menuUpdate.menuIds()).containsExactly("2090000000000000303");
-        assertThat(roleMenuConfigurationService.getConfiguration().roles())
-                .filteredOn(roleConfiguration -> "ADMIN".equals(roleConfiguration.code()))
-                .singleElement()
-                .satisfies(roleConfiguration -> assertThat(roleConfiguration.menuIds())
-                        .containsExactly("2090000000000000303"));
+        assertThat(routeUpdate.routeIds()).containsExactly("2090000000000000304");
+        assertThat(roleManagementService.findRoleRouteConfiguration("2090000000000000102").routeIds())
+                .containsExactly("2090000000000000304");
     }
 
     @Test
@@ -555,22 +548,20 @@ class MybatisPlusSystemPersistenceIntegrationTests {
                 .map(menu -> menu.id()))
                 .contains(String.valueOf(hiddenRoute.getId()));
 
-        RoleMenuConfiguration configuration = roleMenuConfigurationService.getConfiguration();
-        assertThat(configuration.menus().stream()
+        RoleRouteConfiguration configuration = roleManagementService.findRoleRouteConfiguration("2090000000000000102");
+        assertThat(configuration.routes().stream()
                 .flatMap(menu -> menu.children().stream())
                 .filter(menu -> menu.id().equals(String.valueOf(hiddenRoute.getId()))))
                 .singleElement()
                 .satisfies(menu -> assertThat(menu.visible()).isFalse());
 
-        RoleMenuUpdateResult update = roleMenuConfigurationService.replaceRoleMenuAssignments(
+        RoleRouteUpdateResult update = roleManagementService.replaceRoleRouteConfiguration(
                 "2090000000000000102",
-                List.of(String.valueOf(hiddenRoute.getId()))
+                new ReplaceRoutes(List.of(String.valueOf(hiddenRoute.getId())))
         );
-        assertThat(update.menuIds()).containsExactly(String.valueOf(hiddenRoute.getId()));
-        assertThat(roleMenuConfigurationService.getConfiguration().roles())
-                .filteredOn(role -> "ADMIN".equals(role.code()))
-                .singleElement()
-                .satisfies(role -> assertThat(role.menuIds()).containsExactly(String.valueOf(hiddenRoute.getId())));
+        assertThat(update.routeIds()).containsExactly(String.valueOf(hiddenRoute.getId()));
+        assertThat(roleManagementService.findRoleRouteConfiguration("2090000000000000102").routeIds())
+                .containsExactly(String.valueOf(hiddenRoute.getId()));
     }
 
     @Test

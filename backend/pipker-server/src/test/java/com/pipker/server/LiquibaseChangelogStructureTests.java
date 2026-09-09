@@ -73,6 +73,8 @@ class LiquibaseChangelogStructureTests {
                 .contains("SYSTEMOVERVIEW")
                 .contains("SYSTEMROLEMANAGEMENT")
                 .contains("SYSTEMROUTEMANAGEMENT")
+                .doesNotContain("SYSTEMROLEMENU")
+                .doesNotContain("ROLE-MENU-CONFIG")
                 .contains("CK_SYSTEM_PERMISSION_TYPE")
                 .contains("CK_SYSTEM_MENU_TYPE")
                 .contains("IDX_SYSTEM_ROLE_PERMISSION_PERMISSION_CODE")

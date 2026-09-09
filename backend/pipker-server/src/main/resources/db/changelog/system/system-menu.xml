@@ -4,7 +4,7 @@
     @project Pipker Framework
     @module Pipker Server
     @description 定义系统动态菜单与前端路由数据。
-    @logic 创建仅支持目录和菜单的最终菜单结构及父子关联，写入系统管理目录、概览、角色路由、角色管理与只读路由管理菜单。
+    @logic 创建仅支持目录和菜单的最终菜单结构及父子关联，写入系统管理目录、概览、角色管理与只读路由管理菜单。
     @dependencies Liquibase、system_menu
     @index_tags liquibase、database、system_menu、seed、route、rbac
     @author holic512
@@ -112,21 +112,6 @@
             <column name="component_key" value="system/overview/index"/>
             <column name="icon" value="House"/>
             <column name="sort" valueNumeric="10"/>
-            <column name="visible" valueBoolean="true"/>
-            <column name="status" value="ENABLED"/>
-            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
-            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
-        </insert>
-        <insert tableName="system_menu">
-            <column name="id" valueNumeric="2090000000000000303"/>
-            <column name="parent_id" valueNumeric="2090000000000000301"/>
-            <column name="menu_name" value="角色路由"/>
-            <column name="menu_type" value="MENU"/>
-            <column name="route_path" value="/system/role-menu"/>
-            <column name="route_name" value="SystemRoleMenu"/>
-            <column name="component_key" value="system/role-menu/index"/>
-            <column name="icon" value="Share"/>
-            <column name="sort" valueNumeric="20"/>
             <column name="visible" valueBoolean="true"/>
             <column name="status" value="ENABLED"/>
             <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>

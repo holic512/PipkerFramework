@@ -74,26 +74,6 @@ export interface SystemAuthorizationSnapshot {
   routes: SystemRouteDefinition[]
 }
 
-export interface RoleMenuConfigurationRole {
-  id: string
-  code: string
-  name: string
-  status: SystemRoleStatus
-  sort: number | null
-  allMenus: boolean
-  menuIds: string[]
-}
-
-export interface RoleMenuConfiguration {
-  roles: RoleMenuConfigurationRole[]
-  menus: SystemMenuNode[]
-}
-
-export interface RoleMenuUpdateResult {
-  roleId: string
-  menuIds: string[]
-}
-
 export interface LoginResponse {
   accessToken: string
   tokenType: 'Bearer'

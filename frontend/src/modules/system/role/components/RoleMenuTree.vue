@@ -1,11 +1,11 @@
 <!--
   @file RoleMenuTree.vue
   @project Pipker Framework
-  @module Frontend Role Route Management
-  @description Renders the database menu hierarchy as a recursive page-menu selection tree.
-  @logic Makes DIRECTORY nodes informational, marks hidden navigation entries, and persists only exact string-form MENU leaf IDs, matching the backend role-menu contract.
+  @module Frontend Role Management
+  @description 在角色管理页面递归渲染数据库页面路由树并维护勾选状态。
+  @logic 将 DIRECTORY 节点作为只读分类，标记隐藏导航页面，并仅保存精确的字符串 MENU 路由 ID，与角色管理页面权限接口保持一致。
   @dependencies Vue, SystemMenuNode
-  @index_tags rbac, role-menu, tree, form, route, snowflake-id
+  @index_tags rbac, role, tree, form, route, snowflake-id
   @author holic512
 -->
 <script setup lang="ts">

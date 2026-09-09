@@ -4,7 +4,7 @@
  * @module Pipker Business API
  * @description 提供系统角色生命周期、页面与接口权限、成员查询和成员密码重置能力。
  * @logic 角色创建后编码不可变，SUPER_ADMIN 永远不能被改动或删除或手工收窄页面或接口权限；接口权限只接受 PermissionRegistry 中的编码，保存时保留已失效历史编码，所有影响授权的角色操作均清除本机授权快照。
- * @dependencies RoleMenuConfigurationService、PermissionRegistry、SystemRoleMapper、SystemUserRoleMapper、SystemRolePermissionMapper、SystemRoleMenuMapper、SystemAccountService、SecurityCryptoService、SystemAuthorizationCache、Spring Transaction
+ * @dependencies SystemAuthorizationService、PermissionRegistry、SystemRoleMapper、SystemUserRoleMapper、SystemRolePermissionMapper、SystemRoleMenuMapper、SystemAccountService、SecurityCryptoService、SystemAuthorizationCache、Spring Transaction
  * @index_tags rbac、role、route、permission、user、password-reset、pagination、administration
  * @author holic512
  */
@@ -18,14 +18,13 @@ import com.pipker.business.api.common.mapper.SystemRoleMenuMapper;
 import com.pipker.business.api.common.mapper.SystemRolePermissionMapper;
 import com.pipker.business.api.common.mapper.SystemUserRoleMapper;
 import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
+import com.pipker.business.api.common.model.SystemMenu;
 import com.pipker.business.api.common.model.SystemRole;
 import com.pipker.business.api.common.model.SystemUser;
 import com.pipker.business.api.common.model.SystemUserRole;
 import com.pipker.business.api.common.model.SystemRoleMenu;
 import com.pipker.business.api.common.model.SystemRolePermission;
 import com.pipker.business.api.system.auth.CurrentSystemAuthorizationService;
-import com.pipker.business.api.system.authorization.RoleMenuConfiguration;
-import com.pipker.business.api.system.authorization.RoleMenuConfigurationService;
 import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
 import com.pipker.business.api.system.authorization.SystemAuthorizationService;
 import com.pipker.business.api.system.permission.PermissionRegistry;
@@ -74,7 +73,7 @@ public class RoleManagementService {
     private final SecurityCryptoService securityCryptoService;
     private final CurrentSystemAuthorizationService currentSystemAuthorizationService;
     private final SystemAuthorizationCache systemAuthorizationCache;
-    private final RoleMenuConfigurationService roleMenuConfigurationService;
+    private final SystemAuthorizationService systemAuthorizationService;
     private final PermissionRegistry permissionRegistry;
 
     /** 创建角色管理服务。 */
@@ -87,7 +86,7 @@ public class RoleManagementService {
             SecurityCryptoService securityCryptoService,
             CurrentSystemAuthorizationService currentSystemAuthorizationService,
             SystemAuthorizationCache systemAuthorizationCache,
-            RoleMenuConfigurationService roleMenuConfigurationService,
+            SystemAuthorizationService systemAuthorizationService,
             PermissionRegistry permissionRegistry
     ) {
         this.systemRoleMapper = systemRoleMapper;
@@ -98,7 +97,7 @@ public class RoleManagementService {
         this.securityCryptoService = securityCryptoService;
         this.currentSystemAuthorizationService = currentSystemAuthorizationService;
         this.systemAuthorizationCache = systemAuthorizationCache;
-        this.roleMenuConfigurationService = roleMenuConfigurationService;
+        this.systemAuthorizationService = systemAuthorizationService;
         this.permissionRegistry = permissionRegistry;
     }
 
@@ -145,24 +144,53 @@ public class RoleManagementService {
 
     /** 返回角色操作弹窗使用的页面访问权限与路由树。 */
     public RoleRouteConfiguration findRoleRouteConfiguration(String roleId) {
-        RoleMenuConfiguration.RoleMenuConfigurationRole configuration =
-                roleMenuConfigurationService.findRoleMenuConfiguration(roleId);
+        SystemRole role = requireRole(roleId);
+        boolean allRoutes = isProtectedRole(role);
+        List<Long> enabledRouteIds = findEnabledPageRouteIds();
+        List<Long> routeIds = allRoutes
+                ? findAllPageRouteIds()
+                : systemRoleMenuMapper.findEnabledPageMenuAssignmentsByRoleId(role.getId()).stream()
+                        .map(SystemRoleMenu::getMenuId)
+                        .filter(enabledRouteIds::contains)
+                        .toList();
         return new RoleRouteConfiguration(
-                configuration.id(),
-                configuration.code(),
-                configuration.name(),
-                configuration.status(),
-                configuration.allMenus(),
-                configuration.menuIds(),
-                roleMenuConfigurationService.findAssignableMenuTree(configuration.allMenus())
+                stringifyId(role.getId()),
+                role.getRoleCode(),
+                role.getRoleName(),
+                role.getStatus(),
+                allRoutes,
+                stringifyIds(routeIds),
+                systemAuthorizationService.findRoutePermissionTree(allRoutes)
         );
     }
 
     /** 覆盖保存一个普通启用角色的页面访问权限，并清理受影响账户的授权快照。 */
     @Transactional
     public RoleRouteUpdateResult replaceRoleRouteConfiguration(String roleId, ReplaceRoutes request) {
-        var result = roleMenuConfigurationService.replaceRoleMenuAssignments(roleId, request.routeIds());
-        return new RoleRouteUpdateResult(result.roleId(), result.menuIds());
+        SystemRole role = requireRole(roleId);
+        if (!role.isEnabled()) {
+            throw validationError("角色已停用，不能更新页面权限");
+        }
+        rejectProtectedRole(role);
+
+        List<Long> routeIds = normalizeRouteIds(request.routeIds());
+        if (!routeIds.isEmpty()) {
+            Set<Long> validRouteIds = Set.copyOf(findEnabledPageRouteIds());
+            if (!validRouteIds.containsAll(routeIds)) {
+                throw validationError("页面必须启用且具备完整的路径、路由名和页面索引");
+            }
+        }
+
+        systemRoleMenuMapper.delete(new LambdaQueryWrapper<SystemRoleMenu>()
+                .eq(SystemRoleMenu::getRoleId, role.getId()));
+        for (Long routeId : routeIds) {
+            SystemRoleMenu assignment = new SystemRoleMenu();
+            assignment.setRoleId(role.getId());
+            assignment.setMenuId(routeId);
+            systemRoleMenuMapper.insert(assignment);
+        }
+        systemAuthorizationCache.invalidateAllSnapshots();
+        return new RoleRouteUpdateResult(stringifyId(role.getId()), stringifyIds(routeIds));
     }
 
     /**
@@ -410,6 +438,29 @@ public class RoleManagementService {
             permissionCodes.add(permissionCode);
         }
         return List.copyOf(permissionCodes);
+    }
+
+    private List<Long> findEnabledPageRouteIds() {
+        return systemAuthorizationService.findAvailablePageMenus(false).stream()
+                .map(SystemMenu::getId)
+                .toList();
+    }
+
+    private List<Long> findAllPageRouteIds() {
+        return systemAuthorizationService.findAvailablePageMenus(true).stream()
+                .map(SystemMenu::getId)
+                .toList();
+    }
+
+    private List<Long> normalizeRouteIds(List<String> rawRouteIds) {
+        if (rawRouteIds == null || rawRouteIds.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashSet<Long> routeIds = new LinkedHashSet<>();
+        for (String rawRouteId : rawRouteIds) {
+            routeIds.add(parsePositiveId(rawRouteId, "routeIds"));
+        }
+        return List.copyOf(routeIds);
     }
 
     private long parsePositiveId(String rawId, String fieldName) {

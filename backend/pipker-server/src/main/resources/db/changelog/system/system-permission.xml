@@ -85,16 +85,6 @@
             <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
         </insert>
-        <insert tableName="system_permission">
-            <column name="id" valueNumeric="2090000000000000203"/>
-            <column name="permission_code" value="system:role-menu:manage"/>
-            <column name="permission_name" value="管理角色路由菜单"/>
-            <column name="permission_type" value="API"/>
-            <column name="description" value="读取和保存角色可访问页面菜单"/>
-            <column name="status" value="ENABLED"/>
-            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
-            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
-        </insert>
     </changeSet>
 
     <changeSet id="system-permission-role-management-seed" author="holic512">

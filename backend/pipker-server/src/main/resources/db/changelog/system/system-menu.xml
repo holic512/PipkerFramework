@@ -102,21 +102,6 @@
             <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
         </insert>
-        <insert tableName="system_menu">
-            <column name="id" valueNumeric="2090000000000000302"/>
-            <column name="parent_id" valueNumeric="2090000000000000301"/>
-            <column name="menu_name" value="系统概览"/>
-            <column name="menu_type" value="MENU"/>
-            <column name="route_path" value="/system/overview"/>
-            <column name="route_name" value="SystemOverview"/>
-            <column name="component_key" value="system/overview/index"/>
-            <column name="icon" value="House"/>
-            <column name="sort" valueNumeric="10"/>
-            <column name="visible" valueBoolean="true"/>
-            <column name="status" value="ENABLED"/>
-            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
-            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
-        </insert>
     </changeSet>
 
     <!-- 角色管理页面通过数据库菜单动态装载，供具备管理 API 权限的账户维护普通角色与成员账户。 -->
@@ -131,7 +116,7 @@
             <column name="route_name" value="SystemRoleManagement"/>
             <column name="component_key" value="system/role/index"/>
             <column name="icon" value="UserFilled"/>
-            <column name="sort" valueNumeric="30"/>
+            <column name="sort" valueNumeric="10"/>
             <column name="visible" valueBoolean="true"/>
             <column name="status" value="ENABLED"/>
             <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
@@ -150,7 +135,7 @@
             <column name="route_name" value="SystemRouteManagement"/>
             <column name="component_key" value="system/route/index"/>
             <column name="icon" value="Menu"/>
-            <column name="sort" valueNumeric="40"/>
+            <column name="sort" valueNumeric="20"/>
             <column name="visible" valueBoolean="true"/>
             <column name="status" value="ENABLED"/>
             <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>

@@ -43,7 +43,7 @@ src/
 │   │   └── pages/
 │   │       ├── defaults/            # 可拆分的框架默认公开首页
 │   │       └── custom/              # 当前系统的私有公开首页
-│   └── system/overview/index.vue    # 初始 componentKey 的实际页面入口
+│   └── system/                     # 动态业务页面的 componentKey 入口目录
 ├── router/index.ts                  # 动态路由注册、清理和登录守卫
 ├── stores/
 │   ├── app.ts                       # 纯 UI 外壳状态
@@ -60,8 +60,6 @@ src/
 │   └── index.scss                    # 唯一全局 Sass 样式入口
 └── main.ts                          # 先恢复会话和路由，再挂载应用
 ```
-
-`src/modules/overview/pages/OverviewPage.vue` 是系统概览的展示实现；`src/modules/system/overview/index.vue` 是数据库菜单 `componentKey = system/overview/index` 对应的稳定入口。
 
 ## 应用布局
 
@@ -166,12 +164,12 @@ import.meta.glob('../modules/**/index.vue')
 将 `componentKey` 映射为 `src/modules/<componentKey>.vue`。例如：
 
 ```text
-system/overview/index  →  src/modules/system/overview/index.vue
+system/route/index  →  src/modules/system/route/index.vue
 ```
 
-未找到对应组件的页面路由不会被伪造成静态页面：它会被跳过，并只在开发环境输出诊断。退出登录或授权刷新时，前一份数据库路由注册会被移除；导航守卫还会检查路由 ID 是否仍在当前授权路由集合中。`visible=false` 仅隐藏导航菜单，已获授权的页面仍会被注册并可通过直接 URL 访问；`DIRECTORY` 仅组织层级，不需要真实页面文件或 `componentKey`。要新增页面，应先增加 Vue 组件，再通过后端的 Liquibase 增量 changeset 增加菜单并为角色配置菜单关联；页面调用 API 所需权限仍通过独立 API 权限配置。`SUPER_ADMIN` 可通过“角色路由”页面为普通角色勾选页面菜单，本期不实现按钮级权限控制。
+未找到对应组件的页面路由不会被伪造成静态页面：它会被跳过，并只在开发环境输出诊断。退出登录或授权刷新时，前一份数据库路由注册会被移除；导航守卫还会检查路由 ID 是否仍在当前授权路由集合中。`visible=false` 仅隐藏导航菜单，已获授权的页面仍会被注册并可通过直接 URL 访问；`DIRECTORY` 仅组织层级，不需要真实页面文件或 `componentKey`。要新增页面，应先增加 Vue 组件，再通过后端的 Liquibase 增量 changeset 增加菜单并为角色配置菜单关联；页面调用 API 所需权限仍通过独立 API 权限配置。`SUPER_ADMIN` 可通过“角色管理”页面为普通角色勾选页面菜单，本期不实现按钮级权限控制。
 
-当前启用的应用布局只渲染会话 Store 中的菜单，不再硬编码“系统概览”导航。后端不再提供开发 Route Manifest；页面数据唯一来自已登录用户的 `/api/auth/me`。
+当前启用的应用布局只渲染会话 Store 中的菜单，不再硬编码业务导航。后端不再提供开发 Route Manifest；页面数据唯一来自已登录用户的 `/api/auth/me`。
 
 ## 本地运行与构建
 

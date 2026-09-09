@@ -240,7 +240,7 @@ class MybatisPlusSystemPersistenceIntegrationTests {
         SystemMenu menu = new SystemMenu();
         menu.setParentId(parentId); menu.setMenuName("Route test " + suffix); menu.setMenuType(type);
         menu.setRouteName("RouteTest" + suffix); menu.setRoutePath("/route-test/" + suffix);
-        if ("MENU".equals(type)) menu.setComponentKey("system/overview/index");
+        if ("MENU".equals(type)) menu.setComponentKey("system/route/index");
         menu.setSort(999); menu.setVisible(true); menu.setStatus("ENABLED");
         systemMenuMapper.insert(menu);
         return menu;
@@ -531,7 +531,7 @@ class MybatisPlusSystemPersistenceIntegrationTests {
         hiddenRoute.setMenuType("MENU");
         hiddenRoute.setRoutePath("/system/hidden-route-" + suffix);
         hiddenRoute.setRouteName("HiddenRoute" + suffix);
-        hiddenRoute.setComponentKey("system/overview/index");
+        hiddenRoute.setComponentKey("system/route/index");
         hiddenRoute.setSort(997);
         hiddenRoute.setVisible(false);
         hiddenRoute.setStatus("ENABLED");
@@ -591,7 +591,7 @@ class MybatisPlusSystemPersistenceIntegrationTests {
         hiddenRoute.setMenuType("MENU");
         hiddenRoute.setRoutePath("/system/role-permission-hidden-" + suffix);
         hiddenRoute.setRouteName("RolePermissionHidden" + suffix);
-        hiddenRoute.setComponentKey("system/overview/index");
+        hiddenRoute.setComponentKey("system/route/index");
         hiddenRoute.setSort(998);
         hiddenRoute.setVisible(false);
         hiddenRoute.setStatus("ENABLED");

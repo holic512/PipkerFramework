@@ -96,6 +96,25 @@
             <column name="route_path" value="/system"/>
             <column name="route_name" value="System"/>
             <column name="icon" value="Setting"/>
+            <column name="sort" valueNumeric="10"/>
+            <column name="visible" valueBoolean="true"/>
+            <column name="status" value="ENABLED"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <!-- 仪表盘为无父级菜单，作为已授权账户进入管理控制台后的顶级入口。 -->
+    <changeSet id="system-menu-overview-seed" author="holic512">
+        <comment>新增顶级系统仪表盘菜单：以当前会话授权投影展示菜单、路由、角色与权限状态。</comment>
+        <insert tableName="system_menu">
+            <column name="id" valueNumeric="2090000000000000302"/>
+            <column name="menu_name" value="系统仪表盘"/>
+            <column name="menu_type" value="MENU"/>
+            <column name="route_path" value="/overview"/>
+            <column name="route_name" value="SystemOverview"/>
+            <column name="component_key" value="system/overview/index"/>
+            <column name="icon" value="DataAnalysis"/>
             <column name="sort" valueNumeric="0"/>
             <column name="visible" valueBoolean="true"/>
             <column name="status" value="ENABLED"/>

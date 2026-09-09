@@ -395,6 +395,17 @@ class MybatisPlusSystemPersistenceIntegrationTests {
         assertThat(administratorSnapshot.roles()).contains(SystemAuthorizationService.SUPER_ADMIN_ROLE);
         assertThat(administratorSnapshot.permissions()).contains(PermissionEnum.SYSTEM_AUTHORIZATION_VIEW.getCode());
         assertThat(administratorSnapshot.menus()).isNotEmpty();
+        assertThat(administratorSnapshot.routes())
+                .extracting(SystemRouteDefinition::id)
+                .contains("2090000000000000302");
+        assertThat(administratorSnapshot.menus())
+                .filteredOn(overview -> overview.id().equals("2090000000000000302"))
+                .singleElement()
+                .satisfies(overview -> {
+                    assertThat(overview.parentId()).isNull();
+                    assertThat(overview.routeName()).isEqualTo("SystemOverview");
+                    assertThat(overview.componentKey()).isEqualTo("system/overview/index");
+                });
         assertThat(permissionRegistry.list())
                 .extracting(PermissionRegistry.PermissionPoint::code)
                 .containsExactlyElementsOf(List.of(PermissionEnum.values()).stream()

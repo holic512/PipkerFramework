@@ -239,12 +239,13 @@ function countTreeNodes(nodes: SystemRouteTreeNode[]): number {
 .route-identity code { min-width: 0; flex: 0 1 auto; overflow: hidden; color: var(--color-ink-soft); font-family: var(--font-mono); font-size: 0.62rem; line-height: 1.1; text-overflow: ellipsis; }
 .route-missing { color: var(--color-accent-danger); }
 .route-workspace :deep(.el-table__header-wrapper th.el-table__cell) { padding: 0.35rem 0; color: var(--color-ink-muted); font-size: 0.76rem; font-weight: 650; }
+.route-workspace :deep(.el-table__header-wrapper th.el-table__cell > .cell) { min-height: 23px; display: flex; align-items: center; }
 .route-workspace :deep(.el-table__body-wrapper td.el-table__cell) { padding: calc(0.25rem + 3px) 0; font-size: 0.7rem; }
 .route-workspace :deep(.el-table .cell) { line-height: 1.15; }
-.route-workspace :deep(.route-tree-cell .cell) { display: flex; align-items: center; padding-left: 0.5rem; }
-.route-workspace :deep(.route-tree-cell .el-table__indent) { flex: 0 0 auto; }
-.route-workspace :deep(.route-tree-cell .el-table__expand-icon), .route-workspace :deep(.route-tree-cell .el-table__placeholder) { flex: 0 0 1.1rem; width: 1.1rem; height: 1.1rem; }
-.route-workspace :deep(.route-tree-cell .el-table__expand-icon) { color: var(--color-accent-primary); }
+.route-workspace :deep(.el-table__body-wrapper .route-tree-cell .cell) { display: flex; align-items: center; padding-left: 0.5rem; }
+.route-workspace :deep(.el-table__body-wrapper .route-tree-cell .el-table__indent) { flex: 0 0 auto; }
+.route-workspace :deep(.el-table__body-wrapper .route-tree-cell .el-table__expand-icon), .route-workspace :deep(.el-table__body-wrapper .route-tree-cell .el-table__placeholder) { flex: 0 0 1.1rem; width: 1.1rem; height: 1.1rem; }
+.route-workspace :deep(.el-table__body-wrapper .route-tree-cell .el-table__expand-icon) { color: var(--color-accent-primary); }
 .route-workspace :deep(.route-tag.el-tag) { min-width: 3rem; height: 1.18rem; justify-content: center; padding-inline: 0.24rem; border-radius: var(--radius-small); font-size: 0.64rem; font-weight: 650; }
 .route-tree-summary { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 2.25rem; padding: 0.4rem 0.75rem; border-top: 1px solid var(--color-line-subtle); font-size: 0.68rem; color: var(--color-ink-soft); }
 .route-notice { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.55rem 0.75rem; border-radius: var(--radius-control); color: var(--color-accent-danger); background: color-mix(in srgb, var(--color-accent-danger) 7%, var(--color-surface-base)); font-size: 0.78rem; }

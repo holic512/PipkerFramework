@@ -260,11 +260,11 @@ function countPagesInBranch(node: SystemMenuNode): number {
 
     <section class="system-overview__charts" aria-label="授权图表">
       <article class="system-overview__chart ui-panel">
-        <header><div><h2>工作区页面分布</h2><p>按顶级菜单归集可访问页面数量</p></div><DataAnalysis aria-hidden="true" /></header>
+        <header><div><h2>工作区页面分布</h2><p>按顶级菜单归集可访问页面数量</p></div><el-icon class="system-overview__chart-icon" aria-hidden="true"><DataAnalysis /></el-icon></header>
         <div ref="workspaceChartElement" class="system-overview__chart-canvas" role="img" aria-label="工作区页面分布柱状图"></div>
       </article>
       <article class="system-overview__chart ui-panel">
-        <header><div><h2>授权资源构成</h2><p>页面、目录与接口权限的当前占比</p></div><Key aria-hidden="true" /></header>
+        <header><div><h2>授权资源构成</h2><p>页面、目录与接口权限的当前占比</p></div><el-icon class="system-overview__chart-icon" aria-hidden="true"><Key /></el-icon></header>
         <div ref="resourceChartElement" class="system-overview__chart-canvas" role="img" aria-label="授权资源构成环形图"></div>
       </article>
     </section>
@@ -314,7 +314,7 @@ function countPagesInBranch(node: SystemMenuNode): number {
 .system-overview__chart > header, .system-overview__pages > header, .system-overview__permissions > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .system-overview__chart h2, .system-overview__pages h2, .system-overview__permissions h2 { margin: 0; color: var(--color-ink-strong); font-family: var(--font-display); font-size: 0.9rem; line-height: 1.2; }
 .system-overview__chart header p, .system-overview__pages header p, .system-overview__permissions header p { margin: 0.25rem 0 0; color: var(--color-ink-soft); font-size: 0.67rem; line-height: 1.45; }
-.system-overview__chart > header > svg { flex: 0 0 auto; color: var(--color-ink-soft); font-size: 1rem; }
+.system-overview__chart-icon { flex: 0 0 auto; width: 1rem; height: 1rem; color: var(--color-ink-soft); font-size: 1rem; }
 .system-overview__chart-canvas { width: 100%; height: 13.5rem; margin-top: 0.45rem; }
 .system-overview__pages > header > span, .system-overview__permissions > header > span { flex: 0 0 auto; padding: 0.2rem 0.42rem; color: var(--color-ink-muted); background: var(--color-surface-muted); border-radius: var(--radius-small); font-family: var(--font-mono); font-size: 0.66rem; }
 .system-overview__pages ul { display: grid; gap: 0; margin: 0.8rem 0 0; padding: 0; list-style: none; border-top: 1px solid var(--color-line-subtle); }

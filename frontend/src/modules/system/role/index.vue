@@ -144,6 +144,7 @@ async function loadRoles(page = rolePage.value.page): Promise<void> {
     })
     selectedRoles.value = []
   } catch (error) {
+    selectedRoles.value = []
     errorMessage.value = readableError(error, '无法读取角色列表。')
   } finally {
     loading.value = false
@@ -528,47 +529,24 @@ function newRoleForm(): RoleFormState {
 </script>
 
 <template>
-  <main class="role-management-page ui-page-frame">
-    <header class="role-management-page__header">
-      <div class="role-management-page__heading">
-        <p class="ui-eyebrow">SYSTEM / ROLE CONTROL</p>
-        <h1>角色管理</h1>
-        <p>维护普通角色的生命周期、授权成员与账户恢复操作。框架保护角色始终由系统保留。</p>
-      </div>
-      <div class="role-management-page__header-actions">
-        <span class="role-management-page__count">{{ rolePage.total }} 个角色</span>
-        <el-button type="primary" @click="openCreateDialog">新建角色</el-button>
-      </div>
-    </header>
-
-    <section class="role-management-page__filter ui-panel" aria-label="角色筛选">
-      <div class="role-management-page__filter-fields">
-        <el-input
-          v-model="filters.keyword"
-          clearable
-          placeholder="按角色编码或名称筛选"
-          @keyup.enter="applyFilters"
-        />
-        <el-select v-model="filters.status" clearable placeholder="全部状态">
-          <el-option label="启用" value="ENABLED" />
-          <el-option label="停用" value="DISABLED" />
-        </el-select>
-      </div>
-      <div class="role-management-page__filter-actions">
-        <el-button :loading="loading" type="primary" @click="applyFilters">查询</el-button>
+  <section class="role-management-page" aria-label="角色管理">
+    <form class="role-filters" aria-label="角色筛选" @submit.prevent="applyFilters">
+      <el-input
+        v-model="filters.keyword"
+        clearable
+        aria-label="搜索角色"
+        class="role-search"
+        placeholder="角色编码或名称"
+      />
+      <el-select v-model="filters.status" clearable aria-label="角色状态" placeholder="全部状态">
+        <el-option label="启用" value="ENABLED" />
+        <el-option label="停用" value="DISABLED" />
+      </el-select>
+      <div class="role-filter-actions">
+        <el-button :loading="loading" native-type="submit" type="primary">查询</el-button>
         <el-button :disabled="loading" @click="clearFilters">重置</el-button>
-      </div>
-    </section>
-
-    <p v-if="errorMessage" class="role-management-page__notice" role="alert">{{ errorMessage }}</p>
-
-    <section class="role-management-page__workspace ui-panel">
-      <div class="role-management-page__toolbar">
-        <p>
-          <strong>{{ selectedRoleIds.length }}</strong>
-          <span>项已选择</span>
-        </p>
-        <div class="role-management-page__batch-actions">
+        <el-button type="primary" plain @click="openCreateDialog">新建角色</el-button>
+        <div class="role-batch-actions" aria-label="批量操作">
           <el-button :disabled="selectedRoleIds.length === 0" :loading="operating" @click="batchChangeStatus('ENABLED')">
             批量启用
           </el-button>
@@ -580,52 +558,56 @@ function newRoleForm(): RoleFormState {
           </el-button>
         </div>
       </div>
+    </form>
 
-      <el-table
-        v-loading="loading"
-        :data="rolePage.records"
-        class="role-management-page__table"
-        empty-text="没有符合当前筛选条件的角色"
-        @selection-change="setSelectedRoles"
-      >
-        <el-table-column type="selection" width="48" />
-        <el-table-column label="角色" min-width="210">
-          <template #default="{ row }: { row: SystemRoleSummary }">
-            <div class="role-cell">
-              <strong>{{ row.roleName }}</strong>
-              <code>{{ row.roleCode }}</code>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="说明" min-width="220" show-overflow-tooltip>
-          <template #default="{ row }: { row: SystemRoleSummary }">
-            {{ row.description || '—' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="100">
-          <template #default="{ row }: { row: SystemRoleSummary }">
-            <el-tag :type="statusTagType(row.status)" effect="plain">{{ statusLabel(row.status) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="排序" width="82" prop="sort" />
-        <el-table-column label="最近更新" min-width="164">
-          <template #default="{ row }: { row: SystemRoleSummary }">{{ formatTime(row.updatedAt) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" fixed="right" min-width="342">
-          <template #default="{ row }: { row: SystemRoleSummary }">
-            <div class="role-management-page__row-actions">
-              <el-button link type="primary" @click="openDetail(row)">详情</el-button>
-              <el-button link type="primary" @click="openRoutePermissionDialog(row)">页面权限</el-button>
-              <el-button link type="primary" @click="openInterfacePermissionDialog(row)">接口权限</el-button>
-              <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
-              <el-button link type="danger" @click="removeRole(row)">删除</el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
+    <div v-if="errorMessage" class="role-notice" role="alert">
+      <span>{{ errorMessage }}</span>
+      <el-button link type="primary" :loading="loading" @click="loadRoles()">重试</el-button>
+    </div>
 
-      <footer class="role-management-page__pagination">
-        <span>每页最多 100 条</span>
+    <section class="role-workspace ui-panel">
+      <div class="role-table-container">
+        <el-table
+          v-loading="loading"
+          :data="errorMessage ? [] : rolePage.records"
+          height="100%"
+          empty-text="没有符合当前筛选条件的角色"
+          @selection-change="setSelectedRoles"
+        >
+          <el-table-column type="selection" width="48" />
+          <el-table-column label="角色 / 编码" min-width="210">
+            <template #default="{ row }: { row: SystemRoleSummary }">
+              <div class="role-identity"><strong>{{ row.roleName }}</strong><code>{{ row.roleCode }}</code></div>
+            </template>
+          </el-table-column>
+          <el-table-column label="说明" min-width="220" show-overflow-tooltip>
+            <template #default="{ row }: { row: SystemRoleSummary }">{{ row.description || '—' }}</template>
+          </el-table-column>
+          <el-table-column label="状态" width="78">
+            <template #default="{ row }: { row: SystemRoleSummary }">
+              <el-tag class="role-tag" size="small" effect="light" :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="排序" width="75" prop="sort" />
+          <el-table-column label="最近更新" min-width="154">
+            <template #default="{ row }: { row: SystemRoleSummary }">{{ formatTime(row.updatedAt) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" fixed="right" width="304">
+            <template #default="{ row }: { row: SystemRoleSummary }">
+              <div class="role-row-actions">
+                <el-button link type="primary" @click="openDetail(row)">详情</el-button>
+                <el-button link type="primary" @click="openRoutePermissionDialog(row)">页面权限</el-button>
+                <el-button link type="primary" @click="openInterfacePermissionDialog(row)">接口权限</el-button>
+                <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
+                <el-button link type="danger" @click="removeRole(row)">删除</el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <footer class="role-page-summary">
+        <span>{{ errorMessage ? '—' : `共 ${rolePage.total} 个角色${selectedRoleIds.length > 0 ? `，已选择 ${selectedRoleIds.length} 项` : ''}` }}</span>
         <el-pagination
           background
           :current-page="rolePage.page"
@@ -891,36 +873,28 @@ function newRoleForm(): RoleFormState {
         <el-button :loading="resettingPassword" type="warning" @click="submitPasswordReset">确认重置</el-button>
       </template>
     </el-dialog>
-  </main>
+  </section>
 </template>
 
 <style scoped lang="scss">
 .role-management-page {
-  padding: clamp(1.25rem, 3.5vw, 3.25rem);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  gap: 0.625rem;
 }
 
-.role-management-page__header,
-.role-management-page__header-actions,
-.role-management-page__filter,
-.role-management-page__filter-fields,
-.role-management-page__filter-actions,
-.role-management-page__toolbar,
-.role-management-page__batch-actions,
-.role-management-page__pagination,
+.role-filters,
+.role-filter-actions,
+.role-batch-actions,
 .role-detail__hero,
 .role-detail__section-heading {
   display: flex;
   align-items: center;
 }
 
-.role-management-page__header {
-  justify-content: space-between;
-  gap: 2rem;
-  padding: 0 0 1.6rem;
-  border-bottom: 1px solid var(--color-line-subtle);
-}
-
-.role-management-page__heading h1,
 .role-detail h2,
 .role-detail h3,
 .role-route-permission h2 {
@@ -928,100 +902,53 @@ function newRoleForm(): RoleFormState {
   font-family: var(--font-display);
 }
 
-.role-management-page__heading h1 {
-  margin: 0.45rem 0;
-  font-size: clamp(2rem, 4vw, 3rem);
-  letter-spacing: -0.055em;
-}
-
-.role-management-page__heading > p:last-child {
-  max-width: 43rem;
-  margin: 0;
-  color: var(--color-ink-muted);
-  font-size: 0.9rem;
-  line-height: 1.75;
-}
-
-.role-management-page__header-actions {
-  align-self: stretch;
-  gap: 0.7rem;
-  padding-left: 1.75rem;
-  border-left: 1px solid var(--color-line-subtle);
-}
-
-.role-management-page__count {
-  color: var(--color-ink-soft);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  white-space: nowrap;
-}
-
-.role-management-page__filter {
-  justify-content: space-between;
-  gap: 1rem;
-  margin-top: 1.3rem;
-  padding: 0.85rem;
-}
-
-.role-management-page__filter-fields {
-  gap: 0.65rem;
-  flex: 1;
-}
-
-.role-management-page__filter-fields :deep(.el-input) {
-  max-width: 22rem;
-}
-
-.role-management-page__filter-fields :deep(.el-select) {
-  width: 8rem;
-}
-
-.role-management-page__filter-actions,
-.role-management-page__batch-actions {
+.role-filters {
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.role-management-page__notice {
-  margin: 1rem 0 0;
-  padding: 0.75rem 0.9rem;
-  color: var(--color-accent-danger);
-  background: color-mix(in srgb, var(--color-accent-danger) 10%, var(--color-surface-base));
-  border: 1px solid color-mix(in srgb, var(--color-accent-danger) 30%, var(--color-line-subtle));
-  border-radius: var(--radius-control);
-  font-size: 0.84rem;
+.role-search {
+  flex: 1;
+  min-width: 13rem;
 }
 
-.role-management-page__workspace {
-  margin-top: 1.1rem;
+.role-filters > .el-select {
+  width: 7.5rem;
+}
+
+.role-filter-actions {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.role-batch-actions {
+  gap: 0.5rem;
+}
+
+.role-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  color: var(--color-accent-danger);
+  background: color-mix(in srgb, var(--color-accent-danger) 7%, var(--color-surface-base));
+  border-radius: var(--radius-control);
+  font-size: 0.78rem;
+}
+
+.role-workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
   overflow: hidden;
 }
 
-.role-management-page__toolbar {
-  justify-content: space-between;
-  gap: 1rem;
-  min-height: 4rem;
-  padding: 0.85rem 1rem;
-  background: linear-gradient(100deg, var(--color-surface-muted), transparent 70%);
-  border-bottom: 1px solid var(--color-line-subtle);
-}
-
-.role-management-page__toolbar p {
-  display: flex;
-  align-items: baseline;
-  gap: 0.42rem;
-  margin: 0;
-  color: var(--color-ink-soft);
-  font-size: 0.75rem;
-}
-
-.role-management-page__toolbar strong {
-  color: var(--color-ink-strong);
-  font-family: var(--font-mono);
-  font-size: 1.25rem;
-}
-
-.role-management-page__table {
-  width: 100%;
+.role-table-container {
+  flex: 1;
+  min-height: 0;
 }
 
 .role-cell {
@@ -1042,19 +969,78 @@ function newRoleForm(): RoleFormState {
   font-size: 0.69rem;
 }
 
-.role-management-page__row-actions {
+.role-identity {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  align-items: center;
+  gap: 0.36rem;
+  white-space: nowrap;
+}
+
+.role-identity strong,
+.role-identity code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.role-identity strong {
+  color: var(--color-ink-strong);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.role-identity code {
+  flex: 0 1 auto;
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  line-height: 1.1;
+}
+
+.role-workspace :deep(.el-table__header-wrapper th.el-table__cell) {
+  padding: 0.35rem 0;
+  color: var(--color-ink-muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.role-workspace :deep(.el-table__body-wrapper td.el-table__cell) {
+  padding: calc(0.25rem + 3px) 0;
+  font-size: 0.7rem;
+}
+
+.role-workspace :deep(.el-table .cell) {
+  line-height: 1.15;
+}
+
+.role-workspace :deep(.role-tag.el-tag) {
+  min-width: 3rem;
+  height: 1.18rem;
+  justify-content: center;
+  padding-inline: 0.24rem;
+  border-radius: var(--radius-small);
+  font-size: 0.64rem;
+  font-weight: 650;
+}
+
+.role-row-actions {
   display: flex;
   gap: 0.35rem;
 }
 
-.role-management-page__pagination {
+.role-page-summary {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  min-height: 4.25rem;
-  padding: 0.75rem 1rem;
+  gap: 0.75rem;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.75rem;
   color: var(--color-ink-soft);
   border-top: 1px solid var(--color-line-subtle);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
 }
 
 .role-form__pair {
@@ -1486,9 +1472,7 @@ function newRoleForm(): RoleFormState {
 }
 
 @include at-most('tablet') {
-  .role-management-page__header,
-  .role-management-page__filter,
-  .role-management-page__toolbar,
+  .role-filters,
   .role-detail__section-heading,
   .role-route-permission__header,
   .role-api-permission__header {
@@ -1496,31 +1480,29 @@ function newRoleForm(): RoleFormState {
     flex-direction: column;
   }
 
-  .role-management-page__header-actions {
-    justify-content: space-between;
-    padding: 1rem 0 0;
-    border-top: 1px solid var(--color-line-subtle);
-    border-left: 0;
+  .role-search {
+    flex-basis: 100%;
   }
 
-  .role-management-page__filter-fields {
-    align-items: stretch;
-    flex-direction: column;
+  .role-filters > .el-select {
+    flex: 1;
+    min-width: 6rem;
   }
 
-  .role-management-page__filter-fields :deep(.el-input),
-  .role-management-page__filter-fields :deep(.el-select),
+  .role-filter-actions {
+    margin-left: 0;
+  }
+
   .role-detail__section-heading :deep(.el-input) {
     max-width: none;
     width: 100%;
   }
 
-  .role-management-page__pagination {
-    align-items: flex-start;
-    flex-direction: column;
+  .role-page-summary {
+    padding: 0.45rem 0.65rem;
   }
 
-  .role-management-page__pagination :deep(.el-pagination),
+  .role-page-summary :deep(.el-pagination),
   .role-detail__member-pagination {
     max-width: 100%;
     overflow-x: auto;
@@ -1528,16 +1510,12 @@ function newRoleForm(): RoleFormState {
 }
 
 @include at-most('phone') {
-  .role-management-page {
-    padding: 1rem;
-  }
-
-  .role-management-page__batch-actions {
+  .role-batch-actions {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .role-management-page__batch-actions :deep(.el-button) {
+  .role-batch-actions :deep(.el-button) {
     width: 100%;
     margin: 0;
   }

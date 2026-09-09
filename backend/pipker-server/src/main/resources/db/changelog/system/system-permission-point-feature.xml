@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file db/changelog/system/system-permission-point-feature.xml
+    @project Pipker Framework
+    @module Pipker Server
+    @description 追加迁移当前 Java 权限枚举编码，并注册只读权限点目录页面。
+    @logic 只转换当前六个已确认的历史连字符编码；未知编码保持原样，再为系统管理目录增加权限点菜单并为 ADMIN 分配页面关系。
+    @dependencies system_role_permission、system_menu、system_role_menu、PermissionEnum
+    @index_tags liquibase、database、permission、permission-point、menu、rbac、migration
+    @author holic512
+-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- 使用数据库无关的 UPDATE 变更，Liquibase 会为 SQLite、MySQL 和 PostgreSQL 生成对应 SQL。 -->
+    <changeSet id="system-permission-point-code-migration" author="holic512">
+        <comment>将当前六个 Java PermissionEnum 权限编码从历史连字符格式迁移为冒号命名空间格式；未知历史编码不参与迁移。</comment>
+        <update tableName="system_role_permission">
+            <column name="permission_code" value="system:authorization:view"/>
+            <where>permission_code = 'system-authorization-view'</where>
+        </update>
+        <update tableName="system_role_permission">
+            <column name="permission_code" value="system:role:manage"/>
+            <where>permission_code = 'system-role-manage'</where>
+        </update>
+        <update tableName="system_role_permission">
+            <column name="permission_code" value="system:route:view"/>
+            <where>permission_code = 'system-route-view'</where>
+        </update>
+        <update tableName="system_role_permission">
+            <column name="permission_code" value="system:route:manage"/>
+            <where>permission_code = 'system-route-manage'</where>
+        </update>
+        <update tableName="system_role_permission">
+            <column name="permission_code" value="system:user:view"/>
+            <where>permission_code = 'system-user-view'</where>
+        </update>
+        <update tableName="system_role_permission">
+            <column name="permission_code" value="system:user:manage"/>
+            <where>permission_code = 'system-user-manage'</where>
+        </update>
+    </changeSet>
+
+    <changeSet id="system-permission-point-menu-seed" author="holic512">
+        <comment>新增系统管理下的只读权限点目录页面，页面接口与角色管理复用 system:role:manage。</comment>
+        <insert tableName="system_menu">
+            <column name="id" valueNumeric="2090000000000000306"/>
+            <column name="parent_id" valueNumeric="2090000000000000301"/>
+            <column name="menu_name" value="权限点"/>
+            <column name="menu_type" value="MENU"/>
+            <column name="route_path" value="/system/permissions"/>
+            <column name="route_name" value="SystemPermissionPointManagement"/>
+            <column name="component_key" value="system/permission/index"/>
+            <column name="icon" value="Key"/>
+            <column name="sort" valueNumeric="40"/>
+            <column name="visible" valueBoolean="true"/>
+            <column name="status" value="ENABLED"/>
+            <column name="created_at" valueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" valueComputed="CURRENT_TIMESTAMP"/>
+        </insert>
+    </changeSet>
+
+    <changeSet id="system-permission-point-role-menu-seed" author="holic512">
+        <comment>为默认 ADMIN 角色分配权限点目录页面；SUPER_ADMIN 继续由超级管理员规则自动拥有。</comment>
+        <insert tableName="system_role_menu">
+            <column name="id" valueNumeric="2090000000000000705"/>
+            <column name="role_id" valueNumeric="2090000000000000102"/>
+            <column name="menu_id" valueNumeric="2090000000000000306"/>
+        </insert>
+    </changeSet>
+</databaseChangeLog>

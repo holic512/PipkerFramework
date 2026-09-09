@@ -119,8 +119,8 @@ const canSaveInterfacePermissions = computed(() => rolePermissionConfiguration.v
 const permissionGroups = computed(() => {
   const groups = new Map<string, SystemPermissionPoint[]>()
   for (const point of permissionPoints.value) {
-    const segments = point.code.split('-')
-    const key = segments.length > 1 ? segments.slice(0, -1).join('-') : point.code
+    const segments = point.code.split(':')
+    const key = segments.length > 1 ? segments.slice(0, -1).join(':') : point.code
     const current = groups.get(key) ?? []
     current.push(point)
     groups.set(key, current)
@@ -531,21 +531,28 @@ function newRoleForm(): RoleFormState {
 <template>
   <section class="role-management-page" aria-label="角色管理">
     <form class="role-filters" aria-label="角色筛选" @submit.prevent="applyFilters">
-      <el-input
-        v-model="filters.keyword"
-        clearable
-        aria-label="搜索角色"
-        class="role-search"
-        placeholder="角色编码或名称"
-      />
-      <el-select v-model="filters.status" clearable aria-label="角色状态" placeholder="全部状态">
-        <el-option label="启用" value="ENABLED" />
-        <el-option label="停用" value="DISABLED" />
-      </el-select>
+      <div class="role-filter-fields">
+        <el-input
+          v-model="filters.keyword"
+          clearable
+          aria-label="搜索角色"
+          class="role-search"
+          placeholder="角色编码或名称"
+        />
+        <el-select v-model="filters.status" clearable aria-label="角色状态" placeholder="全部状态">
+          <el-option label="启用" value="ENABLED" />
+          <el-option label="停用" value="DISABLED" />
+        </el-select>
+      </div>
+      <el-divider direction="vertical" class="role-filter-divider" />
       <div class="role-filter-actions">
-        <el-button :loading="loading" native-type="submit" type="primary">查询</el-button>
-        <el-button :disabled="loading" @click="clearFilters">重置</el-button>
+        <div class="role-query-actions">
+          <el-button :loading="loading" native-type="submit" type="primary">查询</el-button>
+          <el-button :disabled="loading" @click="clearFilters">重置</el-button>
+        </div>
+        <el-divider direction="vertical" class="role-filter-divider" />
         <el-button type="primary" plain @click="openCreateDialog">新建角色</el-button>
+        <el-divider direction="vertical" class="role-filter-divider" />
         <div class="role-batch-actions" aria-label="批量操作">
           <el-button :disabled="selectedRoleIds.length === 0" :loading="operating" @click="batchChangeStatus('ENABLED')">
             批量启用
@@ -815,7 +822,7 @@ function newRoleForm(): RoleFormState {
           <section v-for="group in permissionGroups" :key="group.key" class="role-api-permission__group">
             <header>
               <strong>{{ group.key }}</strong>
-              <code>{{ group.key }}-*</code>
+              <code>{{ group.key }}:*</code>
             </header>
             <el-checkbox-group v-model="selectedPermissionCodes" class="role-api-permission__options">
               <el-checkbox
@@ -887,7 +894,9 @@ function newRoleForm(): RoleFormState {
 }
 
 .role-filters,
+.role-filter-fields,
 .role-filter-actions,
+.role-query-actions,
 .role-batch-actions,
 .role-detail__hero,
 .role-detail__section-heading {
@@ -907,23 +916,35 @@ function newRoleForm(): RoleFormState {
   gap: 0.5rem;
 }
 
+.role-filter-fields {
+  flex: 1 1 0;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
 .role-search {
   flex: 1;
   min-width: 13rem;
 }
 
-.role-filters > .el-select {
+.role-filter-fields > .el-select {
   width: 7.5rem;
 }
 
 .role-filter-actions {
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-left: auto;
 }
 
+.role-query-actions,
 .role-batch-actions {
   gap: 0.5rem;
+}
+
+:deep(.role-filter-divider.el-divider--vertical) {
+  height: 1.35rem;
+  margin: 0 0.125rem;
+  border-color: var(--color-line-subtle);
 }
 
 .role-notice {
@@ -1485,13 +1506,22 @@ function newRoleForm(): RoleFormState {
     flex-basis: 100%;
   }
 
-  .role-filters > .el-select {
+  .role-filter-fields {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .role-filter-fields > .el-select {
     flex: 1;
     min-width: 6rem;
   }
 
   .role-filter-actions {
-    margin-left: 0;
+    width: 100%;
+  }
+
+  :deep(.role-filter-divider.el-divider--vertical) {
+    display: none;
   }
 
   .role-detail__section-heading :deep(.el-input) {

@@ -24,6 +24,7 @@
     <include file="db/changelog/system/system-user-role.xml"/>
     <include file="db/changelog/system/system-role-permission.xml"/>
     <include file="db/changelog/system/system-role-menu.xml"/>
+    <include file="db/changelog/system/system-permission-point-feature.xml"/>
 
     <!-- 业务表 changelog 统一放在 business 目录；当前基线没有独立业务表，避免保留空入口。 -->
 </databaseChangeLog>

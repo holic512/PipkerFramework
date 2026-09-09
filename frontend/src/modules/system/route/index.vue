@@ -23,7 +23,7 @@ import { getRouteDetail, getRouteTree, updateRouteConfiguration, type RouteConfi
 
 const session = useSessionStore()
 const currentRoute = useRoute()
-const canManage = computed(() => session.permissions.includes('system-route-manage'))
+const canManage = computed(() => session.permissions.includes('system:route:manage'))
 const filters = reactive({ keyword: '', menuType: undefined as SystemRouteMenuType | undefined, visible: undefined as boolean | undefined, status: undefined as SystemRouteStatus | undefined })
 const appliedFilters = ref<RouteTreeQuery>({})
 const routeTree = ref<SystemRouteTreeNode[]>([])
@@ -176,10 +176,13 @@ function countTreeNodes(nodes: SystemRouteTreeNode[]): number {
 <template>
   <section class="route-management-page" aria-label="路由管理">
     <form class="route-filters" aria-label="路由筛选" @submit.prevent="search">
-      <el-input v-model="filters.keyword" clearable aria-label="搜索路由" placeholder="名称、路径、路由名或页面索引" class="route-search" />
-      <el-select v-model="filters.menuType" clearable aria-label="路由类型" placeholder="全部类型"><el-option label="目录" value="DIRECTORY" /><el-option label="页面" value="MENU" /></el-select>
-      <el-select v-model="filters.visible" clearable aria-label="菜单展示" placeholder="全部展示"><el-option label="显示" :value="true" /><el-option label="隐藏" :value="false" /></el-select>
-      <el-select v-model="filters.status" clearable aria-label="启用状态" placeholder="全部状态"><el-option label="启用" value="ENABLED" /><el-option label="停用" value="DISABLED" /></el-select>
+      <div class="route-filter-fields">
+        <el-input v-model="filters.keyword" clearable aria-label="搜索路由" placeholder="名称、路径、路由名或页面索引" class="route-search" />
+        <el-select v-model="filters.menuType" clearable aria-label="路由类型" placeholder="全部类型"><el-option label="目录" value="DIRECTORY" /><el-option label="页面" value="MENU" /></el-select>
+        <el-select v-model="filters.visible" clearable aria-label="菜单展示" placeholder="全部展示"><el-option label="显示" :value="true" /><el-option label="隐藏" :value="false" /></el-select>
+        <el-select v-model="filters.status" clearable aria-label="启用状态" placeholder="全部状态"><el-option label="启用" value="ENABLED" /><el-option label="停用" value="DISABLED" /></el-select>
+      </div>
+      <el-divider direction="vertical" class="route-filter-divider" />
       <div class="route-filter-actions"><el-button native-type="submit" type="primary" :loading="loading">查询</el-button><el-button :disabled="loading" @click="reset">重置</el-button></div>
     </form>
     <div v-if="errorMessage" class="route-notice" role="alert"><span>{{ errorMessage }}</span><el-button link type="primary" :loading="loading" @click="loadRoutes">重试</el-button></div>
@@ -227,9 +230,11 @@ function countTreeNodes(nodes: SystemRouteTreeNode[]): number {
 .route-management-page { display: flex; flex: 1; flex-direction: column; width: 100%; min-height: 0; gap: 0.625rem; }
 .route-hint { margin: 0; color: var(--color-ink-soft); font-size: 0.72rem; line-height: 1.45; }
 .route-filters { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.route-filter-fields { display: flex; flex: 1 1 0; min-width: 0; align-items: center; gap: 0.5rem; }
 .route-search { flex: 1; min-width: 13rem; }
-.route-filters > .el-select { width: 7.5rem; }
-.route-filter-actions { display: flex; gap: 0.5rem; margin-left: auto; }
+.route-filter-fields > .el-select { width: 7.5rem; }
+.route-filter-actions { display: flex; align-items: center; gap: 0.5rem; }
+:deep(.route-filter-divider.el-divider--vertical) { height: 1.35rem; margin: 0 0.125rem; border-color: var(--color-line-subtle); }
 .route-workspace { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .route-table-container { flex: 1; min-height: 0; }
 .route-icon-option { display: flex; align-items: center; gap: 0.5rem; }
@@ -255,5 +260,5 @@ function countTreeNodes(nodes: SystemRouteTreeNode[]): number {
 .route-facts > div { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: 1rem; padding: 0.75rem 0; border-bottom: 1px solid var(--color-line-subtle); font-size: 0.82rem; }
 .route-facts dt { color: var(--color-ink-soft); }
 .route-facts dd { margin: 0; overflow-wrap: anywhere; color: var(--color-ink-strong); }
-@include at-most('tablet') { .route-search { flex-basis: 100%; } .route-filters > .el-select { flex: 1; min-width: 6rem; } .route-tree-summary { padding: 0.45rem 0.65rem; } }
+@include at-most('tablet') { .route-filters { align-items: stretch; flex-direction: column; } .route-filter-fields { width: 100%; flex-wrap: wrap; } .route-search { flex-basis: 100%; } .route-filter-fields > .el-select { flex: 1; min-width: 6rem; } .route-filter-actions { width: 100%; } :deep(.route-filter-divider.el-divider--vertical) { display: none; } .route-tree-summary { padding: 0.45rem 0.65rem; } }
 </style>

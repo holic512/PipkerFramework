@@ -44,7 +44,8 @@ class LiquibaseChangelogStructureTests {
             "db/changelog/system/system-api-resource.xml",
             "db/changelog/system/system-user-role.xml",
             "db/changelog/system/system-role-permission.xml",
-            "db/changelog/system/system-role-menu.xml"
+            "db/changelog/system/system-role-menu.xml",
+            "db/changelog/system/system-permission-point-feature.xml"
     );
 
     @Test
@@ -67,15 +68,20 @@ class LiquibaseChangelogStructureTests {
                 .contains("CREATE TABLE SYSTEM_USER_ROLE")
                 .contains("CREATE TABLE SYSTEM_ROLE_PERMISSION")
                 .contains("CREATE TABLE SYSTEM_ROLE_MENU")
-                .contains("SYSTEM-AUTHORIZATION-VIEW")
-                .contains("SYSTEM-ROLE-MANAGE")
-                .contains("SYSTEM-ROUTE-VIEW")
-                .contains("SYSTEM-USER-VIEW")
-                .contains("SYSTEM-USER-MANAGE")
+                .contains("SYSTEM:AUTHORIZATION:VIEW")
+                .contains("SYSTEM:ROLE:MANAGE")
+                .contains("SYSTEM:ROUTE:VIEW")
+                .contains("SYSTEM:ROUTE:MANAGE")
+                .contains("SYSTEM:USER:VIEW")
+                .contains("SYSTEM:USER:MANAGE")
                 .contains("SYSTEMOVERVIEW")
                 .contains("SYSTEMROLEMANAGEMENT")
                 .contains("SYSTEMROUTEMANAGEMENT")
                 .contains("SYSTEMUSERMANAGEMENT")
+                .contains("SYSTEMPERMISSIONPOINTMANAGEMENT")
+                .contains("/SYSTEM/PERMISSIONS")
+                .contains("2090000000000000306")
+                .contains("2090000000000000705")
                 .doesNotContain("SYSTEMROLEMENU")
                 .doesNotContain("ROLE-MENU-CONFIG")
                 .contains("CK_SYSTEM_PERMISSION_TYPE")

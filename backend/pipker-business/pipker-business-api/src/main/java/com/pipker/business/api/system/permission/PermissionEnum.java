@@ -13,38 +13,38 @@ package com.pipker.business.api.system.permission;
 /**
  * 系统接口权限点。
  *
- * <p>此枚举是运行时唯一有效的权限定义来源。权限编码使用连字符分隔，
- * 便于管理端按前缀进行轻量分组展示。</p>
+ * <p>此枚举是运行时唯一有效的权限定义来源。权限编码使用冒号作为命名空间分隔符，
+ * 统一采用 {@code system:resource:action} 形式，便于管理端按层级进行目录展示。</p>
  */
 public enum PermissionEnum {
 
     SYSTEM_AUTHORIZATION_VIEW(
-            "system-authorization-view",
+            "system:authorization:view",
             "查看当前授权",
             "读取当前登录用户的角色、接口权限和页面路由授权"
     ),
     SYSTEM_ROLE_MANAGE(
-            "system-role-manage",
+            "system:role:manage",
             "管理系统角色",
             "维护角色资料、成员、页面路由权限和接口权限"
     ),
     SYSTEM_ROUTE_VIEW(
-            "system-route-view",
+            "system:route:view",
             "查看系统路由",
             "查看已落库页面路径、路由索引、菜单展示状态和目录分类"
     ),
     SYSTEM_ROUTE_MANAGE(
-            "system-route-manage",
+            "system:route:manage",
             "管理系统路由配置",
             "维护菜单名称、图标、排序、展示和启用状态，不改变路由结构"
     ),
     SYSTEM_USER_VIEW(
-            "system-user-view",
+            "system:user:view",
             "查看系统用户",
             "查看系统用户列表、账户资料、角色分配和登录记录"
     ),
     SYSTEM_USER_MANAGE(
-            "system-user-manage",
+            "system:user:manage",
             "管理系统用户",
             "创建、编辑、删除、启停用户，分配角色并重置密码"
     );

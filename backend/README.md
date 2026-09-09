@@ -29,7 +29,7 @@ backend/
 - Sa-Token Starter 只提供会话与过滤器，不放置 User、Role、Mapper 或任何数据库授权逻辑。
 - `pipker-spring-boot-starter-file` 提供本地文件服务、逻辑存储键和根相对访问路径；Servlet Web 应用中可按开关注册公开只读资源映射，但不提供 HTTP 上传、删除或目录枚举能力。
 
-`pipker-business-api` 以业务功能而非分层目录组织：`system/auth` 负责认证和当前会话，`system/user` 负责账户，`system/authorization` 负责 RBAC 与菜单，`system/role` 负责角色生命周期与成员密码重置，`system/route` 只读查询已落库的路由定义，`system/health` 负责存活检测；仅跨功能模型、Mapper 和 Web 异常映射位于 API 自身的 `common` 包。根 POM 管理 Spring Boot `4.1.1`、Java `21` 与内部模块版本。系统表 Mapper 使用 MyBatis-Plus `3.5.16`，由 `PipkerApplication` 的 `@MapperScan` 扫描；管理列表统一使用 MyBatis-Plus 分页拦截器，单页最大 100 条。
+`pipker-business-api` 以业务功能而非分层目录组织：`system/auth` 负责认证和当前会话，`system/user` 负责账户，`system/authorization` 负责 RBAC 与菜单，`system/role` 负责角色生命周期与成员密码重置，`system/route` 只读查询已落库的路由定义，`system/permission` 提供 Java 权限枚举目录读取，`system/health` 负责存活检测；仅跨功能模型、Mapper 和 Web 异常映射位于 API 自身的 `common` 包。根 POM 管理 Spring Boot `4.1.1`、Java `21` 与内部模块版本。系统表 Mapper 使用 MyBatis-Plus `3.5.16`，由 `PipkerApplication` 的 `@MapperScan` 扫描；管理列表统一使用 MyBatis-Plus 分页拦截器，单页最大 100 条。
 
 ## 系统身份与 RBAC
 
@@ -41,9 +41,9 @@ backend/
 | `system_role.role_code` | 如 `SUPER_ADMIN`、`ADMIN` | 授权分组 | 登录域或独立 StpLogic |
 | `LoginType` | 固定 `SYSTEM` | 编码 Sa-Token 登录身份 | 用户角色或菜单权限 |
 
-所有账户都使用默认 `StpUtil` 创建 `LoginIdentity(SYSTEM, userId)` 会话。Sa-Token Filter 对 `/api/**` 先执行登录校验，再把非匿名请求交给业务层的数据库 API 授权服务；项目不使用 `@SaCheck*` 注解、独立 `StpLogic` 或 Controller 内手写权限检查。
+所有账户都使用默认 `StpUtil` 创建 `LoginIdentity(SYSTEM, userId)` 会话。Sa-Token Filter 对 `/api/**` 先执行登录校验，再由 MVC `PermissionAuthorizationInterceptor` 处理控制器上的 `@Permission(PermissionEnum.X)`；项目不使用 `@SaCheck*` 注解、独立 `StpLogic` 或 Controller 内手写权限检查。
 
-`SUPER_ADMIN` 的特殊语义只集中在 `SystemAuthorizationService`：拥有全部**启用可见**导航菜单、全部启用页面路由和全部启用 `API` 权限。普通账户合并其所有启用角色的页面路由及 API 权限；其中 `visible=false` 的页面会继续注册为受授权守卫保护的路由，但不会出现在导航中。用户授权快照和全部启用 API 资源规则都使用 Caffeine 进程内 60 秒 TTL 缓存；角色路由页面保存后会清空本实例快照，直接改库后仍会在每个实例的缓存到期后生效。详细配置见 [../docs/2.权限配置说明.md](../docs/2.权限配置说明.md)。
+`SUPER_ADMIN` 的特殊语义只集中在 `SystemAuthorizationService`：拥有全部**启用可见**导航菜单、全部启用页面路由和当前 `PermissionEnum` 定义的全部接口权限。普通账户合并其所有启用角色的页面路由及枚举权限；其中 `visible=false` 的页面会继续注册为受授权守卫保护的路由，但不会出现在导航中。用户授权快照使用 Caffeine 进程内 60 秒 TTL 缓存；角色路由或接口权限保存后会清空本实例受影响的授权快照，直接改库后仍会在每个实例的缓存到期后生效。详细配置见 [../docs/2.权限配置说明.md](../docs/2.权限配置说明.md)。
 
 ## 数据库与 Liquibase
 
@@ -73,16 +73,16 @@ Liquibase 的 `DATABASECHANGELOG` 记录已执行 changeset；重复启动不会
 | --- | --- |
 | `system_user` | 系统登录账户、`password_hash`、状态、最后登录时间及审计字段 |
 | `system_role` | 角色编码、名称、状态和排序 |
-| `system_permission` | `API` 权限编码 |
+| `system_permission` | 历史兼容的 `API` 权限定义，不是当前 MVC 注解授权的唯一来源 |
 | `system_menu` | 路由与菜单的唯一持久化来源：目录或页面菜单、自关联 `parent_id`、路径、路由名、逻辑 `component_key` 和 `visible` 展示状态 |
 | `system_user_role` | 用户与角色的独立雪花主键关联，并以外键对保持唯一 |
-| `system_role_permission` | 角色与权限的独立雪花主键关联，并以外键对保持唯一 |
+| `system_role_permission` | 角色与 `PermissionEnum` 编码的独立雪花主键关联，并以外键对保持唯一 |
 | `system_role_menu` | 角色与可访问页面菜单的独立雪花主键关联，并以外键对保持唯一 |
-| `system_api_resource` | `API` 权限与 `HTTP 方法 + MVC 路径模板` 的联合唯一映射 |
+| `system_api_resource` | 历史兼容的 `API` 路径映射，不是当前 MVC 注解授权的唯一来源 |
 
 SQLite、MySQL 和 PostgreSQL 均使用独立的迁移树。SQLite 在建表阶段直接声明外键、联合主键、唯一约束和检查约束，以适配其不支持后置 `addForeignKeyConstraint`、`addUniqueConstraint` 的限制；MySQL 与 PostgreSQL 各自保留适用的约束调整 SQL。`009-system-database-rbac` 删除按钮和旧菜单关系；`010-system-role-route-menu` 恢复角色菜单关系。当前项目处于可重建阶段，不兼容改造前的 changelog 文件路径、changeset 历史或 `postgresql` Profile 别名。
 
-初始数据包含 `SUPER_ADMIN`、`ADMIN`、系统概览、角色路由、角色管理与只读路由管理菜单，以及当前授权、后台授权读取、角色路由管理、角色管理和路由读取 API 权限。`SUPER_ADMIN` 不需要任何显式角色关联；`ADMIN` 初始拥有当前授权、后台授权读取、角色管理与路由读取 API 权限，以及系统概览、角色管理和路由管理菜单。路由管理将 `system_menu` 作为路径、路由名、页面索引和菜单展示状态的唯一数据源；`DIRECTORY` 分类只组织导航层级，不需要真实页面文件或 `component_key`。不存在 `MERCHANT`、`USER` 或任何业务表。唯一初始管理员由 Liquibase 写入：`admin / admin123`，数据库只保存当前 `SecurityCryptoService` 可验证的 `{bcrypt}` 密码哈希。
+初始数据包含 `SUPER_ADMIN`、`ADMIN`、系统概览、角色路由、角色管理、只读路由管理和只读权限点目录菜单，以及历史兼容权限表和当前角色权限关联。`SUPER_ADMIN` 不需要任何显式角色关联；`ADMIN` 通过追加式 changeset 获得权限点页面菜单关系，接口目录读取继续复用 `system:role:manage`。路由管理将 `system_menu` 作为路径、路由名、页面索引和菜单展示状态的唯一数据源；`DIRECTORY` 分类只组织导航层级，不需要真实页面文件或 `component_key`。不存在 `MERCHANT`、`USER` 或任何业务表。唯一初始管理员由 Liquibase 写入：`admin / admin123`，数据库只保存当前 `SecurityCryptoService` 可验证的 `{bcrypt}` 密码哈希。
 
 > 安全警告：默认管理员口令只可用于首次本地初始化。公开部署前必须立即更换为受控的 `{bcrypt}` 哈希；不要把 `admin123` 用于共享或生产数据库。角色管理页面可为该角色成员设置新密码，但不会返回、记录或保存任何明文密码；非 `SUPER_ADMIN` 不能重置超级管理员账户。
 
@@ -214,12 +214,15 @@ Authorization: Bearer <accessToken>
 | --- | --- | --- |
 | `GET /api/ping` | 匿名 | 包装后的健康文本 |
 | `POST /api/auth/login` | 匿名 | `accessToken`、`tokenType: Bearer` 和不含密码/电话/邮箱的用户资料 |
-| `GET /api/auth/me` | 已登录且具备 `system:auth:me` | 当前用户、角色编码、权限编码、可见菜单树和全部已授权页面路由 |
-| `GET /api/admin/authorization` | 已登录且具备 `system:authorization:read` | 当前授权投影 |
+| `GET /api/auth/me` | 已登录且具备 `system:authorization:view` | 当前用户、角色编码、权限编码、可见菜单树和全部已授权页面路由 |
+| `GET /api/admin/authorization` | 已登录且具备 `system:authorization:view` | 当前授权投影 |
 | `/api/admin/roles` | 已登录且具备 `system:role:manage` | 角色筛选分页、增删改、批量状态/删除、详情、成员分页与成员密码重置 |
-| `GET /api/admin/routes`、`GET /api/admin/routes/{routeId}` | 已登录且具备 `system:route:read` | 只读筛选、分页和查看已落库路由、页面索引、菜单展示状态与目录分类 |
+| `GET /api/admin/permissions` | 已登录且具备 `system:role:manage` | 只读返回当前 `PermissionEnum` 的全部有效权限点，按枚举声明顺序排列 |
+| `GET /api/admin/routes`、`GET /api/admin/routes/{routeId}` | 已登录且具备 `system:route:view` | 只读筛选、分页和查看已落库路由、页面索引、菜单展示状态与目录分类 |
 
-Sa-Token 只显式放行 `GET /api/ping` 和 `POST /api/auth/login`。其他 `/api/**` 请求必须先登录，并且必须唯一命中 `system_api_resource` 中的启用 `API` 资源映射；无映射、HTTP 方法不匹配、路径模板重叠或权限不足都返回 `AUTH_FORBIDDEN`。Filter 本身从不依赖 Controller 注解；开发 Route Manifest 已删除，前端唯一的页面路由来源是 `/api/auth/me`。
+Sa-Token 只显式放行 `GET /api/ping` 和 `POST /api/auth/login`。其他 `/api/**` 请求先完成登录校验，再由 MVC `PermissionAuthorizationInterceptor` 读取接口或控制器上的 `@Permission(PermissionEnum.X)`，并在当前授权快照中匹配冒号格式编码。`system_permission` 与 `system_api_resource` 继续保留为历史兼容结构，不再作为当前注解授权的唯一来源；前端唯一的页面路由来源是 `/api/auth/me`。
+
+权限点目录页面位于“系统管理 → 权限点”，通过数据库菜单的 `componentKey = system/permission/index` 动态装载。页面只提供前端筛选、树形展开与查看，不提供权限点 CRUD；权限编码详情见 [../docs/2.权限配置说明.md](../docs/2.权限配置说明.md)。
 
 ## 本地构建与测试
 

@@ -9,10 +9,10 @@
  * @author holic512
  */
 import type { Component } from 'vue'
-import { House, Menu, Setting, Share, UserFilled, User, Folder, Document, List, Monitor, Tools, Bell, Search, DataAnalysis } from '@element-plus/icons-vue'
+import { House, Key, Menu, Setting, Share, UserFilled, User, Folder, Document, List, Monitor, Tools, Bell, Search, DataAnalysis } from '@element-plus/icons-vue'
 
 export const menuIcons: Readonly<Record<string, Component>> = {
-  House, Menu, Setting, Share, UserFilled, User, Folder, Document, List, Monitor, Tools, Bell, Search, DataAnalysis,
+  House, Key, Menu, Setting, Share, UserFilled, User, Folder, Document, List, Monitor, Tools, Bell, Search, DataAnalysis,
 }
 export const menuIconNames = Object.keys(menuIcons)
 export function resolveMenuIcon(name: string | null): Component {

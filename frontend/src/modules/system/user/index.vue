@@ -76,7 +76,7 @@ const selectedPasswordUser = ref<SystemUserSummary | null>(null)
 const resetPassword = ref('')
 const resettingPassword = ref(false)
 
-const canManage = computed(() => session.permissions.includes('system-user-manage'))
+const canManage = computed(() => session.permissions.includes('system:user:manage'))
 const selectedUserIds = computed(() => selectedUsers.value.map(user => user.id))
 const userDialogTitle = computed(() => editingUser.value ? '编辑用户' : '新建用户')
 
@@ -381,20 +381,29 @@ function newUserForm(): UserFormState {
 <template>
   <section class="user-management-page" aria-label="用户管理">
     <form class="user-filters" aria-label="用户筛选" @submit.prevent="applyFilters">
-      <el-input v-model="filters.keyword" clearable aria-label="搜索用户" class="user-search" placeholder="用户名、昵称、手机或邮箱" />
-      <el-select v-model="filters.status" clearable aria-label="用户状态" placeholder="全部状态">
-        <el-option label="启用" value="ENABLED" />
-        <el-option label="停用" value="DISABLED" />
-      </el-select>
+      <div class="user-filter-fields">
+        <el-input v-model="filters.keyword" clearable aria-label="搜索用户" class="user-search" placeholder="用户名、昵称、手机或邮箱" />
+        <el-select v-model="filters.status" clearable aria-label="用户状态" placeholder="全部状态">
+          <el-option label="启用" value="ENABLED" />
+          <el-option label="停用" value="DISABLED" />
+        </el-select>
+      </div>
+      <el-divider direction="vertical" class="user-filter-divider" />
       <div class="user-filter-actions">
-        <el-button native-type="submit" type="primary" :loading="loading">查询</el-button>
-        <el-button :disabled="loading" @click="clearFilters">重置</el-button>
-        <el-button v-if="canManage" type="primary" plain @click="openCreateDialog">新建用户</el-button>
-        <div v-if="canManage" class="user-batch-actions" aria-label="批量操作">
-          <el-button :disabled="selectedUserIds.length === 0" :loading="operating" @click="batchChangeStatus('ENABLED')">批量启用</el-button>
-          <el-button :disabled="selectedUserIds.length === 0" :loading="operating" @click="batchChangeStatus('DISABLED')">批量停用</el-button>
-          <el-button :disabled="selectedUserIds.length === 0" :loading="operating" type="danger" plain @click="batchDelete">批量删除</el-button>
+        <div class="user-query-actions">
+          <el-button native-type="submit" type="primary" :loading="loading">查询</el-button>
+          <el-button :disabled="loading" @click="clearFilters">重置</el-button>
         </div>
+        <template v-if="canManage">
+          <el-divider direction="vertical" class="user-filter-divider" />
+          <el-button type="primary" plain @click="openCreateDialog">新建用户</el-button>
+          <el-divider direction="vertical" class="user-filter-divider" />
+          <div class="user-batch-actions" aria-label="批量操作">
+            <el-button :disabled="selectedUserIds.length === 0" :loading="operating" @click="batchChangeStatus('ENABLED')">批量启用</el-button>
+            <el-button :disabled="selectedUserIds.length === 0" :loading="operating" @click="batchChangeStatus('DISABLED')">批量停用</el-button>
+            <el-button :disabled="selectedUserIds.length === 0" :loading="operating" type="danger" plain @click="batchDelete">批量删除</el-button>
+          </div>
+        </template>
       </div>
     </form>
 
@@ -494,11 +503,14 @@ function newUserForm(): UserFormState {
 
 <style scoped lang="scss">
 .user-management-page { display: flex; flex: 1; flex-direction: column; width: 100%; min-height: 0; gap: 0.625rem; }
-.user-filters, .user-filter-actions, .user-batch-actions, .user-detail__hero { display: flex; align-items: center; }
+.user-filters, .user-filter-fields, .user-filter-actions, .user-query-actions, .user-batch-actions, .user-detail__hero { display: flex; align-items: center; }
 .user-filters { flex-wrap: wrap; gap: 0.5rem; }
+.user-filter-fields { flex: 1 1 0; min-width: 0; gap: 0.5rem; }
 .user-search { flex: 1; min-width: 13rem; }
-.user-filters > .el-select { width: 7.5rem; }
-.user-filter-actions { flex-wrap: wrap; gap: 0.5rem; margin-left: auto; }
+.user-filter-fields > .el-select { width: 7.5rem; }
+.user-filter-actions, .user-query-actions, .user-batch-actions { gap: 0.5rem; }
+.user-filter-actions { flex-wrap: wrap; }
+:deep(.user-filter-divider.el-divider--vertical) { height: 1.35rem; margin: 0 0.125rem; border-color: var(--color-line-subtle); }
 .user-batch-actions { gap: 0.5rem; }
 .user-notice { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.55rem 0.75rem; color: var(--color-accent-danger); background: color-mix(in srgb, var(--color-accent-danger) 7%, var(--color-surface-base)); border-radius: var(--radius-control); font-size: 0.78rem; }
 .user-workspace { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -537,6 +549,6 @@ function newUserForm(): UserFormState {
 .user-detail__loading { min-height: 15rem; display: grid; place-items: center; color: var(--color-ink-muted); }
 .user-password-copy { margin: 0 0 1rem; color: var(--color-ink-muted); font-size: 0.88rem; line-height: 1.7; }
 .user-password-copy strong { color: var(--color-ink-strong); }
-@include at-most('tablet') { .user-filters, .user-detail__hero { align-items: stretch; flex-direction: column; } .user-search { flex-basis: 100%; } .user-filters > .el-select { flex: 1; min-width: 6rem; } .user-filter-actions { margin-left: 0; } .user-page-summary { padding: 0.45rem 0.65rem; } .user-page-summary :deep(.el-pagination) { max-width: 100%; overflow-x: auto; } }
+@include at-most('tablet') { .user-filters, .user-detail__hero { align-items: stretch; flex-direction: column; } .user-filter-fields { width: 100%; flex-wrap: wrap; } .user-search { flex-basis: 100%; } .user-filter-fields > .el-select { flex: 1; min-width: 6rem; } .user-filter-actions { width: 100%; } :deep(.user-filter-divider.el-divider--vertical) { display: none; } .user-page-summary { padding: 0.45rem 0.65rem; } .user-page-summary :deep(.el-pagination) { max-width: 100%; overflow-x: auto; } }
 @include at-most('phone') { .user-batch-actions { display: grid; grid-template-columns: repeat(3, 1fr); } .user-batch-actions :deep(.el-button) { width: 100%; margin: 0; } .user-form__grid, .user-detail__facts { grid-template-columns: 1fr; } .user-detail__facts div, .user-detail__facts div:nth-child(even) { border-right: 0; border-bottom: 1px solid var(--color-line-subtle); } .user-detail__facts div:last-child { border-bottom: 0; } }
 </style>

@@ -31,6 +31,7 @@ import com.pipker.business.api.common.model.SystemUserRole;
 import com.pipker.business.api.system.authorization.SystemAuthorizationService;
 import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
 import com.pipker.business.api.system.permission.PermissionEnum;
+import com.pipker.business.api.system.permission.PermissionPointController;
 import com.pipker.business.api.system.permission.PermissionRegistry;
 import com.pipker.business.api.system.role.RoleManagementService;
 import com.pipker.business.api.system.user.UserManagementService;
@@ -193,6 +194,19 @@ class MybatisPlusSystemPersistenceIntegrationTests {
     }
 
     @Test
+    void permissionPointHttpContractUsesRoleManagePermissionAndReturnsEnumCatalog() throws Exception {
+        permissionPointHttp(true).perform(get("/api/admin/permissions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.length()").value(PermissionEnum.values().length))
+                .andExpect(jsonPath("$.data[0].code").value(PermissionEnum.SYSTEM_AUTHORIZATION_VIEW.getCode()))
+                .andExpect(jsonPath("$.data[1].code").value(PermissionEnum.SYSTEM_ROLE_MANAGE.getCode()));
+        permissionPointHttp(false).perform(get("/api/admin/permissions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(403));
+    }
+
+    @Test
     void routeSubtreeConfigurationRefreshesSnapshotsAndPreservesSuperAdminAccess() {
         SystemMenu directory = configurationTestMenu(null, "DIRECTORY");
         SystemMenu page = configurationTestMenu(directory.getId(), "MENU");
@@ -261,6 +275,20 @@ class MybatisPlusSystemPersistenceIntegrationTests {
             }
         };
         return MockMvcBuilders.standaloneSetup(new RouteManagementController(routeManagementService))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .addInterceptors(new PermissionAuthorizationInterceptor(authorization)).build();
+    }
+
+    private MockMvc permissionPointHttp(boolean manage) {
+        CurrentSystemAuthorizationService authorization = new CurrentSystemAuthorizationService(null, null) {
+            @Override
+            public SystemAuthorizationSnapshot currentSnapshot() {
+                return new SystemAuthorizationSnapshot(null, List.of(),
+                        manage ? List.of(PermissionEnum.SYSTEM_ROLE_MANAGE.getCode()) : List.of(),
+                        List.of(), List.of());
+            }
+        };
+        return MockMvcBuilders.standaloneSetup(new PermissionPointController(permissionRegistry))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .addInterceptors(new PermissionAuthorizationInterceptor(authorization)).build();
     }
@@ -411,6 +439,30 @@ class MybatisPlusSystemPersistenceIntegrationTests {
                 .containsExactlyElementsOf(List.of(PermissionEnum.values()).stream()
                         .map(PermissionEnum::getCode)
                         .toList());
+        assertThat(systemRolePermissionMapper.findPermissionCodesByRoleId(2090000000000000102L))
+                .containsExactlyInAnyOrder(
+                        PermissionEnum.SYSTEM_AUTHORIZATION_VIEW.getCode(),
+                        PermissionEnum.SYSTEM_ROLE_MANAGE.getCode(),
+                        PermissionEnum.SYSTEM_ROUTE_VIEW.getCode(),
+                        PermissionEnum.SYSTEM_USER_VIEW.getCode(),
+                        PermissionEnum.SYSTEM_USER_MANAGE.getCode()
+                )
+                .doesNotContain(
+                        "system-authorization-view",
+                        "system-role-manage",
+                        "system-route-view",
+                        "system-user-view",
+                        "system-user-manage"
+                );
+        assertThat(systemRoleMenuMapper.selectById(2090000000000000705L))
+                .isNotNull()
+                .satisfies(permissionMenu -> {
+                    assertThat(permissionMenu.getRoleId()).isEqualTo(2090000000000000102L);
+                    assertThat(permissionMenu.getMenuId()).isEqualTo(2090000000000000306L);
+                });
+        assertThat(administratorSnapshot.routes())
+                .extracting(SystemRouteDefinition::id)
+                .contains("2090000000000000306");
 
         RoleRouteUpdateResult routeUpdate = roleManagementService.replaceRoleRouteConfiguration(
                 "2090000000000000102",

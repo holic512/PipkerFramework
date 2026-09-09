@@ -2,8 +2,8 @@
  * @file roleManagement.ts
  * @project Pipker Framework
  * @module Frontend Role Management API
- * @description Defines typed requests for system role lifecycle, page and interface permission configuration, member pagination, and member password resets.
- * @logic Keeps Snowflake IDs as strings end-to-end and routes every command through the shared authenticated HTTP client, including role-owned page permission replacement and Java-enum interface permission replacement.
+ * @description Defines typed requests for system role lifecycle, page and interface permission configuration, member pagination, member password resets, and the shared enum permission catalog export.
+ * @logic Keeps Snowflake IDs as strings end-to-end and routes role-owned requests through the shared authenticated HTTP client; the read-only Java PermissionEnum catalog is re-exported from the permission module so role configuration and the directory page share one request definition.
  * @dependencies requestApi、frontend API contracts
  * @index_tags api、rbac、role、route、permission、pagination、password-reset
  * @author holic512
@@ -20,9 +20,10 @@ import type {
   SystemRoleMember,
   SystemRoleStatus,
   SystemRoleSummary,
-  SystemPermissionPoint,
 } from '../../../../core/api/contracts'
 import { requestApi } from '../../../../core/http/client'
+
+export { getPermissionPoints } from '../../permission/api/permissionManagement'
 
 export interface RolePageQuery {
   page: number
@@ -107,14 +108,6 @@ export function replaceRoleRouteConfiguration(
     method: 'PUT',
     url: `/admin/roles/${encodeURIComponent(roleId)}/routes`,
     data: { routeIds },
-  })
-}
-
-/** 读取当前 Java 枚举定义的全部有效接口权限点。 */
-export function getPermissionPoints(): Promise<SystemPermissionPoint[]> {
-  return requestApi<SystemPermissionPoint[]>({
-    method: 'GET',
-    url: '/admin/permissions',
   })
 }
 

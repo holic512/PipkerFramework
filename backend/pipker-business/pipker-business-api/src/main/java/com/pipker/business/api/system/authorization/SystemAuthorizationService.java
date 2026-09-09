@@ -2,26 +2,25 @@
  * @file SystemAuthorizationService.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 聚合缓存的 API 权限、导航菜单与页面路由授权投影。
- * @logic 通过专属表 Mapper 读取角色、权限和菜单；SUPER_ADMIN 自动获得全部启用权限和页面路由，目录不要求页面索引，而可授予 MENU 必须具备完整动态路由定义，菜单展示仅由 visible 决定。
- * @dependencies SystemAccountService、SystemUserRoleMapper、SystemPermissionMapper、SystemMenuMapper、SystemAuthorizationCache
- * @index_tags rbac、authorization、system-menu、route、route-guard、cache、mybatis-plus
+ * @description 聚合缓存的接口权限、导航菜单与页面路由授权投影。
+ * @logic 通过专属表 Mapper 读取角色、角色保存的权限编码和菜单；PermissionRegistry 过滤历史权限编码，SUPER_ADMIN 自动获得全部当前枚举权限和页面路由，目录不要求页面索引，而可授予 MENU 必须具备完整动态路由定义，菜单展示仅由 visible 决定。
+ * @dependencies SystemAccountService、SystemUserRoleMapper、SystemMenuMapper、PermissionRegistry、SystemAuthorizationCache
+ * @index_tags rbac、authorization、permission、system-menu、route、route-guard、cache、mybatis-plus
  * @author holic512
  */
 package com.pipker.business.api.system.authorization;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.pipker.business.api.common.mapper.SystemMenuMapper;
-import com.pipker.business.api.common.mapper.SystemPermissionMapper;
 import com.pipker.business.api.common.mapper.SystemUserRoleMapper;
 import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
 import com.pipker.business.api.common.model.SystemMenu;
 import com.pipker.business.api.common.model.SystemMenuNode;
-import com.pipker.business.api.common.model.SystemPermission;
 import com.pipker.business.api.common.model.SystemRouteDefinition;
 import com.pipker.business.api.common.model.SystemUser;
 import com.pipker.business.api.common.model.SystemUserProfile;
 import com.pipker.business.api.system.user.SystemAccountService;
+import com.pipker.business.api.system.permission.PermissionRegistry;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -41,7 +40,7 @@ public class SystemAuthorizationService {
 
     private final SystemAccountService systemAccountService;
     private final SystemUserRoleMapper systemUserRoleMapper;
-    private final SystemPermissionMapper systemPermissionMapper;
+    private final PermissionRegistry permissionRegistry;
     private final SystemMenuMapper systemMenuMapper;
     private final SystemAuthorizationCache systemAuthorizationCache;
 
@@ -49,13 +48,13 @@ public class SystemAuthorizationService {
     public SystemAuthorizationService(
             SystemAccountService systemAccountService,
             SystemUserRoleMapper systemUserRoleMapper,
-            SystemPermissionMapper systemPermissionMapper,
+            PermissionRegistry permissionRegistry,
             SystemMenuMapper systemMenuMapper,
             SystemAuthorizationCache systemAuthorizationCache
     ) {
         this.systemAccountService = systemAccountService;
         this.systemUserRoleMapper = systemUserRoleMapper;
-        this.systemPermissionMapper = systemPermissionMapper;
+        this.permissionRegistry = permissionRegistry;
         this.systemMenuMapper = systemMenuMapper;
         this.systemAuthorizationCache = systemAuthorizationCache;
     }
@@ -79,8 +78,11 @@ public class SystemAuthorizationService {
         List<String> roles = List.copyOf(systemUserRoleMapper.findEnabledRoleCodesByUserId(userId));
         boolean superAdmin = roles.contains(SUPER_ADMIN_ROLE);
         List<String> permissions = superAdmin
-                ? findAllEnabledPermissionCodes()
-                : systemUserRoleMapper.findEnabledPermissionCodesByUserId(userId);
+                ? List.copyOf(permissionRegistry.allCodes())
+                : systemUserRoleMapper.findPermissionCodesByUserId(userId).stream()
+                        .filter(permissionRegistry::contains)
+                        .distinct()
+                        .toList();
         List<SystemMenu> authorizedPageMenus = findAuthorizedPageMenus(userId, superAdmin);
 
         return new SystemAuthorizationSnapshot(
@@ -116,16 +118,6 @@ public class SystemAuthorizationService {
         return buildMenuTree(menus.stream()
                 .filter(menu -> "DIRECTORY".equals(menu.getMenuType()) || menu.isRouteMenu())
                 .toList());
-    }
-
-    private List<String> findAllEnabledPermissionCodes() {
-        return systemPermissionMapper.selectList(new LambdaQueryWrapper<SystemPermission>()
-                        .eq(SystemPermission::getStatus, "ENABLED")
-                        .eq(SystemPermission::getPermissionType, "API")
-                        .orderByAsc(SystemPermission::getPermissionCode))
-                .stream()
-                .map(SystemPermission::getPermissionCode)
-                .toList();
     }
 
     private List<SystemMenu> findAllEnabledVisibleMenus() {

@@ -2,10 +2,10 @@
  * @file SystemApiResource.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 映射 system_api_resource 中受权限保护的 HTTP 资源。
- * @logic 持久化权限外键、HTTP 方法和 Spring MVC 路径模板；权限编码由专用查询投影提供。
+ * @description 映射保留在 system_api_resource 中的历史 HTTP 路径资源记录。
+ * @logic 保留权限外键、HTTP 方法和 Spring MVC 路径模板的表结构映射；运行时接口授权只由 Permission 注解读取 PermissionEnum，不再使用此表匹配路径。
  * @dependencies MyBatis-Plus、Lombok
- * @index_tags system-api-resource、rbac、api、persistence
+ * @index_tags system-api-resource、legacy、rbac、api、persistence
  * @author holic512
  */
 package com.pipker.business.api.common.model;

@@ -2,10 +2,10 @@
  * @file RoleManagementController.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 提供系统角色的分页筛选、增删改、批量处理、详情、页面权限、成员与密码重置 HTTP API。
- * @logic 所有端点由数据库 API 资源规则统一鉴权；页面权限端点委托同一角色菜单关联服务以确保路由守卫和菜单投影一致。
- * @dependencies RoleManagementService、ApiResponse、Spring Web MVC、Jakarta Validation
- * @index_tags controller、rbac、role、route、password-reset、pagination、administration
+ * @description 提供系统角色的分页筛选、增删改、批量处理、详情、页面与接口权限、成员和密码重置 HTTP API。
+ * @logic 控制器类以 PermissionEnum.SYSTEM_ROLE_MANAGE 统一声明接口权限；页面权限端点委托同一角色菜单关联服务以确保路由守卫和菜单投影一致，接口权限端点只接受 Java 枚举中定义的编码。
+ * @dependencies Permission、PermissionEnum、RoleManagementService、ApiResponse、Spring Web MVC、Jakarta Validation
+ * @index_tags controller、rbac、role、route、permission、password-reset、pagination、administration
  * @author holic512
  */
 package com.pipker.business.api.system.role;
@@ -14,16 +14,21 @@ import com.pipker.business.api.system.role.RoleManagementRequest.BatchDelete;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchStatus;
 import com.pipker.business.api.system.role.RoleManagementRequest.Create;
 import com.pipker.business.api.system.role.RoleManagementRequest.ResetMemberPassword;
+import com.pipker.business.api.system.role.RoleManagementRequest.ReplacePermissions;
 import com.pipker.business.api.system.role.RoleManagementRequest.ReplaceRoutes;
 import com.pipker.business.api.system.role.RoleManagementRequest.Update;
 import com.pipker.business.api.system.role.RoleManagementResponse.OperationResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.PageResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleDetail;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleMember;
+import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionConfiguration;
+import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteConfiguration;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleSummary;
 import com.pipker.business.common.api.ApiResponse;
+import com.pipker.business.api.system.permission.Permission;
+import com.pipker.business.api.system.permission.PermissionEnum;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,6 +46,7 @@ import java.util.List;
 /** 系统角色管理 Controller。 */
 @RestController
 @RequestMapping("/api/admin/roles")
+@Permission(PermissionEnum.SYSTEM_ROLE_MANAGE)
 public class RoleManagementController {
 
     private final RoleManagementService roleManagementService;
@@ -101,6 +107,21 @@ public class RoleManagementController {
             @Valid @RequestBody ReplaceRoutes request
     ) {
         return ApiResponse.success(roleManagementService.replaceRoleRouteConfiguration(roleId, request));
+    }
+
+    /** 查询一个角色保存的接口权限和历史失效权限。 */
+    @GetMapping("/{roleId}/permissions")
+    public ApiResponse<RolePermissionConfiguration> permissionConfiguration(@PathVariable String roleId) {
+        return ApiResponse.success(roleManagementService.findRolePermissionConfiguration(roleId));
+    }
+
+    /** 覆盖一个普通启用角色的当前有效接口权限。 */
+    @PutMapping("/{roleId}/permissions")
+    public ApiResponse<RolePermissionUpdateResult> replacePermissionConfiguration(
+            @PathVariable String roleId,
+            @Valid @RequestBody ReplacePermissions request
+    ) {
+        return ApiResponse.success(roleManagementService.replaceRolePermissionConfiguration(roleId, request));
     }
 
     /** 批量变更普通角色状态。 */

@@ -2,10 +2,10 @@
  * @file SystemAuthorizationSnapshot.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description Aggregates a system user's cached database-derived roles, permissions, display-menu tree, and authorized page-route definitions.
- * @logic Current-user endpoints and API-filter authorization share one projection source; visible menus drive navigation while all authorized page routes drive dynamic registration.
+ * @description Aggregates a system user's cached roles, enum-filtered interface permissions, display-menu tree, and authorized page-route definitions.
+ * @logic Current-user endpoints and Permission interceptor share one projection source; visible menus drive navigation while all authorized page routes drive dynamic registration, and role-held historical permission codes are excluded by the Java permission registry.
  * @dependencies SystemUserProfile, SystemMenuNode, SystemRouteDefinition, Java Standard Library
- * @index_tags rbac, authorization, api, cache, route
+ * @index_tags rbac, authorization, permission, cache, route
  * @author holic512
  */
 package com.pipker.business.api.common.model;

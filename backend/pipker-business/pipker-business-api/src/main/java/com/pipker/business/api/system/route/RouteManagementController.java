@@ -3,13 +3,15 @@
  * @project Pipker Framework
  * @module Pipker Business API
  * @description 提供系统已落库路由定义的只读分页与详情 HTTP API。
- * @logic 所有端点由数据库 API 资源规则统一鉴权；控制器只接受查询条件并委托只读服务，不暴露新增、编辑或删除操作。
- * @dependencies RouteManagementService、RouteManagementResponse、ApiResponse、Spring Web MVC
- * @index_tags controller、route、system-menu、pagination、read-only、administration
+ * @logic 控制器类以粗粒度路由查看权限保护所有只读端点；控制器只接受查询条件并委托只读服务，不暴露新增、编辑或删除操作。
+ * @dependencies Permission、PermissionEnum、RouteManagementService、RouteManagementResponse、ApiResponse、Spring Web MVC
+ * @index_tags controller、route、permission、system-menu、pagination、read-only、administration
  * @author holic512
  */
 package com.pipker.business.api.system.route;
 
+import com.pipker.business.api.system.permission.Permission;
+import com.pipker.business.api.system.permission.PermissionEnum;
 import com.pipker.business.api.system.route.RouteManagementResponse.PageResult;
 import com.pipker.business.api.system.route.RouteManagementResponse.RouteDetail;
 import com.pipker.business.api.system.route.RouteManagementResponse.RouteSummary;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 /** 系统路由管理 Controller。 */
 @RestController
 @RequestMapping("/api/admin/routes")
+@Permission(PermissionEnum.SYSTEM_ROUTE_VIEW)
 public class RouteManagementController {
 
     private final RouteManagementService routeManagementService;

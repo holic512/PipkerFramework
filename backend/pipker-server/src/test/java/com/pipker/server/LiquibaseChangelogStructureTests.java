@@ -67,16 +67,17 @@ class LiquibaseChangelogStructureTests {
                 .contains("CREATE TABLE SYSTEM_USER_ROLE")
                 .contains("CREATE TABLE SYSTEM_ROLE_PERMISSION")
                 .contains("CREATE TABLE SYSTEM_ROLE_MENU")
-                .contains("SYSTEM:AUTH:ME")
-                .contains("SYSTEM:ROLE-MENU:MANAGE")
-                .contains("SYSTEM:ROLE:MANAGE")
-                .contains("SYSTEM:ROUTE:READ")
-                .contains("/API/ADMIN/ROLES/{ROLEID}/ROUTES")
+                .contains("SYSTEM-AUTHORIZATION-VIEW")
+                .contains("SYSTEM-ROLE-MANAGE")
+                .contains("SYSTEM-ROUTE-VIEW")
                 .contains("SYSTEMOVERVIEW")
                 .contains("SYSTEMROLEMANAGEMENT")
                 .contains("SYSTEMROUTEMANAGEMENT")
                 .contains("CK_SYSTEM_PERMISSION_TYPE")
-                .contains("CK_SYSTEM_MENU_TYPE");
+                .contains("CK_SYSTEM_MENU_TYPE")
+                .contains("IDX_SYSTEM_ROLE_PERMISSION_PERMISSION_CODE")
+                .doesNotContain("FK_SYSTEM_ROLE_PERMISSION_PERMISSION")
+                .doesNotContain("IDX_SYSTEM_ROLE_PERMISSION_PERMISSION_ID");
 
         int menuDefinitionStart = normalizedSql.indexOf("CREATE TABLE SYSTEM_MENU");
         int apiResourceDefinitionStart = normalizedSql.indexOf("CREATE TABLE SYSTEM_API_RESOURCE");

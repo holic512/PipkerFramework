@@ -3,10 +3,10 @@
     @file db/changelog/system/system-role-permission.xml
     @project Pipker Framework
     @module Pipker Server
-    @description 定义系统角色与 API 权限的多对多关联及系统管理员默认授权。
-    @logic 创建独立雪花主键、关联唯一约束、级联外键和权限索引，再授予 ADMIN 基础鉴权、角色管理与只读路由管理 API 权限。
-    @dependencies Liquibase、system_role、system_permission、system_role_permission
-    @index_tags liquibase、database、system_role_permission、seed、rbac、api
+    @description 定义系统角色与 Java 接口权限编码的多对多关联及系统管理员默认授权。
+    @logic 创建独立雪花主键、角色级联外键、角色权限编码唯一约束和编码索引；permission_code 不建立外键，以保留已从 Java 枚举删除的历史编码。
+    @dependencies Liquibase、system_role、system_role_permission
+    @index_tags liquibase、database、system_role_permission、seed、rbac、permission
     @author holic512
 -->
 <databaseChangeLog
@@ -23,20 +23,17 @@
             <column name="role_id" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
-            <column name="permission_id" type="BIGINT">
+            <column name="permission_code" type="VARCHAR(128)">
                 <constraints nullable="false"/>
             </column>
         </createTable>
-        <addUniqueConstraint tableName="system_role_permission" columnNames="role_id, permission_id"
+        <addUniqueConstraint tableName="system_role_permission" columnNames="role_id, permission_code"
                              constraintName="uk_system_role_permission_role_permission"/>
         <addForeignKeyConstraint baseTableName="system_role_permission" baseColumnNames="role_id"
                                  constraintName="fk_system_role_permission_role" referencedTableName="system_role"
                                  referencedColumnNames="id" onDelete="CASCADE"/>
-        <addForeignKeyConstraint baseTableName="system_role_permission" baseColumnNames="permission_id"
-                                 constraintName="fk_system_role_permission_permission" referencedTableName="system_permission"
-                                 referencedColumnNames="id" onDelete="CASCADE"/>
-        <createIndex tableName="system_role_permission" indexName="idx_system_role_permission_permission_id">
-            <column name="permission_id"/>
+        <createIndex tableName="system_role_permission" indexName="idx_system_role_permission_permission_code">
+            <column name="permission_code"/>
         </createIndex>
     </changeSet>
 
@@ -45,46 +42,32 @@
             CREATE TABLE system_role_permission (
               id BIGINT NOT NULL,
               role_id BIGINT NOT NULL,
-              permission_id BIGINT NOT NULL,
+              permission_code VARCHAR(128) NOT NULL,
               CONSTRAINT pk_system_role_permission PRIMARY KEY (id),
-              CONSTRAINT uk_system_role_permission_role_permission UNIQUE (role_id, permission_id),
+              CONSTRAINT uk_system_role_permission_role_permission UNIQUE (role_id, permission_code),
               CONSTRAINT fk_system_role_permission_role FOREIGN KEY (role_id)
-                REFERENCES system_role (id) ON DELETE CASCADE,
-              CONSTRAINT fk_system_role_permission_permission FOREIGN KEY (permission_id)
-                REFERENCES system_permission (id) ON DELETE CASCADE
+                REFERENCES system_role (id) ON DELETE CASCADE
             );
-            CREATE INDEX idx_system_role_permission_permission_id ON system_role_permission (permission_id);
+            CREATE INDEX idx_system_role_permission_permission_code ON system_role_permission (permission_code);
         ]]></sql>
     </changeSet>
 
     <changeSet id="system-role-permission-seed" author="holic512">
+        <comment>默认 ADMIN 角色可读取授权投影、维护角色权限并查看已落库路由；有效性始终由 Java PermissionEnum 决定。</comment>
         <insert tableName="system_role_permission">
             <column name="id" valueNumeric="2090000000000000601"/>
             <column name="role_id" valueNumeric="2090000000000000102"/>
-            <column name="permission_id" valueNumeric="2090000000000000201"/>
+            <column name="permission_code" value="system-authorization-view"/>
         </insert>
         <insert tableName="system_role_permission">
             <column name="id" valueNumeric="2090000000000000602"/>
             <column name="role_id" valueNumeric="2090000000000000102"/>
-            <column name="permission_id" valueNumeric="2090000000000000202"/>
+            <column name="permission_code" value="system-role-manage"/>
         </insert>
-    </changeSet>
-
-    <changeSet id="system-role-permission-role-management-seed" author="holic512">
-        <comment>授予 ADMIN 角色管理权限，使普通系统管理员可以维护非保护角色及其成员账户。</comment>
         <insert tableName="system_role_permission">
             <column name="id" valueNumeric="2090000000000000603"/>
             <column name="role_id" valueNumeric="2090000000000000102"/>
-            <column name="permission_id" valueNumeric="2090000000000000204"/>
-        </insert>
-    </changeSet>
-
-    <changeSet id="system-role-permission-route-management-seed" author="holic512">
-        <comment>授予 ADMIN 只读路由管理权限，不提供路由新增、编辑或删除能力。</comment>
-        <insert tableName="system_role_permission">
-            <column name="id" valueNumeric="2090000000000000604"/>
-            <column name="role_id" valueNumeric="2090000000000000102"/>
-            <column name="permission_id" valueNumeric="2090000000000000205"/>
+            <column name="permission_code" value="system-route-view"/>
         </insert>
     </changeSet>
 </databaseChangeLog>

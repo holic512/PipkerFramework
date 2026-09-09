@@ -3,10 +3,10 @@
     @file db/changelog/system/system-permission.xml
     @project Pipker Framework
     @module Pipker Server
-    @description 定义最终 API 权限模型和框架内置 API 权限数据。
-    @logic 创建权限表、权限编码唯一约束和仅允许 API 的检查约束，再写入鉴权、角色菜单、角色生命周期和只读路由管理权限。
+    @description 保留历史 API 权限表与既有路径资源数据的兼容基线。
+    @logic 创建权限表、权限编码唯一约束和仅允许 API 的检查约束，并保留既有历史数据；运行时有效接口权限由 Java PermissionEnum 统一定义，不从此表读取。
     @dependencies Liquibase、system_permission
-    @index_tags liquibase、database、system_permission、seed、rbac、api
+    @index_tags liquibase、database、system_permission、seed、legacy、rbac、api
     @author holic512
 -->
 <databaseChangeLog

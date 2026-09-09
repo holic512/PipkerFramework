@@ -3,15 +3,17 @@
  * @project Pipker Framework
  * @module Pipker Business API
  * @description Provides the administrative authorization projection endpoint.
- * @logic Relies exclusively on the database API-resource filter for authorization and returns the same cached RBAC snapshot used by the current-session endpoint.
- * @dependencies CurrentSystemAuthorizationService, Spring Web MVC
- * @index_tags controller, admin, rbac, authorization
+ * @logic Declares the coarse authorization-view permission and returns the same cached enum-permission, route and menu snapshot used by the current-session endpoint.
+ * @dependencies Permission、PermissionEnum、CurrentSystemAuthorizationService, Spring Web MVC
+ * @index_tags controller, admin, rbac, permission, authorization
  * @author holic512
  */
 package com.pipker.business.api.system.authorization;
 
 import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
 import com.pipker.business.api.system.auth.CurrentSystemAuthorizationService;
+import com.pipker.business.api.system.permission.Permission;
+import com.pipker.business.api.system.permission.PermissionEnum;
 import com.pipker.business.common.api.ApiResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,6 +43,7 @@ public class AdminAuthorizationController {
      * @return 当前授权快照
      */
     @GetMapping
+    @Permission(PermissionEnum.SYSTEM_AUTHORIZATION_VIEW)
     public ApiResponse<SystemAuthorizationSnapshot> authorization() {
         return ApiResponse.success(currentSystemAuthorizationService.currentSnapshot());
     }

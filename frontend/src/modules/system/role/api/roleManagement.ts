@@ -2,22 +2,25 @@
  * @file roleManagement.ts
  * @project Pipker Framework
  * @module Frontend Role Management API
- * @description Defines typed requests for system role lifecycle, page permission configuration, member pagination, and member password resets.
- * @logic Keeps Snowflake IDs as strings end-to-end and routes every command through the shared authenticated HTTP client, including role-owned page permission replacement.
+ * @description Defines typed requests for system role lifecycle, page and interface permission configuration, member pagination, and member password resets.
+ * @logic Keeps Snowflake IDs as strings end-to-end and routes every command through the shared authenticated HTTP client, including role-owned page permission replacement and Java-enum interface permission replacement.
  * @dependencies requestApi、frontend API contracts
- * @index_tags api、rbac、role、route、pagination、password-reset
+ * @index_tags api、rbac、role、route、permission、pagination、password-reset
  * @author holic512
  */
 
 import type {
   PageResult,
   RoleManagementOperationResult,
+  RolePermissionConfiguration,
+  RolePermissionUpdateResult,
   RoleRouteConfiguration,
   RoleRouteUpdateResult,
   SystemRoleDetail,
   SystemRoleMember,
   SystemRoleStatus,
   SystemRoleSummary,
+  SystemPermissionPoint,
 } from '../../../../core/api/contracts'
 import { requestApi } from '../../../../core/http/client'
 
@@ -104,6 +107,34 @@ export function replaceRoleRouteConfiguration(
     method: 'PUT',
     url: `/admin/roles/${encodeURIComponent(roleId)}/routes`,
     data: { routeIds },
+  })
+}
+
+/** 读取当前 Java 枚举定义的全部有效接口权限点。 */
+export function getPermissionPoints(): Promise<SystemPermissionPoint[]> {
+  return requestApi<SystemPermissionPoint[]>({
+    method: 'GET',
+    url: '/admin/permissions',
+  })
+}
+
+/** 读取一个角色持有的当前有效接口权限与历史失效权限。 */
+export function getRolePermissionConfiguration(roleId: string): Promise<RolePermissionConfiguration> {
+  return requestApi<RolePermissionConfiguration>({
+    method: 'GET',
+    url: `/admin/roles/${encodeURIComponent(roleId)}/permissions`,
+  })
+}
+
+/** 全量覆盖一个普通启用角色的当前有效接口权限。 */
+export function replaceRolePermissionConfiguration(
+  roleId: string,
+  permissionCodes: string[],
+): Promise<RolePermissionUpdateResult> {
+  return requestApi<RolePermissionUpdateResult>({
+    method: 'PUT',
+    url: `/admin/roles/${encodeURIComponent(roleId)}/permissions`,
+    data: { permissionCodes },
   })
 }
 

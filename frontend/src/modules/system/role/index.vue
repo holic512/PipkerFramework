@@ -2,10 +2,10 @@
   @file index.vue
   @project Pipker Framework
   @module Frontend Role Management
-  @description 提供系统角色的筛选分页、生命周期维护、页面权限弹窗、批量操作、详情成员查看和成员密码重置工作台。
-  @logic 优先显示可批量处理的角色清单；页面权限弹窗复用已落库路由树，仅勾选页面节点，隐藏页面保留 URL 访问但不显示导航；所有雪花 ID 均以字符串传递以避免 JavaScript 精度丢失。
+  @description 提供系统角色的筛选分页、生命周期维护、页面与接口权限弹窗、批量操作、详情成员查看和成员密码重置工作台。
+  @logic 优先显示可批量处理的角色清单；页面权限弹窗复用已落库路由树，接口权限弹窗只读取 Java 枚举权限点并把历史编码作为只读提示；所有雪花 ID 均以字符串传递以避免 JavaScript 精度丢失。
   @dependencies Vue、Element Plus、RoleMenuTree、角色管理 API、frontend API contracts
-  @index_tags page、rbac、role、route、pagination、batch、password-reset、administration
+  @index_tags page、rbac、role、route、permission、pagination、batch、password-reset、administration
   @author holic512
 -->
 <script setup lang="ts">
@@ -14,7 +14,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ApiBusinessError } from '../../../core/api/contracts'
 import type {
   PageResult,
+  RolePermissionConfiguration,
   RoleRouteConfiguration,
+  SystemPermissionPoint,
   SystemRoleDetail,
   SystemRoleMember,
   SystemRoleStatus,
@@ -26,10 +28,13 @@ import {
   createRole,
   deleteRole,
   getRoleDetail,
-  getRoleRouteConfiguration,
   getRoleMemberPage,
+  getPermissionPoints,
   getRolePage,
+  getRolePermissionConfiguration,
+  getRoleRouteConfiguration,
   resetRoleMemberPassword,
+  replaceRolePermissionConfiguration,
   replaceRoleRouteConfiguration,
   updateRole,
 } from './api/roleManagement'
@@ -93,6 +98,13 @@ const selectedRouteIds = ref<string[]>([])
 const routePermissionLoading = ref(false)
 const routePermissionSaving = ref(false)
 
+const interfacePermissionDialogVisible = ref(false)
+const permissionPoints = ref<SystemPermissionPoint[]>([])
+const rolePermissionConfiguration = ref<RolePermissionConfiguration | null>(null)
+const selectedPermissionCodes = ref<string[]>([])
+const interfacePermissionLoading = ref(false)
+const interfacePermissionSaving = ref(false)
+
 const selectedRoleIds = computed(() => selectedRoles.value.map((role) => role.id))
 const roleDialogTitle = computed(() => (editingRole.value ? '编辑角色' : '新建角色'))
 const memberTotalLabel = computed(() => `${memberPage.value.total} 位成员`)
@@ -100,6 +112,21 @@ const selectedRouteCount = computed(() => selectedRouteIds.value.length)
 const canSaveRoutePermissions = computed(() => routePermissionConfiguration.value !== null
   && routePermissionConfiguration.value.status === 'ENABLED'
   && !routePermissionConfiguration.value.allRoutes)
+const selectedPermissionCount = computed(() => selectedPermissionCodes.value.length)
+const canSaveInterfacePermissions = computed(() => rolePermissionConfiguration.value !== null
+  && rolePermissionConfiguration.value.status === 'ENABLED'
+  && !rolePermissionConfiguration.value.allPermissions)
+const permissionGroups = computed(() => {
+  const groups = new Map<string, SystemPermissionPoint[]>()
+  for (const point of permissionPoints.value) {
+    const segments = point.code.split('-')
+    const key = segments.length > 1 ? segments.slice(0, -1).join('-') : point.code
+    const current = groups.get(key) ?? []
+    current.push(point)
+    groups.set(key, current)
+  }
+  return [...groups.entries()].map(([key, points]) => ({ key, points }))
+})
 
 onMounted(() => {
   void loadRoles()
@@ -317,6 +344,59 @@ async function saveRoutePermissions(): Promise<void> {
   }
 }
 
+async function openInterfacePermissionDialog(role: SystemRoleSummary): Promise<void> {
+  interfacePermissionDialogVisible.value = true
+  rolePermissionConfiguration.value = null
+  permissionPoints.value = []
+  selectedPermissionCodes.value = []
+  interfacePermissionLoading.value = true
+  try {
+    const [points, configuration] = await Promise.all([
+      getPermissionPoints(),
+      getRolePermissionConfiguration(role.id),
+    ])
+    permissionPoints.value = points
+    rolePermissionConfiguration.value = configuration
+    selectedPermissionCodes.value = [...configuration.permissionCodes]
+  } catch (error) {
+    ElMessage.error(readableError(error, '无法读取角色接口权限。'))
+  } finally {
+    interfacePermissionLoading.value = false
+  }
+}
+
+async function saveInterfacePermissions(): Promise<void> {
+  const configuration = rolePermissionConfiguration.value
+  if (!configuration || !canSaveInterfacePermissions.value) {
+    return
+  }
+  if (!await confirm(
+    `确认将“${configuration.roleName}”的接口权限更新为 ${selectedPermissionCount.value} 项吗？`,
+    '更新接口权限',
+    'warning',
+  )) {
+    return
+  }
+
+  interfacePermissionSaving.value = true
+  try {
+    const result = await replaceRolePermissionConfiguration(
+      configuration.roleId,
+      selectedPermissionCodes.value,
+    )
+    rolePermissionConfiguration.value = {
+      ...configuration,
+      permissionCodes: [...result.permissionCodes],
+    }
+    selectedPermissionCodes.value = [...result.permissionCodes]
+    ElMessage.success(`已保存 ${result.permissionCodes.length} 项接口权限；受影响账户将使用新的后端访问权限。`)
+  } catch (error) {
+    ElMessage.error(readableError(error, '保存角色接口权限失败。'))
+  } finally {
+    interfacePermissionSaving.value = false
+  }
+}
+
 async function openDetail(role: SystemRoleSummary): Promise<void> {
   detailDrawerVisible.value = true
   roleDetail.value = null
@@ -531,11 +611,12 @@ function newRoleForm(): RoleFormState {
         <el-table-column label="最近更新" min-width="164">
           <template #default="{ row }: { row: SystemRoleSummary }">{{ formatTime(row.updatedAt) }}</template>
         </el-table-column>
-        <el-table-column label="操作" fixed="right" min-width="282">
+        <el-table-column label="操作" fixed="right" min-width="342">
           <template #default="{ row }: { row: SystemRoleSummary }">
             <div class="role-management-page__row-actions">
               <el-button link type="primary" @click="openDetail(row)">详情</el-button>
               <el-button link type="primary" @click="openRoutePermissionDialog(row)">页面权限</el-button>
+              <el-button link type="primary" @click="openInterfacePermissionDialog(row)">接口权限</el-button>
               <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
               <el-button link type="danger" @click="removeRole(row)">删除</el-button>
             </div>
@@ -713,6 +794,89 @@ function newRoleForm(): RoleFormState {
           @click="saveRoutePermissions"
         >
           保存 {{ selectedRouteCount }} 项
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="interfacePermissionDialogVisible"
+      :close-on-click-modal="false"
+      class="role-api-permission-dialog"
+      title="接口权限"
+      top="6vh"
+      width="min(52rem, calc(100vw - 2rem))"
+    >
+      <section v-if="rolePermissionConfiguration" v-loading="interfacePermissionLoading" class="role-api-permission">
+        <header class="role-api-permission__header">
+          <div>
+            <p class="ui-eyebrow">ROLE / API ACCESS</p>
+            <h2>{{ rolePermissionConfiguration.roleName }}</h2>
+            <code>{{ rolePermissionConfiguration.roleCode }}</code>
+          </div>
+          <div class="role-api-permission__metric">
+            <strong>{{ selectedPermissionCount }}</strong>
+            <span>项接口权限</span>
+          </div>
+        </header>
+
+        <p v-if="rolePermissionConfiguration.allPermissions" class="role-api-permission__notice">
+          SUPER_ADMIN 自动拥有当前 Java 权限枚举中的全部权限。新增枚举权限会自动生效，不能手工收窄。
+        </p>
+        <p v-else-if="rolePermissionConfiguration.status === 'DISABLED'" class="role-api-permission__notice">
+          角色当前已停用，可查看已保存接口权限；启用角色后才可更新。
+        </p>
+        <p v-else class="role-api-permission__guide">
+          权限点由后端 Java 枚举统一定义。勾选决定接口实际访问权，前端展示与按钮隐藏不替代后端校验。
+        </p>
+
+        <div class="role-api-permission__groups" :class="{ 'role-api-permission__groups--readonly': !canSaveInterfacePermissions }">
+          <section v-for="group in permissionGroups" :key="group.key" class="role-api-permission__group">
+            <header>
+              <strong>{{ group.key }}</strong>
+              <code>{{ group.key }}-*</code>
+            </header>
+            <el-checkbox-group v-model="selectedPermissionCodes" class="role-api-permission__options">
+              <el-checkbox
+                v-for="point in group.points"
+                :key="point.code"
+                :disabled="!canSaveInterfacePermissions || interfacePermissionSaving"
+                :label="point.code"
+                class="role-api-permission__option"
+              >
+                <span class="role-api-permission__option-copy">
+                  <strong>{{ point.name }}</strong>
+                  <code>{{ point.code }}</code>
+                  <small>{{ point.description }}</small>
+                </span>
+              </el-checkbox>
+            </el-checkbox-group>
+          </section>
+        </div>
+
+        <section
+          v-if="rolePermissionConfiguration.historicalPermissionCodes.length > 0"
+          class="role-api-permission__historical"
+        >
+          <div>
+            <p class="ui-eyebrow">HISTORICAL / INACTIVE</p>
+            <h3>历史失效权限</h3>
+          </div>
+          <p>这些编码仍保留在数据库中，但当前 Java 枚举已不再定义，因此不会授予任何接口访问权，也不会随本次保存提交。</p>
+          <div class="role-api-permission__historical-codes">
+            <code v-for="code in rolePermissionConfiguration.historicalPermissionCodes" :key="code">{{ code }}</code>
+          </div>
+        </section>
+      </section>
+      <div v-else v-loading="interfacePermissionLoading" class="role-api-permission__loading">正在读取角色接口权限…</div>
+      <template #footer>
+        <el-button @click="interfacePermissionDialogVisible = false">关闭</el-button>
+        <el-button
+          :disabled="!canSaveInterfacePermissions"
+          :loading="interfacePermissionSaving"
+          type="primary"
+          @click="saveInterfacePermissions"
+        >
+          保存 {{ selectedPermissionCount }} 项
         </el-button>
       </template>
     </el-dialog>
@@ -1112,6 +1276,204 @@ function newRoleForm(): RoleFormState {
   color: var(--color-ink-muted);
 }
 
+.role-api-permission {
+  min-height: 20rem;
+}
+
+.role-api-permission__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.15rem 0 1rem;
+  border-bottom: 1px solid var(--color-line-subtle);
+}
+
+.role-api-permission__header h2,
+.role-api-permission__historical h3 {
+  margin: 0.38rem 0 0.2rem;
+  color: var(--color-ink-strong);
+  font-family: var(--font-display);
+}
+
+.role-api-permission__header h2 {
+  font-size: 1.45rem;
+}
+
+.role-api-permission__header code,
+.role-api-permission__group header code,
+.role-api-permission__option-copy code,
+.role-api-permission__historical-codes code {
+  color: var(--color-ink-soft);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+}
+
+.role-api-permission__metric {
+  display: grid;
+  min-width: 6.9rem;
+  padding: 0.65rem 0.8rem;
+  text-align: right;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent-primary) 14%, var(--color-surface-base)), var(--color-surface-base));
+  border: 1px solid color-mix(in srgb, var(--color-accent-primary) 28%, var(--color-line-subtle));
+  border-radius: var(--radius-control);
+}
+
+.role-api-permission__metric strong {
+  color: var(--color-accent-primary);
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.role-api-permission__metric span {
+  margin-top: 0.24rem;
+  color: var(--color-ink-soft);
+  font-size: 0.65rem;
+}
+
+.role-api-permission__notice,
+.role-api-permission__guide {
+  margin: 1rem 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-control);
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
+
+.role-api-permission__notice {
+  color: var(--color-ink-muted);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-line-subtle);
+}
+
+.role-api-permission__guide {
+  color: var(--color-ink-muted);
+  background: color-mix(in srgb, var(--color-accent-primary) 5%, var(--color-surface-base));
+  border-left: 3px solid var(--color-accent-primary);
+}
+
+.role-api-permission__groups {
+  display: grid;
+  gap: 0.75rem;
+  max-height: min(39vh, 27rem);
+  padding: 0.1rem 0.25rem 0.8rem 0;
+  overflow: auto;
+}
+
+.role-api-permission__groups--readonly {
+  opacity: 0.76;
+}
+
+.role-api-permission__group {
+  overflow: hidden;
+  border: 1px solid var(--color-line-subtle);
+  border-radius: var(--radius-control);
+}
+
+.role-api-permission__group header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.58rem 0.75rem;
+  background: var(--color-surface-muted);
+  border-bottom: 1px solid var(--color-line-subtle);
+}
+
+.role-api-permission__group header strong {
+  color: var(--color-ink-strong);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.role-api-permission__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.role-api-permission__option {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+  margin: 0;
+  padding: 0.75rem;
+  white-space: normal;
+  border-right: 1px solid var(--color-line-subtle);
+  border-bottom: 1px solid var(--color-line-subtle);
+}
+
+.role-api-permission__option:nth-child(even) {
+  border-right: 0;
+}
+
+.role-api-permission__option:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.role-api-permission__option :deep(.el-checkbox__label) {
+  min-width: 0;
+  padding-left: 0.5rem;
+}
+
+.role-api-permission__option-copy {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.role-api-permission__option-copy strong {
+  color: var(--color-ink-strong);
+  font-size: 0.79rem;
+}
+
+.role-api-permission__option-copy small {
+  color: var(--color-ink-muted);
+  font-size: 0.68rem;
+  line-height: 1.55;
+}
+
+.role-api-permission__historical {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+  padding: 0.9rem;
+  background: color-mix(in srgb, var(--color-ink-soft) 7%, var(--color-surface-base));
+  border: 1px dashed var(--color-line-subtle);
+  border-radius: var(--radius-control);
+}
+
+.role-api-permission__historical h3 {
+  font-size: 1rem;
+}
+
+.role-api-permission__historical > p {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: 0.74rem;
+  line-height: 1.65;
+}
+
+.role-api-permission__historical-codes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.role-api-permission__historical-codes code {
+  padding: 0.32rem 0.42rem;
+  color: var(--color-ink-muted);
+  background: var(--color-surface-muted);
+  border-radius: 0.25rem;
+}
+
+.role-api-permission__loading {
+  min-height: 20rem;
+  display: grid;
+  place-items: center;
+  color: var(--color-ink-muted);
+}
+
 .password-reset-copy {
   margin: 0 0 1rem;
   color: var(--color-ink-muted);
@@ -1128,7 +1490,8 @@ function newRoleForm(): RoleFormState {
   .role-management-page__filter,
   .role-management-page__toolbar,
   .role-detail__section-heading,
-  .role-route-permission__header {
+  .role-route-permission__header,
+  .role-api-permission__header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -1197,6 +1560,25 @@ function newRoleForm(): RoleFormState {
 
   .role-route-permission__metric {
     text-align: left;
+  }
+
+  .role-api-permission__metric {
+    text-align: left;
+  }
+
+  .role-api-permission__options {
+    grid-template-columns: 1fr;
+  }
+
+  .role-api-permission__option,
+  .role-api-permission__option:nth-child(even),
+  .role-api-permission__option:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-line-subtle);
+  }
+
+  .role-api-permission__option:last-child {
+    border-bottom: 0;
   }
 }
 </style>

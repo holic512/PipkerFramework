@@ -2,10 +2,10 @@
  * @file RoleManagementService.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 提供系统角色生命周期、页面权限、成员查询与成员密码重置能力。
- * @logic 角色创建后编码不可变，SUPER_ADMIN 永远不能被改动或删除或手工收窄页面权限；所有影响授权的角色操作均清除本机授权快照。
- * @dependencies RoleMenuConfigurationService、SystemRoleMapper、SystemUserRoleMapper、SystemRolePermissionMapper、SystemRoleMenuMapper、SystemAccountService、SecurityCryptoService、SystemAuthorizationCache、Spring Transaction
- * @index_tags rbac、role、route、user、password-reset、pagination、administration
+ * @description 提供系统角色生命周期、页面与接口权限、成员查询和成员密码重置能力。
+ * @logic 角色创建后编码不可变，SUPER_ADMIN 永远不能被改动或删除或手工收窄页面或接口权限；接口权限只接受 PermissionRegistry 中的编码，保存时保留已失效历史编码，所有影响授权的角色操作均清除本机授权快照。
+ * @dependencies RoleMenuConfigurationService、PermissionRegistry、SystemRoleMapper、SystemUserRoleMapper、SystemRolePermissionMapper、SystemRoleMenuMapper、SystemAccountService、SecurityCryptoService、SystemAuthorizationCache、Spring Transaction
+ * @index_tags rbac、role、route、permission、user、password-reset、pagination、administration
  * @author holic512
  */
 package com.pipker.business.api.system.role;
@@ -28,16 +28,20 @@ import com.pipker.business.api.system.authorization.RoleMenuConfiguration;
 import com.pipker.business.api.system.authorization.RoleMenuConfigurationService;
 import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
 import com.pipker.business.api.system.authorization.SystemAuthorizationService;
+import com.pipker.business.api.system.permission.PermissionRegistry;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchDelete;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchStatus;
 import com.pipker.business.api.system.role.RoleManagementRequest.Create;
 import com.pipker.business.api.system.role.RoleManagementRequest.ResetMemberPassword;
+import com.pipker.business.api.system.role.RoleManagementRequest.ReplacePermissions;
 import com.pipker.business.api.system.role.RoleManagementRequest.ReplaceRoutes;
 import com.pipker.business.api.system.role.RoleManagementRequest.Update;
 import com.pipker.business.api.system.role.RoleManagementResponse.OperationResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.PageResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleDetail;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleMember;
+import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionConfiguration;
+import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteConfiguration;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleSummary;
@@ -71,6 +75,7 @@ public class RoleManagementService {
     private final CurrentSystemAuthorizationService currentSystemAuthorizationService;
     private final SystemAuthorizationCache systemAuthorizationCache;
     private final RoleMenuConfigurationService roleMenuConfigurationService;
+    private final PermissionRegistry permissionRegistry;
 
     /** 创建角色管理服务。 */
     public RoleManagementService(
@@ -82,7 +87,8 @@ public class RoleManagementService {
             SecurityCryptoService securityCryptoService,
             CurrentSystemAuthorizationService currentSystemAuthorizationService,
             SystemAuthorizationCache systemAuthorizationCache,
-            RoleMenuConfigurationService roleMenuConfigurationService
+            RoleMenuConfigurationService roleMenuConfigurationService,
+            PermissionRegistry permissionRegistry
     ) {
         this.systemRoleMapper = systemRoleMapper;
         this.systemUserRoleMapper = systemUserRoleMapper;
@@ -93,6 +99,7 @@ public class RoleManagementService {
         this.currentSystemAuthorizationService = currentSystemAuthorizationService;
         this.systemAuthorizationCache = systemAuthorizationCache;
         this.roleMenuConfigurationService = roleMenuConfigurationService;
+        this.permissionRegistry = permissionRegistry;
     }
 
     /** 分页筛选角色。 */
@@ -156,6 +163,64 @@ public class RoleManagementService {
     public RoleRouteUpdateResult replaceRoleRouteConfiguration(String roleId, ReplaceRoutes request) {
         var result = roleMenuConfigurationService.replaceRoleMenuAssignments(roleId, request.routeIds());
         return new RoleRouteUpdateResult(result.roleId(), result.menuIds());
+    }
+
+    /**
+     * 返回角色当前有效接口权限和保留在数据库中的失效历史权限。
+     */
+    public RolePermissionConfiguration findRolePermissionConfiguration(String roleId) {
+        SystemRole role = requireRole(roleId);
+        List<String> assignedCodes = systemRolePermissionMapper.findPermissionCodesByRoleId(role.getId());
+        boolean allPermissions = isProtectedRole(role);
+        List<String> effectiveCodes = allPermissions
+                ? permissionRegistry.list().stream().map(PermissionRegistry.PermissionPoint::code).toList()
+                : permissionRegistry.list().stream()
+                        .map(PermissionRegistry.PermissionPoint::code)
+                        .filter(assignedCodes::contains)
+                        .toList();
+        List<String> historicalCodes = assignedCodes.stream()
+                .filter(code -> !permissionRegistry.contains(code))
+                .toList();
+        return new RolePermissionConfiguration(
+                stringifyId(role.getId()),
+                role.getRoleCode(),
+                role.getRoleName(),
+                role.getStatus(),
+                allPermissions,
+                effectiveCodes,
+                historicalCodes
+        );
+    }
+
+    /**
+     * 覆盖一个普通启用角色的当前有效接口权限，并保留旧版本遗留的失效编码。
+     */
+    @Transactional
+    public RolePermissionUpdateResult replaceRolePermissionConfiguration(String roleId, ReplacePermissions request) {
+        SystemRole role = requireRole(roleId);
+        if (!role.isEnabled()) {
+            throw validationError("角色已停用，不能更新接口权限");
+        }
+        rejectProtectedRole(role);
+
+        List<String> requestedCodes = normalizePermissionCodes(request.permissionCodes());
+        for (String permissionCode : requestedCodes) {
+            if (!permissionRegistry.contains(permissionCode)) {
+                throw validationError("permissionCodes 包含未定义的权限编码: " + permissionCode);
+            }
+        }
+
+        systemRolePermissionMapper.delete(new LambdaQueryWrapper<SystemRolePermission>()
+                .eq(SystemRolePermission::getRoleId, role.getId())
+                .in(SystemRolePermission::getPermissionCode, permissionRegistry.allCodes()));
+        for (String permissionCode : requestedCodes) {
+            SystemRolePermission assignment = new SystemRolePermission();
+            assignment.setRoleId(role.getId());
+            assignment.setPermissionCode(permissionCode);
+            systemRolePermissionMapper.insert(assignment);
+        }
+        systemAuthorizationCache.invalidateAllSnapshots();
+        return new RolePermissionUpdateResult(stringifyId(role.getId()), requestedCodes);
     }
 
     /** 创建普通系统角色。 */
@@ -330,6 +395,21 @@ public class RoleManagementService {
             roleIds.add(parsePositiveId(rawRoleId, "roleIds"));
         }
         return List.copyOf(roleIds);
+    }
+
+    private List<String> normalizePermissionCodes(List<String> rawPermissionCodes) {
+        if (rawPermissionCodes == null || rawPermissionCodes.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashSet<String> permissionCodes = new LinkedHashSet<>();
+        for (String rawPermissionCode : rawPermissionCodes) {
+            String permissionCode = normalizeOptional(rawPermissionCode);
+            if (permissionCode == null) {
+                throw validationError("permissionCodes must not contain blank values");
+            }
+            permissionCodes.add(permissionCode);
+        }
+        return List.copyOf(permissionCodes);
     }
 
     private long parsePositiveId(String rawId, String fieldName) {

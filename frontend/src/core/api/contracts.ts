@@ -2,10 +2,10 @@
  * @file contracts.ts
  * @project Pipker Framework
  * @module Frontend API Contracts
- * @description Defines the server envelope, RBAC, role-management including page permissions, and read-only route-management projections shared by frontend features.
- * @logic Keeps all backend field names and business result codes at the transport boundary so pages only consume verified data, including string-form Snowflake IDs and the separate navigation/route authorization model.
+ * @description Defines the server envelope, enum permission points, role-management including page and interface permissions, and read-only route-management projections shared by frontend features.
+ * @logic Keeps all backend field names and business result codes at the transport boundary so pages only consume verified data, including string-form Snowflake IDs, the separate navigation/route authorization model, and the memory-defined interface permission model.
  * @dependencies TypeScript
- * @index_tags api, contracts, rbac, role, route, authorization, authentication
+ * @index_tags api, contracts, rbac, role, route, permission, authorization, authentication
  * @author holic512
  */
 
@@ -155,6 +155,29 @@ export interface RoleRouteConfiguration {
 export interface RoleRouteUpdateResult {
   roleId: string
   routeIds: string[]
+}
+
+/** Java 权限枚举在管理端展示的有效接口权限点。 */
+export interface SystemPermissionPoint {
+  code: string
+  name: string
+  description: string
+}
+
+/** 一个角色的当前有效接口权限与仅供识别的历史失效权限。 */
+export interface RolePermissionConfiguration {
+  roleId: string
+  roleCode: string
+  roleName: string
+  status: SystemRoleStatus
+  allPermissions: boolean
+  permissionCodes: string[]
+  historicalPermissionCodes: string[]
+}
+
+export interface RolePermissionUpdateResult {
+  roleId: string
+  permissionCodes: string[]
 }
 
 export type SystemRouteMenuType = 'DIRECTORY' | 'MENU'

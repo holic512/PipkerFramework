@@ -2,8 +2,8 @@
  * @file SystemRolePermission.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 映射 system_role_permission 中的角色 API 权限关联记录。
- * @logic 使用独立雪花主键标识关联，角色和权限字段只承担外键关系。
+ * @description 映射 system_role_permission 中的角色与接口权限编码关联记录。
+ * @logic 使用独立雪花主键标识关联；role_id 保持角色外键，permission_code 原样保存角色选择过的有效或历史枚举编码。
  * @dependencies MyBatis-Plus、Lombok
  * @index_tags system-role-permission、rbac、association、persistence
  * @author holic512
@@ -33,6 +33,6 @@ public class SystemRolePermission {
     @TableField("role_id")
     private Long roleId;
 
-    @TableField("permission_id")
-    private Long permissionId;
+    @TableField("permission_code")
+    private String permissionCode;
 }

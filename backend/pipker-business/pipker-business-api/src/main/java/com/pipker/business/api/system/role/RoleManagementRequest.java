@@ -2,10 +2,10 @@
  * @file RoleManagementRequest.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 定义角色管理 API 的创建、编辑、批量、页面权限与成员密码重置请求契约。
- * @logic 在 HTTP 边界校验字段长度和基础格式，服务层继续处理角色保护规则、页面路由有效性和跨表完整性校验。
+ * @description 定义角色管理 API 的创建、编辑、批量、页面权限、接口权限与成员密码重置请求契约。
+ * @logic 在 HTTP 边界校验字段长度和基础格式，服务层继续处理角色保护规则、页面路由有效性、Java 权限枚举有效性和跨表完整性校验。
  * @dependencies Jakarta Validation、Java 标准库
- * @index_tags rbac、role、route、request-validation、administration
+ * @index_tags rbac、role、route、permission、request-validation、administration
  * @author holic512
  */
 package com.pipker.business.api.system.role;
@@ -62,6 +62,12 @@ public final class RoleManagementRequest {
     /** 全量替换一个角色可访问的页面路由；空列表代表移除全部页面权限。 */
     public record ReplaceRoutes(
             @NotNull List<@NotBlank String> routeIds
+    ) {
+    }
+
+    /** 全量替换一个角色持有的当前有效接口权限；空列表代表移除所有当前有效权限。 */
+    public record ReplacePermissions(
+            @NotNull List<@NotBlank @Size(max = 128) String> permissionCodes
     ) {
     }
 

@@ -2,10 +2,10 @@
  * @file RoleManagementResponse.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 定义角色列表、详情、页面权限、成员和批量操作的安全响应投影。
- * @logic 对外将雪花主键序列化为字符串，并有意排除成员账户的密码、邮箱、手机号等私密字段；页面权限同时返回目录与隐藏页面提示所需的菜单树。
+ * @description 定义角色列表、详情、页面权限、接口权限、成员和批量操作的安全响应投影。
+ * @logic 对外将雪花主键序列化为字符串，并有意排除成员账户的密码、邮箱、手机号等私密字段；页面权限同时返回目录与隐藏页面提示所需的菜单树，接口权限将历史编码与当前有效编码分开返回。
  * @dependencies SystemMenuNode、Java 标准库
- * @index_tags rbac、role、route、response、pagination、administration
+ * @index_tags rbac、role、route、permission、response、pagination、administration
  * @author holic512
  */
 package com.pipker.business.api.system.role;
@@ -73,6 +73,22 @@ public final class RoleManagementResponse {
 
     /** 页面权限覆盖写入后的安全确认结果。 */
     public record RoleRouteUpdateResult(String roleId, List<String> routeIds) {
+    }
+
+    /** 一个角色保存的当前有效接口权限及不再被 Java 枚举定义的历史权限。 */
+    public record RolePermissionConfiguration(
+            String roleId,
+            String roleCode,
+            String roleName,
+            String status,
+            boolean allPermissions,
+            List<String> permissionCodes,
+            List<String> historicalPermissionCodes
+    ) {
+    }
+
+    /** 接口权限覆盖写入后的安全确认结果。 */
+    public record RolePermissionUpdateResult(String roleId, List<String> permissionCodes) {
     }
 
     /** 不泄露 MyBatis-Plus 内部字段的通用分页结果。 */

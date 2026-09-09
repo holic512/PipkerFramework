@@ -2,10 +2,10 @@
  * @file CurrentSystemAuthorizationService.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description Resolves the current Sa-Token identity into the system user's cached database authorization snapshot.
- * @logic Accepts only the SYSTEM login domain and numeric user IDs, then delegates to the shared authorization cache-backed service.
+ * @description Resolves the current Sa-Token identity into the system user's cached authorization snapshot.
+ * @logic Accepts only the SYSTEM login domain and numeric user IDs, then delegates to the shared cache-backed service whose interface permissions have been filtered by the Java permission registry.
  * @dependencies AuthSessionService, SystemAuthorizationService, ApiBusinessException
- * @index_tags auth, rbac, current-user, cache
+ * @index_tags auth, rbac, permission, current-user, cache
  * @author holic512
  */
 package com.pipker.business.api.system.auth;

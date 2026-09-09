@@ -2,10 +2,10 @@
  * @file SystemPermission.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 映射 system_permission 中受保护 API 的权限定义。
- * @logic 保存权限标识、类型、状态和审计信息，不混入页面或按钮权限投影。
+ * @description 映射保留在 system_permission 中的历史 API 权限定义记录。
+ * @logic 保留原有权限标识、类型、状态和审计字段以兼容既有系统表；运行时有效接口权限只由 PermissionEnum 定义，不从此表读取。
  * @dependencies MyBatis-Plus、Lombok、Java 标准库
- * @index_tags system-permission、rbac、api、persistence
+ * @index_tags system-permission、legacy、rbac、api、persistence
  * @author holic512
  */
 package com.pipker.business.api.common.model;

@@ -3,14 +3,16 @@
  * @project Pipker Framework
  * @module Pipker Business API
  * @description Provides system-user login and current authorization projection endpoints.
- * @logic Login is explicitly anonymous; the protected current-user endpoint resolves the database RBAC snapshot through the shared local authorization cache.
- * @dependencies SystemAuthenticationService, CurrentSystemAuthorizationService, Spring Web MVC
- * @index_tags controller, auth, rbac, cache
+ * @logic Login is explicitly anonymous; the protected current-user endpoint requires the coarse authorization-view permission and resolves the cached role, enum-permission, route and menu snapshot.
+ * @dependencies Permission、PermissionEnum、SystemAuthenticationService, CurrentSystemAuthorizationService, Spring Web MVC
+ * @index_tags controller, auth, rbac, permission, cache
  * @author holic512
  */
 package com.pipker.business.api.system.auth;
 
 import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
+import com.pipker.business.api.system.permission.Permission;
+import com.pipker.business.api.system.permission.PermissionEnum;
 import com.pipker.business.api.system.auth.dto.LoginRequest;
 import com.pipker.business.api.system.auth.dto.LoginResponse;
 import com.pipker.business.common.api.ApiResponse;
@@ -62,6 +64,7 @@ public class AuthController {
      * @return 当前授权快照
      */
     @GetMapping("/me")
+    @Permission(PermissionEnum.SYSTEM_AUTHORIZATION_VIEW)
     public ApiResponse<SystemAuthorizationSnapshot> me() {
         return ApiResponse.success(currentSystemAuthorizationService.currentSnapshot());
     }

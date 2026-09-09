@@ -3,10 +3,10 @@
     @file db/changelog/system/system-api-resource.xml
     @project Pipker Framework
     @module Pipker Server
-    @description 定义 API 资源与 API 权限的映射。
-    @logic 创建 API 资源表、方法路径唯一约束和权限外键，再写入框架受保护 API、角色管理及其页面权限弹窗操作与只读路由管理的资源映射。
+    @description 保留历史 API 路径资源与历史权限记录的映射基线。
+    @logic 创建 API 资源表、方法路径唯一约束和权限外键，再保留既有框架接口资源数据；运行时接口授权由 Permission 注解和 Java PermissionEnum 完成，不再按本表匹配请求路径。
     @dependencies Liquibase、system_api_resource、system_permission
-    @index_tags liquibase、database、system_api_resource、seed、api、rbac
+    @index_tags liquibase、database、system_api_resource、seed、legacy、api、rbac
     @author holic512
 -->
 <databaseChangeLog

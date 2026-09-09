@@ -2,10 +2,10 @@
  * @file MybatisPlusSystemPersistenceIntegrationTests.java
  * @project Pipker Framework
  * @module Pipker Server
- * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键、授权初始化数据、角色管理、页面权限与只读路由管理服务。
- * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 和应用服务验证实体读写、授权、真实分页、角色页面权限替换、密码重置和已落库路由定义。
+ * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键、Java 枚举接口权限、角色管理、页面权限与只读路由管理服务。
+ * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 和应用服务验证实体读写、权限枚举加载、角色接口与页面权限替换、历史权限保留、密码重置和已落库路由定义。
  * @dependencies Spring Boot Test、Liquibase、SQLite JDBC、MyBatis-Plus、Pipker Business API、Pipker Security Starter
- * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、role、route、hidden-menu、password-reset
+ * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、role、route、permission、hidden-menu、password-reset
  * @author holic512
  */
 package com.pipker.server;
@@ -33,15 +33,20 @@ import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
 import com.pipker.business.api.system.authorization.RoleMenuConfiguration;
 import com.pipker.business.api.system.authorization.RoleMenuConfigurationService;
 import com.pipker.business.api.system.authorization.RoleMenuUpdateResult;
+import com.pipker.business.api.system.permission.PermissionEnum;
+import com.pipker.business.api.system.permission.PermissionRegistry;
 import com.pipker.business.api.system.role.RoleManagementService;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchDelete;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchStatus;
 import com.pipker.business.api.system.role.RoleManagementRequest.Create;
 import com.pipker.business.api.system.role.RoleManagementRequest.ResetMemberPassword;
+import com.pipker.business.api.system.role.RoleManagementRequest.ReplacePermissions;
 import com.pipker.business.api.system.role.RoleManagementRequest.ReplaceRoutes;
 import com.pipker.business.api.system.role.RoleManagementRequest.Update;
 import com.pipker.business.api.system.role.RoleManagementResponse.PageResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleMember;
+import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionConfiguration;
+import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteConfiguration;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleSummary;
@@ -112,6 +117,9 @@ class MybatisPlusSystemPersistenceIntegrationTests {
     @Autowired
     private SecurityCryptoService securityCryptoService;
 
+    @Autowired
+    private PermissionRegistry permissionRegistry;
+
     @DynamicPropertySource
     static void configureTemporaryStorage(DynamicPropertyRegistry registry) {
         registry.add("pipker.data.database-root", DATA_ROOT::toString);
@@ -121,7 +129,7 @@ class MybatisPlusSystemPersistenceIntegrationTests {
     }
 
     @Test
-    void mapsAllSystemTablesWithSnowflakeIdsAndPreservesAuthorizationRules() {
+    void mapsAllSystemTablesWithSnowflakeIdsAndUsesEnumBasedPermissions() {
         String suffix = String.valueOf(System.nanoTime());
 
         SystemUser user = new SystemUser();
@@ -181,7 +189,7 @@ class MybatisPlusSystemPersistenceIntegrationTests {
 
         SystemRolePermission rolePermission = new SystemRolePermission();
         rolePermission.setRoleId(role.getId());
-        rolePermission.setPermissionId(permission.getId());
+        rolePermission.setPermissionCode(PermissionEnum.SYSTEM_ROLE_MANAGE.getCode());
         assertThat(systemRolePermissionMapper.insert(rolePermission)).isEqualTo(1);
         assertThat(rolePermission.getId()).isPositive();
 
@@ -197,14 +205,22 @@ class MybatisPlusSystemPersistenceIntegrationTests {
         assertThatThrownBy(() -> systemUserRoleMapper.insert(duplicateUserRole))
                 .isInstanceOf(RuntimeException.class);
 
+        SystemRolePermission duplicateRolePermission = new SystemRolePermission();
+        duplicateRolePermission.setRoleId(role.getId());
+        duplicateRolePermission.setPermissionCode(PermissionEnum.SYSTEM_ROLE_MANAGE.getCode());
+        assertThatThrownBy(() -> systemRolePermissionMapper.insert(duplicateRolePermission))
+                .isInstanceOf(RuntimeException.class);
+
         SystemAuthorizationSnapshot administratorSnapshot = systemAuthorizationService.findSnapshot(2090000000000000001L);
         assertThat(administratorSnapshot).isNotNull();
         assertThat(administratorSnapshot.roles()).contains(SystemAuthorizationService.SUPER_ADMIN_ROLE);
-        assertThat(administratorSnapshot.permissions()).contains("system:auth:me");
+        assertThat(administratorSnapshot.permissions()).contains(PermissionEnum.SYSTEM_AUTHORIZATION_VIEW.getCode());
         assertThat(administratorSnapshot.menus()).isNotEmpty();
-        assertThat(systemApiResourceMapper.findAllEnabledAuthorizationRules())
-                .extracting(rule -> rule.permissionCode())
-                .contains("system:auth:me");
+        assertThat(permissionRegistry.list())
+                .extracting(PermissionRegistry.PermissionPoint::code)
+                .containsExactlyElementsOf(List.of(PermissionEnum.values()).stream()
+                        .map(PermissionEnum::getCode)
+                        .toList());
 
         RoleMenuUpdateResult menuUpdate = roleMenuConfigurationService.replaceRoleMenuAssignments(
                 "2090000000000000102",
@@ -272,6 +288,38 @@ class MybatisPlusSystemPersistenceIntegrationTests {
                 .containsExactly(String.valueOf(member.getId()));
 
         assertThat(roleManagementService.findRoleDetail(createdRole.id()).memberCount()).isEqualTo(1);
+
+        SystemRolePermission historicalPermission = new SystemRolePermission();
+        historicalPermission.setRoleId(Long.parseLong(createdRole.id()));
+        historicalPermission.setPermissionCode("retired-system-role-manage");
+        systemRolePermissionMapper.insert(historicalPermission);
+
+        RolePermissionUpdateResult permissionUpdate = roleManagementService.replaceRolePermissionConfiguration(
+                createdRole.id(),
+                new ReplacePermissions(List.of(
+                        PermissionEnum.SYSTEM_ROUTE_VIEW.getCode(),
+                        PermissionEnum.SYSTEM_ROUTE_VIEW.getCode()
+                ))
+        );
+        assertThat(permissionUpdate.permissionCodes()).containsExactly(PermissionEnum.SYSTEM_ROUTE_VIEW.getCode());
+        RolePermissionConfiguration permissionConfiguration = roleManagementService.findRolePermissionConfiguration(
+                createdRole.id()
+        );
+        assertThat(permissionConfiguration.permissionCodes()).containsExactly(PermissionEnum.SYSTEM_ROUTE_VIEW.getCode());
+        assertThat(permissionConfiguration.historicalPermissionCodes()).containsExactly("retired-system-role-manage");
+        assertThat(systemAuthorizationService.findSnapshot(member.getId()).permissions())
+                .contains(PermissionEnum.SYSTEM_ROUTE_VIEW.getCode())
+                .doesNotContain("retired-system-role-manage");
+
+        assertThatThrownBy(() -> roleManagementService.replaceRolePermissionConfiguration(
+                createdRole.id(),
+                new ReplacePermissions(List.of("arbitrary-client-permission"))
+        )).isInstanceOf(ApiBusinessException.class);
+        assertThatThrownBy(() -> roleManagementService.replaceRolePermissionConfiguration(
+                "2090000000000000101",
+                new ReplacePermissions(List.of(PermissionEnum.SYSTEM_ROUTE_VIEW.getCode()))
+        )).isInstanceOf(ApiBusinessException.class);
+
         roleManagementService.resetMemberPassword(
                 createdRole.id(),
                 String.valueOf(member.getId()),

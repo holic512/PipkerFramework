@@ -592,7 +592,7 @@ function newRoleForm(): RoleFormState {
           <el-table-column label="最近更新" min-width="154">
             <template #default="{ row }: { row: SystemRoleSummary }">{{ formatTime(row.updatedAt) }}</template>
           </el-table-column>
-          <el-table-column label="操作" fixed="right" width="304">
+          <el-table-column label="操作" fixed="right" min-width="342">
             <template #default="{ row }: { row: SystemRoleSummary }">
               <div class="role-row-actions">
                 <el-button link type="primary" @click="openDetail(row)">详情</el-button>
@@ -1029,6 +1029,7 @@ function newRoleForm(): RoleFormState {
 .role-row-actions {
   display: flex;
   gap: 0.35rem;
+  white-space: nowrap;
 }
 
 .role-page-summary {

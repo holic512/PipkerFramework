@@ -2,10 +2,10 @@
  * @file ConfigurationPropertiesLayoutTests.java
  * @project Pipker Framework
  * @module Pipker Server
- * @description 验证 Spring Properties 配置资源的目录布局、导入关系和持久化路径职责。
- * @logic 读取源码资源目录中的 Properties，确认 dev/prod 入口导入完整、file 配置统一维护独立路径、SQLite 配置不承载文件路径，并拒绝遗留 YAML。
- * @dependencies JUnit Jupiter、AssertJ、Java NIO、Java Properties
- * @index_tags server、test、configuration、properties、profile、sqlite、persistence-path
+ * @description 验证 Spring Properties 配置资源的目录布局、持久化路径职责和生产日志切片策略。
+ * @logic 读取源码资源，确认 dev/prod 导入、独立数据目录、公共 HTTP 日志开关和仅 prod 启用的无自动清理按日文件策略。
+ * @dependencies JUnit Jupiter、AssertJ、Java NIO、Java Properties、Logback XML
+ * @index_tags server、test、configuration、properties、profile、sqlite、persistence-path、logback
  * @author holic512
  */
 package com.pipker.server;
@@ -51,6 +51,41 @@ class ConfigurationPropertiesLayoutTests {
                 .containsEntry("spring.config.import[2]", "classpath:/config/prod/base/mysql.properties")
                 .containsEntry("spring.config.import[3]", "classpath:/config/prod/base/pg.properties")
                 .containsEntry("spring.config.import[4]", "classpath:/config/prod/redis.properties");
+    }
+
+    @Test
+    void commonConfigurationEnablesSafeHttpCompletionLogs() throws IOException {
+        assertThat(load("application.properties"))
+                .containsEntry("pipker.log.request.enabled", "true")
+                .containsEntry("pipker.log.request.include-parameters", "true")
+                .containsEntry("pipker.log.request.include-headers", "false")
+                .containsEntry("pipker.log.request.include-request-body", "false")
+                .containsEntry("pipker.log.request.include-response-body", "false");
+    }
+
+    @Test
+    void productionLogbackUsesPermanentDailyLogFiles() throws IOException {
+        String configuration = Files.readString(RESOURCE_DIRECTORY.resolve("logback-spring.xml"));
+
+        assertThat(configuration)
+                .contains(
+                        "<springProfile name=\"prod\">",
+                        "<springProfile name=\"!prod\">",
+                        "source=\"pipker.data.log-root\"",
+                        "${PIPKER_LOG_ROOT}/pipker-server.log",
+                        "ch.qos.logback.core.rolling.TimeBasedRollingPolicy",
+                        "${PIPKER_LOG_ROOT}/archive/pipker-server.%d{yyyy-MM-dd}.log",
+                        "<appender-ref ref=\"CONSOLE\"/>",
+                        "<appender-ref ref=\"FILE\"/>"
+                )
+                .doesNotContain(
+                        "SizeAndTimeBasedRollingPolicy",
+                        "maxFileSize",
+                        "maxHistory",
+                        "totalSizeCap",
+                        "cleanHistoryOnStart",
+                        ".gz"
+                );
     }
 
     @Test

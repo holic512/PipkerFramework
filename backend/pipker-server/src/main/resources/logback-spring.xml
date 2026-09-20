@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    @file logback-spring.xml
+    @project Pipker Framework
+    @module Pipker Server
+    @description 定义 Server 控制台日志与生产环境按日永久保留的文件日志。
+    @logic 所有环境保留 Spring Boot 控制台输出；prod 额外追加活动文件，并按自然日切换为不自动清理的 .log 归档。
+    @dependencies Spring Boot Logging、Logback、pipker.data.log-root
+    @index_tags server、logging、logback、console、rolling-file、prod、retention
+    @author holic512
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <springProperty scope="context"
+                    name="PIPKER_LOG_ROOT"
+                    source="pipker.data.log-root"
+                    defaultValue="./data/log"/>
+    <property name="LOG_FILE" value="${PIPKER_LOG_ROOT}/pipker-server.log"/>
+
+    <springProfile name="prod">
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+                <level>${FILE_LOG_THRESHOLD}</level>
+            </filter>
+            <encoder>
+                <pattern>${FILE_LOG_PATTERN}</pattern>
+                <charset>${FILE_LOG_CHARSET}</charset>
+            </encoder>
+            <file>${LOG_FILE}</file>
+            <append>true</append>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${PIPKER_LOG_ROOT}/archive/pipker-server.%d{yyyy-MM-dd}.log</fileNamePattern>
+            </rollingPolicy>
+        </appender>
+
+        <root level="${ROOT_LOG_LEVEL:-INFO}">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!prod">
+        <root level="${ROOT_LOG_LEVEL:-INFO}">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+</configuration>

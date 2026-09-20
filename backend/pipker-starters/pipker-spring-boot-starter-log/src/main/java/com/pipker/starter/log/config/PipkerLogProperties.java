@@ -505,7 +505,7 @@ public class PipkerLogProperties {
          */
         private LogLevel level = LogLevel.INFO;
         /**
-         * 是否记录请求参数，默认为关闭。
+         * 是否记录 URL 查询参数，默认为关闭；不包含表单或其他请求体。
          */
         private boolean includeParameters;
         /**
@@ -582,18 +582,18 @@ public class PipkerLogProperties {
         }
 
         /**
-         * 返回是否记录请求参数。
+         * 返回是否记录 URL 查询参数。
          *
-         * @return 是否记录请求参数
+         * @return 是否记录查询参数
          */
         public boolean isIncludeParameters() {
             return includeParameters;
         }
 
         /**
-         * 设置是否记录请求参数。
+         * 设置是否记录 URL 查询参数。
          *
-         * @param includeParameters 是否记录请求参数
+         * @param includeParameters 是否记录查询参数
          */
         public void setIncludeParameters(boolean includeParameters) {
             this.includeParameters = includeParameters;

@@ -1,11 +1,16 @@
 package com.pipker.starter.log;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.pipker.starter.log.annotation.ApiLog;
 import com.pipker.starter.log.api.ApiAccessLogHandler;
 import com.pipker.starter.log.api.ApiAccessLogRecord;
 import com.pipker.starter.log.context.LogMdcKeys;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -32,7 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(
         classes = PipkerLogWebMvcIntegrationTests.TestApplication.class,
         properties = {
-                "pipker.log.request.enabled=false",
+                "pipker.log.request.enabled=true",
                 "pipker.log.slow-request.enabled=false",
                 "pipker.log.context.service-name=log-integration-test"
         }
@@ -46,8 +51,21 @@ class PipkerLogWebMvcIntegrationTests {
     @Autowired
     private CapturingApiAccessLogHandler apiAccessLogHandler;
 
+    private Logger httpLogger;
+    private ListAppender<ILoggingEvent> httpAppender;
+
+    @BeforeEach
+    void captureHttpCompletionLogs() {
+        httpLogger = (Logger) LoggerFactory.getLogger("pipker.http");
+        httpAppender = new ListAppender<>();
+        httpAppender.start();
+        httpLogger.addAppender(httpAppender);
+    }
+
     @AfterEach
     void cleanMdc() {
+        httpLogger.detachAppender(httpAppender);
+        httpAppender.stop();
         MDC.clear();
     }
 
@@ -58,6 +76,13 @@ class PipkerLogWebMvcIntegrationTests {
                 .andExpect(header().string("X-Trace-Id", "upstream-integration-1"))
                 .andExpect(content().string("upstream-integration-1"));
 
+        assertSingleHttpLogContains(
+                "method=GET",
+                "path=/log/probe",
+                "httpStatus=200",
+                "success=true",
+                "traceId=upstream-integration-1"
+        );
         assertThat(MDC.getCopyOfContextMap()).isNull();
     }
 
@@ -71,6 +96,18 @@ class PipkerLogWebMvcIntegrationTests {
         assertThat(success.purpose()).isEqualTo("探测接口访问日志");
         assertThat(success.businessCode()).isEqualTo(200);
         assertThat(success.success()).isTrue();
+        assertSingleHttpLogContains(
+                "method=GET",
+                "path=/api/log/probe",
+                "route=/api/log/probe",
+                "httpStatus=200",
+                "businessCode=200",
+                "success=true",
+                "handlerDurationMs=",
+                "durationMs=",
+                "clientIp=127.0.0.1",
+                "traceId=api-success-trace"
+        );
 
         mockMvc.perform(get("/api/log/business-failure"))
                 .andExpect(status().isOk());
@@ -78,6 +115,13 @@ class PipkerLogWebMvcIntegrationTests {
         assertThat(businessFailure).isNotNull();
         assertThat(businessFailure.businessCode()).isEqualTo(403);
         assertThat(businessFailure.success()).isFalse();
+        assertSingleHttpLogContains(
+                "path=/api/log/business-failure",
+                "route=/api/log/business-failure",
+                "httpStatus=200",
+                "businessCode=403",
+                "success=false"
+        );
 
         mockMvc.perform(get("/api/log/required"))
                 .andExpect(status().isBadRequest());
@@ -85,6 +129,12 @@ class PipkerLogWebMvcIntegrationTests {
         assertThat(bindingFailure).isNotNull();
         assertThat(bindingFailure.routePattern()).isEqualTo("/api/log/required");
         assertThat(bindingFailure.success()).isFalse();
+        assertSingleHttpLogContains(
+                "path=/api/log/required",
+                "route=/api/log/required",
+                "httpStatus=400",
+                "success=false"
+        );
 
         mockMvc.perform(get("/api/log/missing"))
                 .andExpect(status().isNotFound());
@@ -94,7 +144,22 @@ class PipkerLogWebMvcIntegrationTests {
         assertThat(unmatched.routePattern()).isNull();
         assertThat(unmatched.handlerMethod()).isNull();
         assertThat(unmatched.success()).isFalse();
+        assertSingleHttpLogContains(
+                "path=/api/log/missing",
+                "route=null",
+                "httpStatus=404",
+                "success=false"
+        );
         assertThat(apiAccessLogHandler.poll(120, TimeUnit.MILLISECONDS)).isNull();
+    }
+
+    private void assertSingleHttpLogContains(String... expectedFragments) {
+        List<String> messages = httpAppender.list.stream()
+                .map(ILoggingEvent::getFormattedMessage)
+                .filter(message -> message.contains("[HTTP]"))
+                .toList();
+        assertThat(messages).singleElement().asString().contains(expectedFragments);
+        httpAppender.list.clear();
     }
 
     @SpringBootConfiguration

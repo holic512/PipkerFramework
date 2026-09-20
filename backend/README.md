@@ -145,37 +145,34 @@ PIPKER_DATABASE_USERNAME
 PIPKER_DATABASE_PASSWORD
 ```
 
-SQLite 固定使用 `${PIPKER_DATA_ROOT:./data}/base/pipker.db`，不支持通过 `PIPKER_DATABASE_URL` 或 `PIPKER_SQLITE_PATH` 单独覆盖其路径。MySQL、PostgreSQL 继续使用 `PIPKER_DATABASE_URL`、`PIPKER_DATABASE_USERNAME` 与 `PIPKER_DATABASE_PASSWORD` 提供外部连接信息；三个 Profile 分别使用 `com.mysql.cj.jdbc.Driver`、`org.postgresql.Driver` 和 `org.sqlite.JDBC`。
+SQLite 固定使用 `${PIPKER_SQLITE_ROOT:./data/base}/pipker.db`，不支持通过 `PIPKER_DATABASE_URL` 或 `PIPKER_SQLITE_PATH` 单独覆盖其路径。MySQL、PostgreSQL 继续使用 `PIPKER_DATABASE_URL`、`PIPKER_DATABASE_USERNAME` 与 `PIPKER_DATABASE_PASSWORD` 提供外部连接信息；三个 Profile 分别使用 `com.mysql.cj.jdbc.Driver`、`org.postgresql.Driver` 和 `org.sqlite.JDBC`。
 
 Redis 配置分别位于 `config/dev/redis.yml` 和 `config/prod/redis.yml`，使用 `spring.data.redis.host`、`port`、`database`、`username`、`password`。启用 Redis 会话存储时组合 `redis` Profile；默认使用内存会话存储，适合单实例开发。
 
 ### 本地文件持久化
 
-`pipker-spring-boot-starter-file` 默认启用本地文件存储。Server 将全部本地运行数据收敛在 `PIPKER_DATA_ROOT`（默认 `./data`）中；它可配置为相对或绝对本地路径。应用启动时会创建固定布局：
+`pipker-spring-boot-starter-file` 默认启用本地文件存储。SQLite、本地文件与日志目录分别由 `PIPKER_SQLITE_ROOT`、`PIPKER_FILE_ROOT` 和 `PIPKER_LOG_ROOT` 配置，默认组成以下布局：
 
 ```text
-${PIPKER_DATA_ROOT:-./data}/
+./data/
 ├── base/  # SQLite 数据库：pipker.db
 ├── file/  # FileStorageService 保存的文件
-└── log/   # 仅预留，当前不写入文件日志
+└── log/   # prod：pipker-server.log 与 archive/每日归档
 ```
 
-按照文档中的启动方式在 `backend/` 运行 Server 时，SQLite 路径为 `backend/data/base/pipker.db`，文件根目录为 `backend/data/file`。SQLite 和文件存储都不能通过独立路径配置离开该根目录；`data/log` 仅用于预留目录，不改变当前控制台日志行为。
+按照文档中的启动方式在 `backend/` 运行 Server 时，SQLite 路径为 `backend/data/base/pipker.db`，文件根目录为 `backend/data/file`，日志根目录为 `backend/data/log`。`dev` 仅输出控制台；`prod` 额外写入 `pipker-server.log`，并在自然日切换时归档为 `archive/pipker-server.YYYY-MM-DD.log`。
 
-默认配置位于 `pipker-server/src/main/resources/config/base/file.yml`：
+开发和生产的默认路径分别位于 `config/dev/file.properties` 和 `config/prod/file.properties`：
 
-```yaml
-pipker:
-  data:
-    root: ${PIPKER_DATA_ROOT:./data}
-  file:
-    enabled: ${PIPKER_FILE_ENABLED:true}
-    local:
-      root: ${pipker.data.root}/file
-    access-path: ${PIPKER_FILE_ACCESS_PATH:/files}
+```properties
+pipker.data.log-root=${PIPKER_LOG_ROOT:./data/log}
+pipker.data.database-root=${PIPKER_SQLITE_ROOT:./data/base}
+pipker.file.local.root=${PIPKER_FILE_ROOT:./data/file}
+pipker.file.enabled=${PIPKER_FILE_ENABLED:true}
+pipker.file.access-path=${PIPKER_FILE_ACCESS_PATH:/files}
 ```
 
-可通过 `PIPKER_DATA_ROOT` 配置唯一的本地运行时数据根目录；启动期会拒绝 SQLite 数据库或 `pipker.file.local.root` 被其他高优先级属性改到该目录之外。`PIPKER_FILE_ENABLED=false` 可完全关闭文件功能，关闭后不会注册 `FileStorageService`，`/files/**` 也不会映射到磁盘，访问结果保持标准 HTTP `404`；`data/file` 与 `data/log` 仍会作为固定本地目录被预创建。`PIPKER_FILE_ACCESS_PATH` 必须是安全的绝对 URL 路径前缀，例如 `/files` 或 `/public/files`，不能包含 `..`、通配符、查询参数或域名。
+三个目录都可以配置为相对或绝对本地路径，启动阶段会创建并校验可写性。`PIPKER_FILE_ENABLED=false` 可完全关闭文件功能，关闭后不会注册 `FileStorageService`，`/files/**` 也不会映射到磁盘，访问结果保持标准 HTTP `404`；日志目录仍会被预创建。`PIPKER_FILE_ACCESS_PATH` 必须是安全的绝对 URL 路径前缀，例如 `/files` 或 `/public/files`，不能包含 `..`、通配符、查询参数或域名。
 
 业务模块通过 `FileStorageService` 写入文件，而不是自行拼接本地路径：
 
@@ -242,15 +239,17 @@ Sa-Token 只显式放行 `GET /api/ping` 和 `POST /api/auth/login`。其他 `/a
 
 ### 接口访问日志与监控
 
-接口访问日志与技术日志、认证审计和显式业务操作日志彼此独立：SLF4J 技术日志继续只输出控制台，`data/log` 不写入接口日志；`@OperationLog` 继续表达业务操作；`system_login_log` 同步尽力写入并长期保留；只有新的 `system_api_access_log` 用于接口成功率和性能分析。
+接口访问日志与认证审计、显式业务操作日志彼此独立：统一 HTTP 完成摘要通过 `pipker.http` Logger 输出到控制台，`prod` 同时写入技术日志文件；`@OperationLog` 继续表达业务操作；`system_login_log` 同步尽力写入并长期保留；`system_api_access_log` 仍仅用于接口成功率和性能分析。
 
-日志 Starter 的请求 Filter 覆盖所有 `/api/**` 生命周期，包括正常调用、参数绑定失败、登录失效、权限拒绝、未匹配 API 和 Servlet 异步请求。Controller AOP 只补充方法签名、`@ApiLog(purpose, remark)`、Controller 耗时和异常摘要；有没有注解都不影响采集。Filter 在同步或异步最终完成时只发布一条记录，并按以下顺序判断成功：
+日志 Starter 的请求 Filter 覆盖所有 `/api/**` 生命周期，包括正常调用、参数绑定失败、登录失效、权限拒绝、未匹配 API 和 Servlet 异步请求。Controller AOP 只补充方法签名、`@ApiLog(purpose, remark)`、Controller 耗时和异常摘要；有没有注解都不影响采集。Filter 在同步或异步最终完成时只生成一次完成快照，共享给控制台摘要和原有数据库异步发布，并按以下顺序判断成功：
 
 1. Controller 异常、异步错误或超时为失败；
 2. 捕获前缀可识别统一响应顶层 `code` 时，仅 HTTP 2xx 且 `code == 200` 成功；
 3. 不能识别统一响应时，仅 HTTP 2xx 成功。
 
-捕获的响应前缀只在内存中用于提取顶层业务码，用完即丢弃。持久化记录只包含服务、方法、实际路径、标准路由、处理方法、用途、备注、HTTP/业务状态码、成功标记、Controller/端到端耗时、TraceId、RequestId、客户端 IP 与清理截断后的异常摘要；查询参数、方法参数、请求体、响应体、Cookie、Token、Authorization 和密码均不进入记录或数据库。
+捕获的响应前缀只在内存中用于提取顶层业务码，用完即丢弃。控制台/文件摘要包含方法、实际路径、匹配路由、HTTP/业务码、成功标记、Controller/端到端耗时、客户端 IP、TraceId、脱敏截断后的 URL 查询参数和异常摘要。它不使用 Servlet `parameterMap`，因此不会将表单体混入查询参数；请求头、Cookie、Authorization、表单体、JSON 请求体和响应体均不输出。
+
+数据库持久化记录的字段和安全边界保持不变：只包含服务、方法、实际路径、标准路由、处理方法、用途、备注、HTTP/业务状态码、成功标记、Controller/端到端耗时、TraceId、RequestId、客户端 IP 与清理截断后的异常摘要；查询参数和内容体仍不进入 `system_api_access_log`。
 
 请求线程只执行计时、元数据组装和非阻塞入队。单消费者按批次调用业务模块提供的数据库 Handler；数据库或事务失败只增加诊断计数并输出不含业务内容的告警。队列满时丢弃新记录，不回退到同步写库，也不改变原接口结果。后台“接口监控”状态条展示队列深度、容量、启动以来丢弃数和写入失败数；这些进程内计数会在实例重启后归零。
 
@@ -259,6 +258,12 @@ Sa-Token 只显式放行 `GET /api/ping` 和 `POST /api/auth/login`。其他 `/a
 ```yaml
 pipker:
   log:
+    request:
+      enabled: true
+      include-parameters: true
+      include-headers: false
+      include-request-body: false
+      include-response-body: false
     api-access:
       enabled: true
       include-paths: /api/**
@@ -272,6 +277,20 @@ pipker:
 ```
 
 每天服务器本地时间 `02:30` 清理严格早于 30 天截止点的接口访问日志，每批最多 1000 条并独立提交；任一批失败即终止本轮，等待下次调度。该任务只操作 `system_api_access_log`，不会删除 `system_login_log`。默认查询最近 24 小时，自定义时间必须同时给出起止且跨度不超过保留期；不超过 48 小时按小时补桶，更长范围按天补桶。慢请求以端到端耗时 `duration_ms >= slowThresholdMs` 判断，默认 1000 ms。概览与接口聚合默认排除 `/api/admin/api-logs/**`，可用 `includeMonitorEndpoints=true` 纳入；原始日志列表始终可查询监控请求。
+
+### 生产技术日志落盘
+
+`logback-spring.xml` 在所有环境保留 Spring Boot 控制台 Appender，只在 `prod` Profile 激活文件 Appender。日志根目录由 `PIPKER_LOG_ROOT`（默认 `./data/log`）提供：
+
+```text
+${PIPKER_LOG_ROOT}/
+├── pipker-server.log
+└── archive/
+    ├── pipker-server.2026-09-19.log
+    └── pipker-server.2026-09-20.log
+```
+
+活动文件在同一天内重启时继续追加，到服务器本地时间零点后按日切换。策略不按大小二次切片、不压缩，也不配置 `maxHistory`、总大小上限或启动清理。因此“永久保留”只表示应用不自动删除；生产运维必须使用持久卷、监控磁盘容量并根据需要备份。多个实例不应共享同一活动日志文件。
 
 ## 本地构建与测试
 

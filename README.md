@@ -11,6 +11,7 @@ Pipker Framework 是一个由 Spring Boot 后端与 Vue 前端组成的后台基
 - `POST /api/auth/login`、当前 Token 登出、`GET /api/auth/me`、管理员登录日志查询与 `{ code, data, message }` 统一响应；已注册 API 的业务失败保持 HTTP 200。
 - 登录、登出和 `/api/auth/me` 鉴权事件同步尽力写入独立的 `system_login_log` 审计表；日志长期保留且不保存密码、Token、Cookie、Authorization 请求头或请求体。
 - 所有 `/api/**` 请求由统一 Filter 与 Controller AOP 生成一条元数据访问记录，经有界队列异步批量写入 `system_api_access_log`；支持成功率、耗时趋势、接口聚合、慢请求与 TraceId 排查，并按 30 天默认保留期定时分批清理。
+- 统一 Filter 同时为每次 HTTP 完成输出脱敏摘要；生产环境将完整控制台日志写入 `data/log/pipker-server.log`，并按日切片为不自动删除的 `.log` 归档。
 - 前端登录页、`sessionStorage` Bearer 令牌、授权恢复和仅由已授权角色菜单生成的 Vue 页面路由；包含仅供 `SUPER_ADMIN` 使用的角色路由配置页，不提供按钮级权限控制。
 - “系统管理 → 接口监控”提供时间范围、慢阈值、采集质量、组合趋势、接口分析和明细抽屉；概览默认排除监控接口自身，原始日志仍可检索这些请求。
 - 默认启用的本地文件持久化：后端服务保存后获得不含域名的 `/files/...` 相对访问路径，公开读取接口不提供 HTTP 上传。
@@ -66,18 +67,20 @@ mvn -pl pipker-server -am spring-boot:run \
   -Dspring-boot.run.profiles=prod,mysql
 ```
 
-可用数据库 Profile 为 `sqlite`、`mysql` 和 `pg`；生产环境必须显式指定数据库，不能只使用 `prod`。`PIPKER_DATA_ROOT` 可配置本地运行时数据根目录，默认为 `./data`；SQLite 固定使用 `${PIPKER_DATA_ROOT}/base/pipker.db`，本地文件固定使用 `${PIPKER_DATA_ROOT}/file`，`${PIPKER_DATA_ROOT}/log` 当前仅预留且不写入文件日志。MySQL、PostgreSQL 的外部连接信息继续使用 `PIPKER_DATABASE_URL`、`PIPKER_DATABASE_USERNAME` 和 `PIPKER_DATABASE_PASSWORD`。文件模块仍可用 `PIPKER_FILE_ENABLED` 和 `PIPKER_FILE_ACCESS_PATH` 覆盖开关、根相对读取前缀；文件服务返回 `/files/...` 一类的相对路径而不是完整 URL。不要把真实密码提交到配置文件或命令历史中。
+可用数据库 Profile 为 `sqlite`、`mysql` 和 `pg`；生产环境必须显式指定数据库，不能只使用 `prod`。SQLite、本地文件与日志目录分别由 `PIPKER_SQLITE_ROOT`（默认 `./data/base`）、`PIPKER_FILE_ROOT`（默认 `./data/file`）和 `PIPKER_LOG_ROOT`（默认 `./data/log`）配置。`dev` 只预创建日志目录并输出控制台；`prod` 同时写入活动文件和 `archive/` 每日归档。MySQL、PostgreSQL 的外部连接信息继续使用 `PIPKER_DATABASE_URL`、`PIPKER_DATABASE_USERNAME` 和 `PIPKER_DATABASE_PASSWORD`。文件模块仍可用 `PIPKER_FILE_ENABLED` 和 `PIPKER_FILE_ACCESS_PATH` 覆盖开关、根相对读取前缀；不要把真实密码提交到配置文件或命令历史中。
 
 ## 日志职责边界
 
 | 能力 | 数据去向 | 责任与保留策略 |
 | --- | --- | --- |
-| SLF4J 技术日志 | 控制台 | 运行诊断；不新增文件落库，`data/log` 仍只是预留目录 |
+| SLF4J 技术日志 | 全部环境控制台；`prod` 额外写文件 | 活动日志为 `pipker-server.log`，每日归档为未压缩 `.log`；应用不自动删除 |
 | `@OperationLog` | 现有显式操作日志链路 | 由业务主动标注的操作语义，不作为接口性能统计数据源 |
 | `system_login_log` | 数据库同步尽力写入 | 认证生命周期审计，长期保留，不参与接口日志清理 |
 | `system_api_access_log` | 有界队列异步批量写入数据库 | `/api/**` 结果与性能元数据，默认保留 30 天；队列满时优先保证业务延迟并丢弃新观测记录 |
 
-接口访问日志只保存路由、用途、状态码、耗时、TraceId、客户端 IP 和经过清理截断的异常摘要，不保存查询参数、方法参数、请求体、响应体、密码、Cookie、Token 或 Authorization。完整配置与管理 API 见 [backend/README.md](backend/README.md)。
+数据库接口访问记录只保存路由、用途、状态码、耗时、TraceId、客户端 IP 和经过清理截断的异常摘要，不保存查询参数或内容体。控制台/文件的 HTTP 摘要可额外包含脱敏截断后的 URL 查询参数，但不记录请求头、Cookie、Authorization、表单体、JSON 请求体或响应体。完整配置与管理 API 见 [backend/README.md](backend/README.md)。
+
+`永久保留` 表示 Logback 不配置历史天数、总大小上限或启动清理；它不能防止人工删除、磁盘故障或临时容器文件系统丢失数据。生产环境必须为 `PIPKER_LOG_ROOT` 使用持久卷，监控磁盘容量，并根据运维要求备份。多实例部署应为每个实例分配独立日志目录。
 
 空数据库的初始账户是 `admin / admin123`。该口令仅用于首次本地初始化，绝不能用于公开部署；上线前必须使用与 `SecurityCryptoService` 兼容的 `{bcrypt}` 哈希替换它。主配置中提交的 AES-GCM Base64 密钥同样只是本地开发默认值，生产部署必须替换。
 

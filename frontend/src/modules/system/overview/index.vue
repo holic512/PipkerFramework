@@ -11,12 +11,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { DataAnalysis, Document, Key, Menu, Refresh, UserFilled } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
 import { init, use, type ECharts, type EChartsCoreOption } from 'echarts/core'
 import { BarChart, PieChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { SystemMenuNode } from '../../../core/api/contracts'
+import { notification } from '../../../core/notification'
 import { useSessionStore } from '../../../stores/session'
 
 use([BarChart, PieChart, GridComponent, TooltipComponent, CanvasRenderer])
@@ -109,9 +109,9 @@ async function refreshDashboard(): Promise<void> {
   refreshing.value = true
   try {
     await session.refreshAuthorization()
-    ElMessage.success('仪表盘已同步当前授权状态。')
+    notification.success('仪表盘已同步当前授权状态。')
   } catch {
-    ElMessage.error('授权状态同步失败，请稍后重试。')
+    notification.error('授权状态同步失败，请稍后重试。')
   } finally {
     refreshing.value = false
   }

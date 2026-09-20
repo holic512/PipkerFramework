@@ -10,8 +10,9 @@
 -->
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import { ApiBusinessError } from '../../../core/api/contracts'
+import { notification } from '../../../core/notification'
 import type {
   AssignableSystemRole,
   PageResult,
@@ -158,7 +159,7 @@ async function openEditDialog(user: SystemUserSummary): Promise<void> {
       roleIds: detail.roles.map(role => role.id),
     })
   } catch (error) {
-    ElMessage.error(readableError(error, '无法读取用户资料。'))
+    notification.error(readableError(error, '无法读取用户资料。'))
     userDialogVisible.value = false
   } finally {
     dialogLoading.value = false
@@ -170,7 +171,7 @@ async function loadAssignableRoles(): Promise<boolean> {
     assignableRoles.value = await getAssignableRoles()
     return true
   } catch (error) {
-    ElMessage.error(readableError(error, '无法读取可分配角色。'))
+    notification.error(readableError(error, '无法读取可分配角色。'))
     return false
   }
 }
@@ -178,11 +179,11 @@ async function loadAssignableRoles(): Promise<boolean> {
 async function saveUser(): Promise<void> {
   const username = userForm.username.trim()
   if ((!editingUser.value && !username) || (!editingUser.value && userForm.password.length < 8)) {
-    ElMessage.warning('请填写用户名和至少 8 个字符的初始密码。')
+    notification.warning('请填写用户名和至少 8 个字符的初始密码。')
     return
   }
   if (userForm.roleIds.length === 0) {
-    ElMessage.warning('请至少分配一个启用角色。')
+    notification.warning('请至少分配一个启用角色。')
     return
   }
 
@@ -197,15 +198,15 @@ async function saveUser(): Promise<void> {
     }
     if (editingUser.value) {
       await updateUser(editingUser.value.id, payload)
-      ElMessage.success('用户资料与角色分配已更新。')
+      notification.success('用户资料与角色分配已更新。')
     } else {
       await createUser({ ...payload, username, password: userForm.password })
-      ElMessage.success('用户已创建并完成角色分配。')
+      notification.success('用户已创建并完成角色分配。')
     }
     userDialogVisible.value = false
     await loadUsers(editingUser.value ? userPage.value.page : 1)
   } catch (error) {
-    ElMessage.error(readableError(error, '保存用户失败。'))
+    notification.error(readableError(error, '保存用户失败。'))
   } finally {
     savingUser.value = false
   }
@@ -213,7 +214,7 @@ async function saveUser(): Promise<void> {
 
 async function batchChangeStatus(status: SystemUserStatus): Promise<void> {
   if (selectedUserIds.value.length === 0) {
-    ElMessage.warning('请先选择至少一个普通用户。')
+    notification.warning('请先选择至少一个普通用户。')
     return
   }
   const action = status === 'ENABLED' ? '启用' : '停用'
@@ -223,10 +224,10 @@ async function batchChangeStatus(status: SystemUserStatus): Promise<void> {
   operating.value = true
   try {
     await batchUpdateUserStatus(selectedUserIds.value, status)
-    ElMessage.success(`已${action} ${selectedUserIds.value.length} 个用户。`)
+    notification.success(`已${action} ${selectedUserIds.value.length} 个用户。`)
     await loadUsers()
   } catch (error) {
-    ElMessage.error(readableError(error, `批量${action}失败。`))
+    notification.error(readableError(error, `批量${action}失败。`))
   } finally {
     operating.value = false
   }
@@ -234,7 +235,7 @@ async function batchChangeStatus(status: SystemUserStatus): Promise<void> {
 
 async function batchDelete(): Promise<void> {
   if (selectedUserIds.value.length === 0) {
-    ElMessage.warning('请先选择至少一个普通用户。')
+    notification.warning('请先选择至少一个普通用户。')
     return
   }
   if (!await confirm(
@@ -247,12 +248,12 @@ async function batchDelete(): Promise<void> {
   operating.value = true
   try {
     await batchDeleteUsers(selectedUserIds.value)
-    ElMessage.success('用户及其角色关联已删除。')
+    notification.success('用户及其角色关联已删除。')
     await loadUsers(userPage.value.records.length === selectedUserIds.value.length && userPage.value.page > 1
       ? userPage.value.page - 1
       : userPage.value.page)
   } catch (error) {
-    ElMessage.error(readableError(error, '批量删除失败。'))
+    notification.error(readableError(error, '批量删除失败。'))
   } finally {
     operating.value = false
   }
@@ -265,12 +266,12 @@ async function removeUser(user: SystemUserSummary): Promise<void> {
   operating.value = true
   try {
     await deleteUser(user.id)
-    ElMessage.success('用户及其角色关联已删除。')
+    notification.success('用户及其角色关联已删除。')
     await loadUsers(userPage.value.records.length === 1 && userPage.value.page > 1
       ? userPage.value.page - 1
       : userPage.value.page)
   } catch (error) {
-    ElMessage.error(readableError(error, '删除用户失败。'))
+    notification.error(readableError(error, '删除用户失败。'))
   } finally {
     operating.value = false
   }
@@ -283,7 +284,7 @@ async function openDetail(user: SystemUserSummary): Promise<void> {
   try {
     userDetail.value = await getUserDetail(user.id)
   } catch (error) {
-    ElMessage.error(readableError(error, '无法读取用户详情。'))
+    notification.error(readableError(error, '无法读取用户详情。'))
   } finally {
     detailLoading.value = false
   }
@@ -300,7 +301,7 @@ async function submitPasswordReset(): Promise<void> {
     return
   }
   if (resetPassword.value.length < 8) {
-    ElMessage.warning('新密码至少需要 8 个字符。')
+    notification.warning('新密码至少需要 8 个字符。')
     return
   }
   if (!await confirm(`确认重置用户“${selectedPasswordUser.value.username}”的密码吗？`, '重置密码', 'warning')) {
@@ -311,9 +312,9 @@ async function submitPasswordReset(): Promise<void> {
     await resetUserPassword(selectedPasswordUser.value.id, resetPassword.value)
     passwordDialogVisible.value = false
     resetPassword.value = ''
-    ElMessage.success('密码已重置。请通过安全渠道通知用户。')
+    notification.success('密码已重置。请通过安全渠道通知用户。')
   } catch (error) {
-    ElMessage.error(readableError(error, '重置密码失败。'))
+    notification.error(readableError(error, '重置密码失败。'))
   } finally {
     resettingPassword.value = false
   }

@@ -1,5 +1,6 @@
-# Maven 构建输出
+# Maven 构建输出和本地仓库缓存
 target/
+.m2repo/
 
 # IntelliJ IDEA 项目元数据和输出
 .idea/

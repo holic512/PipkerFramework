@@ -10,11 +10,11 @@
 -->
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
 import { isAxiosError } from 'axios'
 import { useRoute } from 'vue-router'
 import { ApiBusinessError } from '../../../core/api/contracts'
 import type { SystemRouteDetail, SystemRouteMenuType, SystemRouteStatus, SystemRouteTreeNode } from '../../../core/api/contracts'
+import { notification } from '../../../core/notification'
 import { useSessionStore } from '../../../stores/session'
 import { getDefaultAuthorizedPath, router } from '../../../router'
 import { runtimeConfig } from '../../../core/config/runtime'
@@ -133,7 +133,7 @@ async function save(): Promise<void> {
     saving.value = false
     return
   }
-  ElMessage.success('配置已保存')
+  notification.success('配置已保存')
   drawerVisible.value = false
   await refreshAuthorization()
   await loadRoutes()

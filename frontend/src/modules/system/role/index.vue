@@ -10,8 +10,9 @@
 -->
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessageBox } from 'element-plus'
 import { ApiBusinessError } from '../../../core/api/contracts'
+import { notification } from '../../../core/notification'
 import type {
   PageResult,
   RolePermissionConfiguration,
@@ -234,11 +235,11 @@ async function saveRole(): Promise<void> {
   const roleName = roleForm.roleName.trim()
   const roleCode = roleForm.roleCode.trim()
   if (!roleName || (!editingRole.value && !roleCode)) {
-    ElMessage.warning('请填写角色编码和角色名称。')
+    notification.warning('请填写角色编码和角色名称。')
     return
   }
   if (roleForm.sort < 0) {
-    ElMessage.warning('排序值不能小于 0。')
+    notification.warning('排序值不能小于 0。')
     return
   }
 
@@ -252,15 +253,15 @@ async function saveRole(): Promise<void> {
     }
     if (editingRole.value) {
       await updateRole(editingRole.value.id, payload)
-      ElMessage.success('角色资料已更新。')
+      notification.success('角色资料已更新。')
     } else {
       await createRole({ ...payload, roleCode })
-      ElMessage.success('角色已创建。')
+      notification.success('角色已创建。')
     }
     roleDialogVisible.value = false
     await loadRoles(editingRole.value ? rolePage.value.page : 1)
   } catch (error) {
-    ElMessage.error(readableError(error, '保存角色失败。'))
+    notification.error(readableError(error, '保存角色失败。'))
   } finally {
     savingRole.value = false
   }
@@ -268,7 +269,7 @@ async function saveRole(): Promise<void> {
 
 async function batchChangeStatus(status: SystemRoleStatus): Promise<void> {
   if (selectedRoleIds.value.length === 0) {
-    ElMessage.warning('请先选择至少一个普通角色。')
+    notification.warning('请先选择至少一个普通角色。')
     return
   }
   const action = status === 'ENABLED' ? '启用' : '停用'
@@ -279,10 +280,10 @@ async function batchChangeStatus(status: SystemRoleStatus): Promise<void> {
   operating.value = true
   try {
     await batchUpdateRoleStatus(selectedRoleIds.value, status)
-    ElMessage.success(`已${action} ${selectedRoleIds.value.length} 个角色。`)
+    notification.success(`已${action} ${selectedRoleIds.value.length} 个角色。`)
     await loadRoles()
   } catch (error) {
-    ElMessage.error(readableError(error, `批量${action}失败。`))
+    notification.error(readableError(error, `批量${action}失败。`))
   } finally {
     operating.value = false
   }
@@ -290,7 +291,7 @@ async function batchChangeStatus(status: SystemRoleStatus): Promise<void> {
 
 async function batchDelete(): Promise<void> {
   if (selectedRoleIds.value.length === 0) {
-    ElMessage.warning('请先选择至少一个普通角色。')
+    notification.warning('请先选择至少一个普通角色。')
     return
   }
   if (!await confirm(
@@ -304,12 +305,12 @@ async function batchDelete(): Promise<void> {
   operating.value = true
   try {
     await batchDeleteRoles(selectedRoleIds.value)
-    ElMessage.success('角色及其关联关系已删除。')
+    notification.success('角色及其关联关系已删除。')
     await loadRoles(rolePage.value.records.length === selectedRoleIds.value.length && rolePage.value.page > 1
       ? rolePage.value.page - 1
       : rolePage.value.page)
   } catch (error) {
-    ElMessage.error(readableError(error, '批量删除失败。'))
+    notification.error(readableError(error, '批量删除失败。'))
   } finally {
     operating.value = false
   }
@@ -327,12 +328,12 @@ async function removeRole(role: SystemRoleSummary): Promise<void> {
   operating.value = true
   try {
     await deleteRole(role.id)
-    ElMessage.success('角色已删除。')
+    notification.success('角色已删除。')
     await loadRoles(rolePage.value.records.length === 1 && rolePage.value.page > 1
       ? rolePage.value.page - 1
       : rolePage.value.page)
   } catch (error) {
-    ElMessage.error(readableError(error, '删除角色失败。'))
+    notification.error(readableError(error, '删除角色失败。'))
   } finally {
     operating.value = false
   }
@@ -461,7 +462,7 @@ async function openRoutePermissionDialog(role: SystemRoleSummary): Promise<void>
     routePermissionConfiguration.value = configuration
     selectedRouteIds.value = [...configuration.routeIds]
   } catch (error) {
-    ElMessage.error(readableError(error, '无法读取角色页面权限。'))
+    notification.error(readableError(error, '无法读取角色页面权限。'))
   } finally {
     routePermissionLoading.value = false
   }
@@ -488,9 +489,9 @@ async function saveRoutePermissions(): Promise<void> {
       routeIds: [...result.routeIds],
     }
     selectedRouteIds.value = [...result.routeIds]
-    ElMessage.success(`已保存 ${result.routeIds.length} 项页面权限；受影响账户将使用新的路由与导航授权。`)
+    notification.success(`已保存 ${result.routeIds.length} 项页面权限；受影响账户将使用新的路由与导航授权。`)
   } catch (error) {
-    ElMessage.error(readableError(error, '保存角色页面权限失败。'))
+    notification.error(readableError(error, '保存角色页面权限失败。'))
   } finally {
     routePermissionSaving.value = false
   }
@@ -513,7 +514,7 @@ async function openInterfacePermissionDialog(role: SystemRoleSummary): Promise<v
     rolePermissionConfiguration.value = configuration
     selectedPermissionCodes.value = [...configuration.permissionCodes]
   } catch (error) {
-    ElMessage.error(readableError(error, '无法读取角色接口权限。'))
+    notification.error(readableError(error, '无法读取角色接口权限。'))
   } finally {
     interfacePermissionLoading.value = false
   }
@@ -543,9 +544,9 @@ async function saveInterfacePermissions(): Promise<void> {
       permissionCodes: [...result.permissionCodes],
     }
     selectedPermissionCodes.value = [...result.permissionCodes]
-    ElMessage.success(`已保存 ${result.permissionCodes.length} 项接口权限；受影响账户将使用新的后端访问权限。`)
+    notification.success(`已保存 ${result.permissionCodes.length} 项接口权限；受影响账户将使用新的后端访问权限。`)
   } catch (error) {
-    ElMessage.error(readableError(error, '保存角色接口权限失败。'))
+    notification.error(readableError(error, '保存角色接口权限失败。'))
   } finally {
     interfacePermissionSaving.value = false
   }
@@ -561,7 +562,7 @@ async function openDetail(role: SystemRoleSummary): Promise<void> {
     roleDetail.value = await getRoleDetail(role.id)
     await loadMembers(1)
   } catch (error) {
-    ElMessage.error(readableError(error, '无法读取角色详情。'))
+    notification.error(readableError(error, '无法读取角色详情。'))
   } finally {
     detailLoading.value = false
   }
@@ -579,7 +580,7 @@ async function loadMembers(page = memberPage.value.page): Promise<void> {
       keyword: memberKeyword.value.trim() || undefined,
     })
   } catch (error) {
-    ElMessage.error(readableError(error, '无法读取角色成员。'))
+    notification.error(readableError(error, '无法读取角色成员。'))
   } finally {
     memberLoading.value = false
   }
@@ -605,7 +606,7 @@ async function submitPasswordReset(): Promise<void> {
     return
   }
   if (resetPassword.value.length < 8) {
-    ElMessage.warning('新密码至少需要 8 个字符。')
+    notification.warning('新密码至少需要 8 个字符。')
     return
   }
   if (!await confirm(`确认重置账户“${selectedMember.value.username}”的密码吗？`, '重置密码', 'warning')) {
@@ -617,9 +618,9 @@ async function submitPasswordReset(): Promise<void> {
     await resetRoleMemberPassword(roleDetail.value.id, selectedMember.value.id, resetPassword.value)
     passwordDialogVisible.value = false
     resetPassword.value = ''
-    ElMessage.success('密码已重置。请通过安全渠道通知账户持有人。')
+    notification.success('密码已重置。请通过安全渠道通知账户持有人。')
   } catch (error) {
-    ElMessage.error(readableError(error, '重置密码失败。'))
+    notification.error(readableError(error, '重置密码失败。'))
   } finally {
     resettingPassword.value = false
   }

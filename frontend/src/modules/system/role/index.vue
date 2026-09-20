@@ -1591,17 +1591,13 @@ function newRoleForm(): RoleFormState {
 
 .role-api-permission__groups {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  align-items: start;
-  gap: 0.75rem;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0 0 0 0.85rem;
 }
 
 .role-api-permission__group {
   min-width: 0;
-  overflow: hidden;
-  background: var(--color-surface-base);
-  border: 1px solid var(--color-line-subtle);
-  border-radius: var(--radius-control);
 }
 
 .role-api-permission__group-header {
@@ -1610,9 +1606,7 @@ function newRoleForm(): RoleFormState {
   justify-content: space-between;
   gap: 0.75rem;
   min-width: 0;
-  padding: 0.5rem 0.65rem;
-  background: var(--color-surface-muted);
-  border-bottom: 1px solid var(--color-line-subtle);
+  min-height: 1.55rem;
 }
 
 .role-api-permission__group-header :deep(.el-checkbox) {
@@ -1624,9 +1618,10 @@ function newRoleForm(): RoleFormState {
   min-width: 0;
   overflow: hidden;
   padding-left: 0.42rem;
-  color: var(--color-ink-strong);
+  color: var(--color-ink-muted);
   font-family: var(--font-mono);
   font-size: 0.7rem;
+  font-weight: 760;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1647,41 +1642,52 @@ function newRoleForm(): RoleFormState {
 }
 
 .role-api-permission__options {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding-left: 0.85rem;
+  border-left: 1px solid var(--color-line-subtle);
 }
 
 .role-api-permission__option {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   width: 100%;
   min-width: 0;
-  min-height: 3rem;
+  min-height: 2.2rem;
   margin: 0;
-  padding: 0.55rem 0.65rem;
+  padding: 0.34rem 0.55rem;
+  cursor: pointer;
+  background: var(--color-surface-base);
+  border: 1px solid var(--color-line-subtle);
+  border-radius: var(--radius-small);
   white-space: normal;
-  border-bottom: 1px solid var(--color-line-subtle);
 }
 
-.role-api-permission__option:last-child {
-  border-bottom: 0;
-}
-
-.role-api-permission__option:hover,
 .role-api-permission__option.is-checked {
-  background: color-mix(in srgb, var(--color-accent-primary) 6%, var(--color-surface-base));
+  background: color-mix(in srgb, var(--color-accent-primary) 10%, var(--color-surface-base));
+  border-color: var(--color-accent-primary);
+}
+
+.role-api-permission__option:focus-within {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 0.12rem;
 }
 
 .role-api-permission__option :deep(.el-checkbox__label) {
   display: block;
+  flex: 1 1 auto;
   min-width: 0;
   padding-left: 0.45rem;
 }
 
 .role-api-permission__option-copy {
   display: grid;
+  grid-template-columns: minmax(8rem, 0.72fr) minmax(12rem, 1.28fr);
+  align-items: center;
+  width: 100%;
   min-width: 0;
-  gap: 0.12rem;
+  gap: 0.75rem;
   cursor: help;
   border-radius: var(--radius-small);
 }
@@ -1701,14 +1707,14 @@ function newRoleForm(): RoleFormState {
 
 .role-api-permission__option-copy strong {
   color: var(--color-ink-strong);
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 700;
   line-height: 1.2;
 }
 
 .role-api-permission__option-copy code {
   color: var(--color-ink-soft);
-  font-size: 0.63rem;
+  font-size: 0.61rem;
   line-height: 1.2;
 }
 
@@ -1778,10 +1784,6 @@ function newRoleForm(): RoleFormState {
 
   .role-permission-toolbar__actions {
     margin-left: auto;
-  }
-
-  .role-api-permission__groups {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .role-search {
@@ -1873,8 +1875,9 @@ function newRoleForm(): RoleFormState {
     justify-content: flex-end;
   }
 
-  .role-api-permission__groups {
-    grid-template-columns: 1fr;
+  .role-api-permission__option-copy {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.12rem;
   }
 
   .role-batch-actions {

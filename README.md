@@ -7,7 +7,7 @@ Pipker Framework 是一个由 Spring Boot 后端与 Vue 前端组成的后台基
 - `system_` 前缀的框架 Liquibase 系统表，以及由 changeset 管理的唯一初始管理员；用户表和对框架表的扩展保留在数据库专属的 `business` 迁移入口。
 - 统一的 `SYSTEM` 登录域；用户—角色—权限 RBAC 由数据库裁决，`SUPER_ADMIN` 自动拥有全部启用权限。
 - 角色—菜单关联控制数据库页面路由，`API` 权限通过 `HTTP 方法 + MVC 路径模板` 的数据库资源映射控制后端接口。
-- Sa-Token Filter 统一执行认证和数据库 API 权限校验：匿名白名单以外的 `/api/**` 未登记或未授权即拒绝；用户快照和 API 规则使用本地 60 秒 TTL 缓存。
+- Sa-Token Filter 统一执行登录校验，MVC 注解执行接口授权；用户授权快照使用本地 60 秒 TTL 缓存，启用角色到接口权限的映射在启动时载入内存并默认每 5 分钟刷新。
 - `POST /api/auth/login`、`GET /api/auth/me`、`GET /api/admin/authorization` 与 `{ code, data, message }` 统一响应；已注册 API 的业务失败保持 HTTP 200。
 - 前端登录页、`sessionStorage` Bearer 令牌、授权恢复和仅由已授权角色菜单生成的 Vue 页面路由；包含仅供 `SUPER_ADMIN` 使用的角色路由配置页，不提供按钮级权限控制。
 - 默认启用的本地文件持久化：后端服务保存后获得不含域名的 `/files/...` 相对访问路径，公开读取接口不提供 HTTP 上传。

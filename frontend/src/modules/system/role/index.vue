@@ -2,10 +2,10 @@
   @file index.vue
   @project Pipker Framework
   @module Frontend Role Management
-  @description 提供系统角色的筛选分页、生命周期维护、页面与接口权限工作台、批量操作、详情成员查看和成员密码重置工作台。
-  @logic 优先显示可批量处理的角色清单；页面与接口权限工作台在本地筛选树和权限点、只对当前结果执行批量选择，并把历史编码作为只读信息保留；所有雪花 ID 均以字符串传递以避免 JavaScript 精度丢失。
+  @description 提供系统角色的筛选分页、生命周期维护、页面与接口权限工作台、本机权限缓存刷新、批量操作、详情成员查看和成员密码重置工作台。
+  @logic 优先显示可批量处理的角色清单；权限工作台在本地筛选并保留历史编码只读信息，顶部工具栏可独立刷新当前实例的角色接口权限一级缓存；所有雪花 ID 均以字符串传递。
   @dependencies Vue、Element Plus、角色页面权限树、角色管理 API、frontend API contracts
-  @index_tags page、rbac、role、route、permission、pagination、batch、password-reset、administration
+  @index_tags page、rbac、role、route、permission、cache、pagination、batch、password-reset、administration
   @author holic512
 -->
 <script setup lang="ts">
@@ -35,6 +35,7 @@ import {
   getRolePage,
   getRolePermissionConfiguration,
   getRoleRouteConfiguration,
+  refreshRolePermissionCache,
   resetRoleMemberPassword,
   replaceRolePermissionConfiguration,
   replaceRoleRouteConfiguration,
@@ -80,6 +81,7 @@ const rolePage = ref<PageResult<SystemRoleSummary>>(EMPTY_ROLE_PAGE)
 const selectedRoles = ref<SystemRoleSummary[]>([])
 const loading = ref(false)
 const operating = ref(false)
+const refreshingPermissionCache = ref(false)
 const errorMessage = ref<string | null>(null)
 
 const roleDialogVisible = ref(false)
@@ -187,6 +189,20 @@ async function loadRoles(page = rolePage.value.page): Promise<void> {
     errorMessage.value = readableError(error, '无法读取角色列表。')
   } finally {
     loading.value = false
+  }
+}
+
+async function refreshPermissionCache(): Promise<void> {
+  refreshingPermissionCache.value = true
+  try {
+    const result = await refreshRolePermissionCache()
+    notification.success(
+      `权限缓存已刷新：${result.enabledRoleCount} 个启用角色，${result.effectivePermissionGrantCount} 项有效授权。`,
+    )
+  } catch (error) {
+    notification.error(readableError(error, '刷新权限缓存失败。'))
+  } finally {
+    refreshingPermissionCache.value = false
   }
 }
 
@@ -706,6 +722,8 @@ function newRoleForm(): RoleFormState {
         </div>
         <el-divider direction="vertical" class="role-filter-divider" />
         <el-button type="primary" plain @click="openCreateDialog">新建角色</el-button>
+        <el-divider direction="vertical" class="role-filter-divider" />
+        <el-button :loading="refreshingPermissionCache" @click="refreshPermissionCache">刷新权限缓存</el-button>
         <el-divider direction="vertical" class="role-filter-divider" />
         <div class="role-batch-actions" aria-label="批量操作">
           <el-button :disabled="selectedRoleIds.length === 0" :loading="operating" @click="batchChangeStatus('ENABLED')">

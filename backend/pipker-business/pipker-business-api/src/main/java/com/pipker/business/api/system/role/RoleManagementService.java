@@ -2,10 +2,10 @@
  * @file RoleManagementService.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 提供系统角色生命周期、页面与接口权限、成员查询和成员密码重置能力。
- * @logic 角色创建后编码不可变，SUPER_ADMIN 永远不能被改动或删除或手工收窄页面或接口权限；接口权限只接受 PermissionRegistry 中的编码，保存时保留已失效历史编码，所有影响授权的角色操作均清除本机授权快照。
- * @dependencies SystemAuthorizationService、PermissionRegistry、SystemRoleMapper、SystemUserRoleMapper、SystemRolePermissionMapper、SystemRoleMenuMapper、SystemAccountService、SecurityCryptoService、SystemAuthorizationCache、Spring Transaction
- * @index_tags rbac、role、route、permission、user、password-reset、pagination、administration
+ * @description 提供系统角色生命周期、页面与接口权限、角色权限缓存刷新、成员查询和成员密码重置能力。
+ * @logic 角色创建后编码不可变，SUPER_ADMIN 不可被改动或手工收窄授权；接口权限写入只接受当前枚举编码并保留历史编码，角色及接口权限变更在事务提交后重建本机角色权限缓存，页面权限变更清理用户授权快照。
+ * @dependencies SystemAuthorizationService、RolePermissionCache、PermissionRegistry、SystemRoleMapper、SystemUserRoleMapper、SystemRolePermissionMapper、SystemRoleMenuMapper、SystemAccountService、SecurityCryptoService、SystemAuthorizationCache、Spring Transaction
+ * @index_tags rbac、role、route、permission、cache、user、password-reset、pagination、administration
  * @author holic512
  */
 package com.pipker.business.api.system.role;
@@ -25,6 +25,7 @@ import com.pipker.business.api.common.model.SystemUserRole;
 import com.pipker.business.api.common.model.SystemRoleMenu;
 import com.pipker.business.api.common.model.SystemRolePermission;
 import com.pipker.business.api.system.auth.CurrentSystemAuthorizationService;
+import com.pipker.business.api.system.authorization.RolePermissionCache;
 import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
 import com.pipker.business.api.system.authorization.SystemAuthorizationService;
 import com.pipker.business.api.system.permission.PermissionRegistry;
@@ -40,6 +41,7 @@ import com.pipker.business.api.system.role.RoleManagementResponse.PageResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleDetail;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleMember;
 import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionConfiguration;
+import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionCacheRefreshResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteConfiguration;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteUpdateResult;
@@ -48,8 +50,12 @@ import com.pipker.business.api.system.user.SystemAccountService;
 import com.pipker.business.common.api.CommonApiCode;
 import com.pipker.business.common.exception.ApiBusinessException;
 import com.pipker.starter.security.service.SecurityCryptoService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
@@ -62,6 +68,7 @@ import java.util.stream.Collectors;
 @Service
 public class RoleManagementService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(RoleManagementService.class);
     private static final int MAX_PAGE_SIZE = 100;
     private static final Set<String> VALID_STATUSES = Set.of("ENABLED", "DISABLED");
 
@@ -73,6 +80,7 @@ public class RoleManagementService {
     private final SecurityCryptoService securityCryptoService;
     private final CurrentSystemAuthorizationService currentSystemAuthorizationService;
     private final SystemAuthorizationCache systemAuthorizationCache;
+    private final RolePermissionCache rolePermissionCache;
     private final SystemAuthorizationService systemAuthorizationService;
     private final PermissionRegistry permissionRegistry;
 
@@ -86,6 +94,7 @@ public class RoleManagementService {
             SecurityCryptoService securityCryptoService,
             CurrentSystemAuthorizationService currentSystemAuthorizationService,
             SystemAuthorizationCache systemAuthorizationCache,
+            RolePermissionCache rolePermissionCache,
             SystemAuthorizationService systemAuthorizationService,
             PermissionRegistry permissionRegistry
     ) {
@@ -97,6 +106,7 @@ public class RoleManagementService {
         this.securityCryptoService = securityCryptoService;
         this.currentSystemAuthorizationService = currentSystemAuthorizationService;
         this.systemAuthorizationCache = systemAuthorizationCache;
+        this.rolePermissionCache = rolePermissionCache;
         this.systemAuthorizationService = systemAuthorizationService;
         this.permissionRegistry = permissionRegistry;
     }
@@ -247,8 +257,18 @@ public class RoleManagementService {
             assignment.setPermissionCode(permissionCode);
             systemRolePermissionMapper.insert(assignment);
         }
-        systemAuthorizationCache.invalidateAllSnapshots();
+        refreshRolePermissionCacheAfterCommit();
         return new RolePermissionUpdateResult(stringifyId(role.getId()), requestedCodes);
+    }
+
+    /** 手动全量刷新当前实例的角色接口权限一级缓存。 */
+    public RolePermissionCacheRefreshResult refreshRolePermissionCache() {
+        RolePermissionCache.CacheStatus status = rolePermissionCache.refresh();
+        return new RolePermissionCacheRefreshResult(
+                status.refreshedAt(),
+                status.enabledRoleCount(),
+                status.effectivePermissionGrantCount()
+        );
     }
 
     /** 创建普通系统角色。 */
@@ -270,7 +290,7 @@ public class RoleManagementService {
         role.setStatus(normalizeRequiredStatus(request.status()));
         role.setSort(normalizeSort(request.sort()));
         systemRoleMapper.insert(role);
-        systemAuthorizationCache.invalidateAllSnapshots();
+        refreshRolePermissionCacheAfterCommit();
         return toSummary(role);
     }
 
@@ -286,7 +306,7 @@ public class RoleManagementService {
         role.setSort(normalizeSort(request.sort()));
         role.setUpdatedAt(LocalDateTime.now());
         systemRoleMapper.updateById(role);
-        systemAuthorizationCache.invalidateAllSnapshots();
+        refreshRolePermissionCacheAfterCommit();
         return toSummary(role);
     }
 
@@ -299,7 +319,7 @@ public class RoleManagementService {
                 .in(SystemRole::getId, roleIds)
                 .set(SystemRole::getStatus, normalizeRequiredStatus(request.status()))
                 .set(SystemRole::getUpdatedAt, LocalDateTime.now()));
-        systemAuthorizationCache.invalidateAllSnapshots();
+        refreshRolePermissionCacheAfterCommit();
         return new OperationResult(stringifyIds(roleIds));
     }
 
@@ -316,7 +336,7 @@ public class RoleManagementService {
         systemRoleMenuMapper.delete(new LambdaQueryWrapper<SystemRoleMenu>()
                 .in(SystemRoleMenu::getRoleId, roleIds));
         systemRoleMapper.deleteByIds(roleIds);
-        systemAuthorizationCache.invalidateAllSnapshots();
+        refreshRolePermissionCacheAfterCommit();
         return new OperationResult(stringifyIds(roleIds));
     }
 
@@ -370,6 +390,33 @@ public class RoleManagementService {
                 LocalDateTime.now()
         );
         return new OperationResult(List.of(stringifyId(parsedUserId)));
+    }
+
+    /** 在当前事务提交后重建角色权限缓存；非事务调用则立即执行。 */
+    private void refreshRolePermissionCacheAfterCommit() {
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    refreshRolePermissionCacheSafely();
+                }
+            });
+            return;
+        }
+        refreshRolePermissionCacheSafely();
+    }
+
+    /** 写事务已经提交后刷新失败不能伪装成事务回滚，只记录并等待后续重试。 */
+    private void refreshRolePermissionCacheSafely() {
+        try {
+            rolePermissionCache.refresh();
+        } catch (RuntimeException exception) {
+            LOGGER.error(
+                    "Post-commit role permission cache refresh failed; retaining previous snapshot",
+                    exception
+            );
+        }
     }
 
     private void rejectSuperAdminAccountReset(long userId) {

@@ -160,6 +160,13 @@ export interface RolePermissionUpdateResult {
   permissionCodes: string[]
 }
 
+/** 当前应用实例的角色接口权限一级缓存刷新结果。 */
+export interface RolePermissionCacheRefreshResult {
+  refreshedAt: string
+  enabledRoleCount: number
+  effectivePermissionGrantCount: number
+}
+
 export type SystemUserStatus = 'ENABLED' | 'DISABLED'
 
 export interface SystemUserRoleAssignment {

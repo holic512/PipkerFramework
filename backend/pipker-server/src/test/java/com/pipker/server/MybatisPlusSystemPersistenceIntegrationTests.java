@@ -28,12 +28,14 @@ import com.pipker.business.api.common.model.SystemRolePermission;
 import com.pipker.business.api.common.model.SystemRouteDefinition;
 import com.pipker.business.api.common.model.SystemUser;
 import com.pipker.business.api.common.model.SystemUserRole;
+import com.pipker.business.api.system.authorization.RolePermissionCache;
 import com.pipker.business.api.system.authorization.SystemAuthorizationService;
 import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
 import com.pipker.business.api.system.permission.PermissionEnum;
 import com.pipker.business.api.system.permission.PermissionPointController;
 import com.pipker.business.api.system.permission.PermissionRegistry;
 import com.pipker.business.api.system.role.RoleManagementService;
+import com.pipker.business.api.system.role.RoleManagementController;
 import com.pipker.business.api.system.user.UserManagementService;
 import com.pipker.business.api.system.user.UserManagementController;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchDelete;
@@ -46,6 +48,7 @@ import com.pipker.business.api.system.role.RoleManagementRequest.Update;
 import com.pipker.business.api.system.role.RoleManagementResponse.PageResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleMember;
 import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionConfiguration;
+import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionCacheRefreshResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteConfiguration;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteUpdateResult;
@@ -118,6 +121,9 @@ class MybatisPlusSystemPersistenceIntegrationTests {
 
     @Autowired
     private SystemAuthorizationCache systemAuthorizationCache;
+
+    @Autowired
+    private RolePermissionCache rolePermissionCache;
 
     @Autowired
     private RoleManagementService roleManagementService;
@@ -207,6 +213,96 @@ class MybatisPlusSystemPersistenceIntegrationTests {
     }
 
     @Test
+    void rolePermissionCacheLoadsAtStartupAndManualRefreshEndpointIsProtected() throws Exception {
+        assertThat(rolePermissionCache.currentStatus().refreshedAt()).isNotEqualTo(java.time.Instant.EPOCH);
+        assertThat(rolePermissionCache.currentStatus().enabledRoleCount()).isPositive();
+
+        roleHttp(true).perform(post("/api/admin/roles/permission-cache/refresh"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.refreshedAt").isString())
+                .andExpect(jsonPath("$.data.enabledRoleCount").isNumber())
+                .andExpect(jsonPath("$.data.effectivePermissionGrantCount").isNumber());
+        roleHttp(false).perform(post("/api/admin/roles/permission-cache/refresh"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(403));
+    }
+
+    @Test
+    void manualRefreshPublishesDirectRolePermissionChangesAndClearsUserSnapshots() {
+        String suffix = String.valueOf(System.nanoTime());
+        SystemRole role = new SystemRole();
+        role.setRoleCode("CACHE_REFRESH_" + suffix);
+        role.setRoleName("Cache refresh");
+        role.setStatus("ENABLED");
+        role.setSort(991);
+        systemRoleMapper.insert(role);
+
+        SystemUser user = new SystemUser();
+        user.setUsername("cache-refresh-" + suffix);
+        user.setPasswordHash("test-only");
+        user.setStatus("ENABLED");
+        systemUserMapper.insert(user);
+        SystemUserRole userRole = new SystemUserRole();
+        userRole.setUserId(user.getId());
+        userRole.setRoleId(role.getId());
+        systemUserRoleMapper.insert(userRole);
+
+        SystemRolePermission initialPermission = new SystemRolePermission();
+        initialPermission.setRoleId(role.getId());
+        initialPermission.setPermissionCode(PermissionEnum.SYSTEM_ROUTE_VIEW.getCode());
+        systemRolePermissionMapper.insert(initialPermission);
+        rolePermissionCache.refresh();
+        SystemAuthorizationSnapshot initialSnapshot = systemAuthorizationService.findSnapshot(user.getId());
+        assertThat(initialSnapshot.permissions()).containsExactly(PermissionEnum.SYSTEM_ROUTE_VIEW.getCode());
+
+        systemRolePermissionMapper.deleteById(initialPermission.getId());
+        SystemRolePermission replacementPermission = new SystemRolePermission();
+        replacementPermission.setRoleId(role.getId());
+        replacementPermission.setPermissionCode(PermissionEnum.SYSTEM_ROLE_MANAGE.getCode());
+        systemRolePermissionMapper.insert(replacementPermission);
+        assertThat(systemAuthorizationService.findSnapshot(user.getId())).isSameAs(initialSnapshot);
+
+        RolePermissionCacheRefreshResult result = roleManagementService.refreshRolePermissionCache();
+        assertThat(result.enabledRoleCount()).isPositive();
+        assertThat(systemAuthorizationService.findSnapshot(user.getId()).permissions())
+                .containsExactly(PermissionEnum.SYSTEM_ROLE_MANAGE.getCode());
+    }
+
+    @Test
+    void rolledBackRolePermissionWriteDoesNotRefreshPublishedCache() {
+        String suffix = String.valueOf(System.nanoTime());
+        RoleSummary role = roleManagementService.createRole(new Create(
+                "CACHE_ROLLBACK_" + suffix,
+                "Cache rollback",
+                null,
+                "ENABLED",
+                992
+        ));
+        roleManagementService.replaceRolePermissionConfiguration(
+                role.id(),
+                new ReplacePermissions(List.of(PermissionEnum.SYSTEM_ROUTE_VIEW.getCode()))
+        );
+        RolePermissionCache.CacheStatus before = rolePermissionCache.currentStatus();
+
+        new TransactionTemplate(transactionManager).executeWithoutResult(transaction -> {
+            roleManagementService.replaceRolePermissionConfiguration(
+                    role.id(),
+                    new ReplacePermissions(List.of(PermissionEnum.SYSTEM_ROLE_MANAGE.getCode()))
+            );
+            assertThat(rolePermissionCache.resolvePermissions(List.of(role.roleCode())))
+                    .containsExactly(PermissionEnum.SYSTEM_ROUTE_VIEW.getCode());
+            transaction.setRollbackOnly();
+        });
+
+        assertThat(rolePermissionCache.currentStatus()).isEqualTo(before);
+        assertThat(rolePermissionCache.resolvePermissions(List.of(role.roleCode())))
+                .containsExactly(PermissionEnum.SYSTEM_ROUTE_VIEW.getCode());
+        assertThat(systemRolePermissionMapper.findPermissionCodesByRoleId(Long.parseLong(role.id())))
+                .containsExactly(PermissionEnum.SYSTEM_ROUTE_VIEW.getCode());
+    }
+
+    @Test
     void routeSubtreeConfigurationRefreshesSnapshotsAndPreservesSuperAdminAccess() {
         SystemMenu directory = configurationTestMenu(null, "DIRECTORY");
         SystemMenu page = configurationTestMenu(directory.getId(), "MENU");
@@ -289,6 +385,20 @@ class MybatisPlusSystemPersistenceIntegrationTests {
             }
         };
         return MockMvcBuilders.standaloneSetup(new PermissionPointController(permissionRegistry))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .addInterceptors(new PermissionAuthorizationInterceptor(authorization)).build();
+    }
+
+    private MockMvc roleHttp(boolean manage) {
+        CurrentSystemAuthorizationService authorization = new CurrentSystemAuthorizationService(null, null) {
+            @Override
+            public SystemAuthorizationSnapshot currentSnapshot() {
+                return new SystemAuthorizationSnapshot(null, List.of(),
+                        manage ? List.of(PermissionEnum.SYSTEM_ROLE_MANAGE.getCode()) : List.of(),
+                        List.of(), List.of());
+            }
+        };
+        return MockMvcBuilders.standaloneSetup(new RoleManagementController(roleManagementService))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .addInterceptors(new PermissionAuthorizationInterceptor(authorization)).build();
     }

@@ -2,16 +2,17 @@
  * @file roleManagement.ts
  * @project Pipker Framework
  * @module Frontend Role Management API
- * @description Defines typed requests for system role lifecycle, page and interface permission configuration, member pagination, member password resets, and the shared enum permission catalog export.
- * @logic Keeps Snowflake IDs as strings end-to-end and routes role-owned requests through the shared authenticated HTTP client; the read-only Java PermissionEnum catalog is re-exported from the permission module so role configuration and the directory page share one request definition.
+ * @description Defines typed requests for system role lifecycle, page and interface permission configuration, local permission-cache refresh, member pagination, member password resets, and the shared enum permission catalog export.
+ * @logic Keeps Snowflake IDs as strings end-to-end and routes role-owned requests through the shared authenticated HTTP client; permission-cache refresh targets only the application instance handling the request.
  * @dependencies requestApi、frontend API contracts
- * @index_tags api、rbac、role、route、permission、pagination、password-reset
+ * @index_tags api、rbac、role、route、permission、cache、pagination、password-reset
  * @author holic512
  */
 
 import type {
   PageResult,
   RoleManagementOperationResult,
+  RolePermissionCacheRefreshResult,
   RolePermissionConfiguration,
   RolePermissionUpdateResult,
   RoleRouteConfiguration,
@@ -128,6 +129,14 @@ export function replaceRolePermissionConfiguration(
     method: 'PUT',
     url: `/admin/roles/${encodeURIComponent(roleId)}/permissions`,
     data: { permissionCodes },
+  })
+}
+
+/** 全量刷新当前应用实例的角色接口权限一级缓存。 */
+export function refreshRolePermissionCache(): Promise<RolePermissionCacheRefreshResult> {
+  return requestApi<RolePermissionCacheRefreshResult>({
+    method: 'POST',
+    url: '/admin/roles/permission-cache/refresh',
   })
 }
 

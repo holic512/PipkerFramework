@@ -2,8 +2,8 @@
  * @file SystemUserRoleMapper.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 提供 system_user_role 的 MyBatis-Plus CRUD 与用户授权关联查询。
- * @logic 单表关联记录走 BaseMapper；角色、角色保存的权限编码和页面索引完整的启用路由查询在此集中保留必要连接，权限编码是否当前有效由授权服务的 Java 枚举目录过滤。
+ * @description 提供 system_user_role 的 MyBatis-Plus CRUD 与用户角色、页面授权关联查询。
+ * @logic 单表关联记录走 BaseMapper；用户启用角色编码和页面索引完整的启用路由查询在此集中保留必要连接，接口权限由独立角色权限一级缓存解析。
  * @dependencies MyBatis-Plus、SystemUserRole、SystemMenu
  * @index_tags mybatis-plus、system-user-role、rbac、authorization
  * @author holic512
@@ -69,18 +69,6 @@ public interface SystemUserRoleMapper extends BaseMapper<SystemUserRole> {
             ORDER BY r.sort, r.role_code
             """)
     List<String> findEnabledRoleCodesByUserId(@Param("userId") long userId);
-
-    /** 查询普通用户由启用角色保存的全部权限编码，包括可能已失效的历史编码。 */
-    @Select("""
-            SELECT DISTINCT rp.permission_code
-            FROM system_user_role ur
-            JOIN system_role r ON r.id = ur.role_id
-            JOIN system_role_permission rp ON rp.role_id = r.id
-            WHERE ur.user_id = #{userId}
-              AND r.status = 'ENABLED'
-            ORDER BY rp.permission_code
-            """)
-    List<String> findPermissionCodesByUserId(@Param("userId") long userId);
 
     /** 查询普通用户由启用角色关联的全部启用页面菜单；展示状态由导航投影单独处理。 */
     @Select("""

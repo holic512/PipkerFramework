@@ -3,7 +3,7 @@
  * @project Pipker Framework
  * @module Pipker Sa-Token Starter
  * @description Binds session, route authentication, database-authorization, and local-cache settings.
- * @logic Selects one session store, identifies protected and anonymous routes, and opts applications into database-backed API authorization.
+ * @logic Selects one session store, identifies protected and anonymous routes, and configures both user snapshot expiration and role-permission cache refresh cadence.
  * @dependencies Spring Boot Configuration Properties, Jakarta Validation
  * @index_tags starter, sa-token, configuration, authentication, authorization, cache
  * @author holic512
@@ -50,7 +50,7 @@ public class PipkerAuthProperties {
     private boolean databaseAuthorizationRequired;
 
     /**
-     * 数据库 API 规则和用户授权快照的本地缓存有效期。
+     * 用户授权快照的本地缓存有效期。
      */
     @NotNull
     private Duration authorizationCacheTtl = Duration.ofSeconds(60);
@@ -59,6 +59,12 @@ public class PipkerAuthProperties {
      * 每个本地授权缓存允许保留的最大条目数。
      */
     private long authorizationCacheMaximumSize = 10_000;
+
+    /**
+     * 启用角色接口权限一级缓存的固定刷新间隔。
+     */
+    @NotNull
+    private Duration rolePermissionCacheRefreshInterval = Duration.ofMinutes(5);
 
     /**
      * 返回会话存储后端。
@@ -166,6 +172,24 @@ public class PipkerAuthProperties {
      */
     public void setAuthorizationCacheMaximumSize(long authorizationCacheMaximumSize) {
         this.authorizationCacheMaximumSize = authorizationCacheMaximumSize;
+    }
+
+    /**
+     * 返回角色接口权限一级缓存的刷新间隔。
+     *
+     * @return 刷新间隔
+     */
+    public Duration getRolePermissionCacheRefreshInterval() {
+        return rolePermissionCacheRefreshInterval;
+    }
+
+    /**
+     * 设置角色接口权限一级缓存的刷新间隔。
+     *
+     * @param rolePermissionCacheRefreshInterval 刷新间隔
+     */
+    public void setRolePermissionCacheRefreshInterval(Duration rolePermissionCacheRefreshInterval) {
+        this.rolePermissionCacheRefreshInterval = rolePermissionCacheRefreshInterval;
     }
 
     /**

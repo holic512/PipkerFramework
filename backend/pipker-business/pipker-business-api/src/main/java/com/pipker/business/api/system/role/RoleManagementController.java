@@ -2,10 +2,10 @@
  * @file RoleManagementController.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 提供系统角色的分页筛选、增删改、批量处理、详情、页面与接口权限、成员和密码重置 HTTP API。
- * @logic 控制器类以 PermissionEnum.SYSTEM_ROLE_MANAGE 统一声明接口权限；页面权限端点委托同一角色菜单关联服务以确保路由守卫和菜单投影一致，接口权限端点只接受 Java 枚举中定义的编码。
+ * @description 提供系统角色的分页筛选、增删改、批量处理、页面与接口权限、权限缓存刷新、成员和密码重置 HTTP API。
+ * @logic 控制器类以 PermissionEnum.SYSTEM_ROLE_MANAGE 统一声明接口权限；页面与接口权限写入分别维护对应授权来源，缓存刷新端点只重建当前应用实例的角色接口权限映射。
  * @dependencies Permission、PermissionEnum、RoleManagementService、ApiResponse、Spring Web MVC、Jakarta Validation
- * @index_tags controller、rbac、role、route、permission、password-reset、pagination、administration
+ * @index_tags controller、rbac、role、route、permission、cache、password-reset、pagination、administration
  * @author holic512
  */
 package com.pipker.business.api.system.role;
@@ -22,6 +22,7 @@ import com.pipker.business.api.system.role.RoleManagementResponse.PageResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleDetail;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleMember;
 import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionConfiguration;
+import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionCacheRefreshResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RolePermissionUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteConfiguration;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteUpdateResult;
@@ -122,6 +123,12 @@ public class RoleManagementController {
             @Valid @RequestBody ReplacePermissions request
     ) {
         return ApiResponse.success(roleManagementService.replaceRolePermissionConfiguration(roleId, request));
+    }
+
+    /** 手动刷新当前应用实例的角色接口权限一级缓存。 */
+    @PostMapping("/permission-cache/refresh")
+    public ApiResponse<RolePermissionCacheRefreshResult> refreshPermissionCache() {
+        return ApiResponse.success(roleManagementService.refreshRolePermissionCache());
     }
 
     /** 批量变更普通角色状态。 */

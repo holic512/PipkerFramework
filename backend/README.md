@@ -43,7 +43,7 @@ backend/
 
 所有账户都使用默认 `StpUtil` 创建 `LoginIdentity(SYSTEM, userId)` 会话。Sa-Token Filter 对 `/api/**` 先执行登录校验，再由 MVC `PermissionAuthorizationInterceptor` 处理控制器上的 `@Permission(PermissionEnum.X)`；项目不使用 `@SaCheck*` 注解、独立 `StpLogic` 或 Controller 内手写权限检查。
 
-`SUPER_ADMIN` 的特殊语义只集中在 `SystemAuthorizationService`：拥有全部**启用可见**导航菜单、全部启用页面路由和当前 `PermissionEnum` 定义的全部接口权限。普通账户合并其所有启用角色的页面路由及枚举权限；其中 `visible=false` 的页面会继续注册为受授权守卫保护的路由，但不会出现在导航中。用户授权快照使用 Caffeine 进程内 60 秒 TTL 缓存；角色路由或接口权限保存后会清空本实例受影响的授权快照，直接改库后仍会在每个实例的缓存到期后生效。详细配置见 [../docs/2.权限配置说明.md](../docs/2.权限配置说明.md)。
+`SUPER_ADMIN` 的特殊语义由授权模块集中维护：拥有全部**启用可见**导航菜单、全部启用页面路由和当前 `PermissionEnum` 定义的全部接口权限。普通账户合并其所有启用角色的页面路由及枚举权限；其中 `visible=false` 的页面会继续注册为受授权守卫保护的路由，但不会出现在导航中。授权采用两级本地缓存：启用角色到接口权限的不可变映射在启动时全量加载并默认每 5 分钟刷新，用户授权快照使用 Caffeine 进程内 60 秒 TTL 缓存。角色及接口权限管理事务提交后会重建角色权限映射，映射变化时清空用户快照；角色管理页也可手动刷新当前实例。详细配置见 [../docs/2.权限配置说明.md](../docs/2.权限配置说明.md)。
 
 ## 数据库与 Liquibase
 
@@ -216,7 +216,8 @@ Authorization: Bearer <accessToken>
 | `POST /api/auth/login` | 匿名 | `accessToken`、`tokenType: Bearer` 和不含密码/电话/邮箱的用户资料 |
 | `GET /api/auth/me` | 已登录且具备 `system:authorization:view` | 当前用户、角色编码、权限编码、可见菜单树和全部已授权页面路由 |
 | `GET /api/admin/authorization` | 已登录且具备 `system:authorization:view` | 当前授权投影 |
-| `/api/admin/roles` | 已登录且具备 `system:role:manage` | 角色筛选分页、增删改、批量状态/删除、详情、成员分页与成员密码重置 |
+| `/api/admin/roles` | 已登录且具备 `system:role:manage` | 角色筛选分页、增删改、批量状态/删除、详情、页面与接口权限、成员分页与成员密码重置 |
+| `POST /api/admin/roles/permission-cache/refresh` | 已登录且具备 `system:role:manage` | 全量刷新当前应用实例的角色接口权限一级缓存并返回刷新统计 |
 | `GET /api/admin/permissions` | 已登录且具备 `system:role:manage` | 只读返回当前 `PermissionEnum` 的全部有效权限点，按枚举声明顺序排列 |
 | `GET /api/admin/routes`、`GET /api/admin/routes/{routeId}` | 已登录且具备 `system:route:view` | 只读筛选、分页和查看已落库路由、页面索引、菜单展示状态与目录分类 |
 

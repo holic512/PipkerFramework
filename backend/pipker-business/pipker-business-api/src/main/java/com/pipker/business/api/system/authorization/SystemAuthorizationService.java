@@ -3,8 +3,8 @@
  * @project Pipker Framework
  * @module Pipker Business API
  * @description 聚合缓存的接口权限、导航菜单与页面路由授权投影。
- * @logic 通过专属表 Mapper 读取角色、角色保存的权限编码和菜单；PermissionRegistry 过滤历史权限编码，SUPER_ADMIN 自动获得全部当前枚举权限和页面路由，目录不要求页面索引，而可授予 MENU 必须具备完整动态路由定义，普通用户校验完整祖先状态与展示链，超管始终获得全部有效页面和导航。
- * @dependencies SystemAccountService、SystemUserRoleMapper、SystemMenuMapper、PermissionRegistry、SystemAuthorizationCache
+ * @logic 读取用户启用角色后从角色权限一级缓存求接口权限并集，菜单与路由继续通过专属 Mapper 构建；SUPER_ADMIN 由缓存授予全部当前枚举权限和全部有效页面路由，普通用户校验完整祖先状态与展示链。
+ * @dependencies SystemAccountService、SystemUserRoleMapper、SystemMenuMapper、RolePermissionCache、SystemAuthorizationCache
  * @index_tags rbac、authorization、permission、system-menu、route、route-guard、cache、mybatis-plus
  * @author holic512
  */
@@ -20,7 +20,6 @@ import com.pipker.business.api.common.model.SystemRouteDefinition;
 import com.pipker.business.api.common.model.SystemUser;
 import com.pipker.business.api.common.model.SystemUserProfile;
 import com.pipker.business.api.system.user.SystemAccountService;
-import com.pipker.business.api.system.permission.PermissionRegistry;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -40,23 +39,23 @@ public class SystemAuthorizationService {
 
     private final SystemAccountService systemAccountService;
     private final SystemUserRoleMapper systemUserRoleMapper;
-    private final PermissionRegistry permissionRegistry;
     private final SystemMenuMapper systemMenuMapper;
     private final SystemAuthorizationCache systemAuthorizationCache;
+    private final RolePermissionCache rolePermissionCache;
 
     /** 创建授权服务。 */
     public SystemAuthorizationService(
             SystemAccountService systemAccountService,
             SystemUserRoleMapper systemUserRoleMapper,
-            PermissionRegistry permissionRegistry,
             SystemMenuMapper systemMenuMapper,
-            SystemAuthorizationCache systemAuthorizationCache
+            SystemAuthorizationCache systemAuthorizationCache,
+            RolePermissionCache rolePermissionCache
     ) {
         this.systemAccountService = systemAccountService;
         this.systemUserRoleMapper = systemUserRoleMapper;
-        this.permissionRegistry = permissionRegistry;
         this.systemMenuMapper = systemMenuMapper;
         this.systemAuthorizationCache = systemAuthorizationCache;
+        this.rolePermissionCache = rolePermissionCache;
     }
 
     /**
@@ -77,12 +76,7 @@ public class SystemAuthorizationService {
 
         List<String> roles = List.copyOf(systemUserRoleMapper.findEnabledRoleCodesByUserId(userId));
         boolean superAdmin = roles.contains(SUPER_ADMIN_ROLE);
-        List<String> permissions = superAdmin
-                ? List.copyOf(permissionRegistry.allCodes())
-                : systemUserRoleMapper.findPermissionCodesByUserId(userId).stream()
-                        .filter(permissionRegistry::contains)
-                        .distinct()
-                        .toList();
+        List<String> permissions = rolePermissionCache.resolvePermissions(roles);
         List<SystemMenu> authorizedPageMenus = findAuthorizedPageMenus(userId, superAdmin);
 
         return new SystemAuthorizationSnapshot(

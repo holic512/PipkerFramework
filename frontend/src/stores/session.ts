@@ -2,10 +2,10 @@
  * @file session.ts
  * @project Pipker Framework
  * @module Frontend Session State
- * @description Owns the active SYSTEM session, its authorization projection, and the dynamic route lifecycle.
- * @logic Persists only the Bearer token in sessionStorage; every successful login or refresh fetches /auth/me, renders visible menus, and registers all authorized page routes.
- * @dependencies Pinia, Vue, authentication API, router, sessionStorage, API contracts
- * @index_tags pinia, authentication, rbac, route, dynamic-routing
+ * @description Owns the active SYSTEM session, its authorization projection, server-side current-token logout, and the dynamic route lifecycle.
+ * @logic Persists only the Bearer token; login and refresh fetch /auth/me, while logout first requests server invalidation and always clears local state and routes in a finally block.
+ * @dependencies Pinia、Vue、authentication API、router、sessionStorage、notification、API contracts
+ * @index_tags pinia、authentication、logout、rbac、route、dynamic-routing
  * @author holic512
  */
 
@@ -27,7 +27,8 @@ import {
   writeAccessToken,
 } from '../core/auth/sessionStorage'
 import { clearDatabaseRoutes, router, replaceDatabaseRoutes } from '../router'
-import { getCurrentAuthorization, loginSystemUser } from '../modules/auth/api/auth'
+import { notification } from '../core/notification'
+import { getCurrentAuthorization, loginSystemUser, logoutSystemUser } from '../modules/auth/api/auth'
 
 export const useSessionStore = defineStore('session', () => {
   const accessToken = ref(readAccessToken())
@@ -100,8 +101,20 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   async function logout(): Promise<void> {
-    clearSession()
-    await router.replace({ name: 'login' })
+    let serverLogoutFailed = false
+    try {
+      if (accessToken.value) {
+        await logoutSystemUser()
+      }
+    } catch {
+      serverLogoutFailed = true
+    } finally {
+      clearSession()
+      await router.replace({ name: 'login' })
+    }
+    if (serverLogoutFailed) {
+      notification.warning('服务端会话注销失败，已清除本地登录信息。')
+    }
   }
 
   return {

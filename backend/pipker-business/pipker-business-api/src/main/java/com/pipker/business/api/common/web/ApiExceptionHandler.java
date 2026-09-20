@@ -2,17 +2,24 @@
  * @file ApiExceptionHandler.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description Maps controller and request-validation failures to the code/data/message response envelope.
- * @logic Registered controller APIs keep HTTP 200 for business failures; Sa-Token filter authorization failures are rendered before controller dispatch.
- * @dependencies ApiResponse, ApiBusinessException, Spring Web MVC
- * @index_tags api, exception, response
+ * @description Maps controller and request-validation failures to the code/data/message response envelope and audits login requests rejected before authentication.
+ * @logic Registered controller APIs keep HTTP 200 for business failures; malformed POST /api/auth/login requests publish one validation-failure audit event without inspecting passwords.
+ * @dependencies ApiResponse、ApiBusinessException、AuthenticationAuditRecorder、Spring Web MVC
+ * @index_tags api、exception、response、authentication、audit、validation
  * @author holic512
  */
 package com.pipker.business.api.common.web;
 
 import com.pipker.business.common.api.ApiResponse;
 import com.pipker.business.common.api.CommonApiCode;
+import com.pipker.business.common.auth.audit.AuthenticationAuditEvent;
+import com.pipker.business.common.auth.audit.AuthenticationAuditEvent.EventType;
+import com.pipker.business.common.auth.audit.AuthenticationAuditEvent.FailureReason;
+import com.pipker.business.common.auth.audit.AuthenticationAuditRecorder;
 import com.pipker.business.common.exception.ApiBusinessException;
+import com.pipker.business.api.system.auth.dto.LoginRequest;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.slf4j.Logger;
@@ -22,6 +29,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -31,6 +39,20 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 public class ApiExceptionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiExceptionHandler.class);
+    private static final String LOGIN_PATH = "/api/auth/login";
+
+    private final AuthenticationAuditRecorder authenticationAuditRecorder;
+
+    /** 创建不启用认证审计的异常处理器，供独立 MVC 测试使用。 */
+    public ApiExceptionHandler() {
+        this(AuthenticationAuditRecorder.NOOP);
+    }
+
+    /** 创建带认证审计能力的异常处理器。 */
+    @Autowired
+    public ApiExceptionHandler(AuthenticationAuditRecorder authenticationAuditRecorder) {
+        this.authenticationAuditRecorder = authenticationAuditRecorder;
+    }
 
     /**
      * 返回可预期业务失败。
@@ -50,7 +72,13 @@ public class ApiExceptionHandler {
      * @return 统一失败响应
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException exception) {
+    public ResponseEntity<ApiResponse<Void>> handleValidation(
+            MethodArgumentNotValidException exception,
+            HttpServletRequest request
+    ) {
+        Object target = exception.getBindingResult().getTarget();
+        String username = target instanceof LoginRequest loginRequest ? loginRequest.username() : null;
+        recordLoginValidationFailure(request, username);
         String message = exception.getBindingResult().getFieldErrors().stream()
                 .findFirst()
                 .map(error -> error.getField() + " " + error.getDefaultMessage())
@@ -67,9 +95,14 @@ public class ApiExceptionHandler {
     @ExceptionHandler({
             HttpMessageNotReadableException.class,
             MissingServletRequestParameterException.class,
-            HttpRequestMethodNotSupportedException.class
+            HttpRequestMethodNotSupportedException.class,
+            MethodArgumentTypeMismatchException.class
     })
-    public ResponseEntity<ApiResponse<Void>> handleRequestValidation(Exception exception) {
+    public ResponseEntity<ApiResponse<Void>> handleRequestValidation(
+            Exception exception,
+            HttpServletRequest request
+    ) {
+        recordLoginValidationFailure(request, null);
         return ResponseEntity.ok(ApiResponse.failure(CommonApiCode.VALIDATION_FAILED));
     }
 
@@ -94,5 +127,24 @@ public class ApiExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleInternal(Exception exception) {
         LOGGER.error("Unhandled API exception", exception);
         return ResponseEntity.ok(ApiResponse.failure(CommonApiCode.INTERNAL_ERROR));
+    }
+
+    private void recordLoginValidationFailure(HttpServletRequest request, String username) {
+        if (request == null || !"POST".equalsIgnoreCase(request.getMethod())
+                || !LOGIN_PATH.equals(request.getRequestURI())) {
+            return;
+        }
+        try {
+            authenticationAuditRecorder.record(AuthenticationAuditEvent.failure(
+                    EventType.LOGIN,
+                    FailureReason.VALIDATION_FAILED,
+                    null,
+                    username
+            ));
+        } catch (RuntimeException exception) {
+            LOGGER.error("Authentication audit recorder failed and was ignored: "
+                    + "eventType=LOGIN result=FAILURE failureType={}",
+                    exception.getClass().getSimpleName());
+        }
     }
 }

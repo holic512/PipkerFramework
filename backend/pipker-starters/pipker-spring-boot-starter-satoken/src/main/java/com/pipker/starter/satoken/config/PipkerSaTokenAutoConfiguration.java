@@ -2,10 +2,10 @@
  * @file PipkerSaTokenAutoConfiguration.java
  * @project Pipker Framework
  * @module Pipker Sa-Token Starter
- * @description Configures the default Sa-Token session facade, selected DAO, and database-backed protected API filter.
- * @logic Installs configuration and storage in SaManager, exempts explicit anonymous routes, requires login, then delegates protected API authorization to an application service.
- * @dependencies Sa-Token Spring Boot 4, Spring Boot AutoConfiguration, Spring Web, Spring Data Redis, ApiAuthorizationService
- * @index_tags starter, sa-token, authentication, authorization, api-response, redis
+ * @description Configures the default Sa-Token session facade, selected DAO, protected API filter and optional authentication-audit failure hook.
+ * @logic Installs configuration and storage, enforces protected routes, delegates optional database authorization, and publishes only /auth/me or /auth/logout filter failures to the application recorder.
+ * @dependencies Sa-Token Spring Boot 4、Spring Boot AutoConfiguration、Spring Web、Spring Data Redis、ApiAuthorizationService、AuthenticationAuditRecorder
+ * @index_tags starter、sa-token、authentication、authorization、api-response、redis、audit
  * @author holic512
  */
 package com.pipker.starter.satoken.config;
@@ -22,6 +22,11 @@ import com.pipker.business.common.api.ApiResponse;
 import com.pipker.business.common.api.CommonApiCode;
 import com.pipker.business.common.auth.LoginIdentity;
 import com.pipker.business.common.auth.LoginIdentityCodec;
+import com.pipker.business.common.auth.audit.AuthenticationAuditEvent;
+import com.pipker.business.common.auth.audit.AuthenticationAuditEvent.EventType;
+import com.pipker.business.common.auth.audit.AuthenticationAuditEvent.FailureReason;
+import com.pipker.business.common.auth.audit.AuthenticationAuditRecorder;
+import com.pipker.business.common.auth.audit.AuthenticationAuditRequestContext;
 import com.pipker.starter.satoken.dao.PipkerRedisSaTokenDao;
 import com.pipker.starter.satoken.service.ApiAuthorizationDeniedException;
 import com.pipker.starter.satoken.service.ApiAuthorizationService;
@@ -36,6 +41,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import jakarta.servlet.http.HttpServletRequest;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -47,6 +55,10 @@ import java.util.ArrayList;
 @AutoConfiguration
 @EnableConfigurationProperties(PipkerAuthProperties.class)
 public class PipkerSaTokenAutoConfiguration {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PipkerSaTokenAutoConfiguration.class);
+    private static final String CURRENT_AUTHORIZATION_PATH = "/api/auth/me";
+    private static final String LOGOUT_PATH = "/api/auth/logout";
 
     private static final String UNAUTHORIZED_JSON = """
             {"code":401,"data":null,"message":"Authentication is required."}
@@ -149,7 +161,8 @@ public class PipkerSaTokenAutoConfiguration {
     @Bean
     public SaServletFilter pipkerSaTokenFilter(
             PipkerAuthProperties authProperties,
-            ObjectProvider<ApiAuthorizationService> apiAuthorizationServiceProvider
+            ObjectProvider<ApiAuthorizationService> apiAuthorizationServiceProvider,
+            ObjectProvider<AuthenticationAuditRecorder> authenticationAuditRecorderProvider
     ) {
         return new SaServletFilter()
                 .setIncludeList(new ArrayList<>(authProperties.getProtectedPaths()))
@@ -163,7 +176,7 @@ public class PipkerSaTokenAutoConfiguration {
                         }
                     }
                 })
-                .setError(this::authorizationErrorResponse);
+                .setError(throwable -> authorizationErrorResponse(throwable, authenticationAuditRecorderProvider));
     }
 
     /**
@@ -192,9 +205,14 @@ public class PipkerSaTokenAutoConfiguration {
      * 设置统一授权失败响应内容类型，并按失败原因使用稳定业务编码。
      *
      * @param throwable Sa-Token Filter 捕获的失败
+     * @param authenticationAuditRecorderProvider 可选认证审计记录器
      * @return 序列化后的 API 响应
      */
-    private String authorizationErrorResponse(Throwable throwable) {
+    private String authorizationErrorResponse(
+            Throwable throwable,
+            ObjectProvider<AuthenticationAuditRecorder> authenticationAuditRecorderProvider
+    ) {
+        recordAuthenticationFilterFailure(throwable, authenticationAuditRecorderProvider.getIfAvailable());
         SaHolder.getResponse()
                 .setStatus(200)
                 .setHeader("Content-Type", "application/json;charset=UTF-8");
@@ -221,5 +239,80 @@ public class PipkerSaTokenAutoConfiguration {
             return CommonApiCode.AUTH_FORBIDDEN;
         }
         return CommonApiCode.INTERNAL_ERROR;
+    }
+
+    private void recordAuthenticationFilterFailure(
+            Throwable throwable,
+            AuthenticationAuditRecorder authenticationAuditRecorder
+    ) {
+        if (authenticationAuditRecorder == null) {
+            return;
+        }
+        String path = SaHolder.getRequest().getRequestPath();
+        EventType eventType;
+        if (CURRENT_AUTHORIZATION_PATH.equals(path)) {
+            eventType = EventType.AUTH_CHECK;
+        } else if (LOGOUT_PATH.equals(path)) {
+            eventType = EventType.LOGOUT;
+        } else {
+            return;
+        }
+        try {
+            authenticationAuditRecorder.record(
+                    AuthenticationAuditEvent.failure(
+                            eventType,
+                            resolveAuditFailureReason(throwable),
+                            currentUserId(),
+                            null
+                    ),
+                    currentAuditRequestContext()
+            );
+        } catch (RuntimeException exception) {
+            LOGGER.error("Authentication audit recorder failed and was ignored: "
+                    + "eventType={} result=FAILURE failureType={}",
+                    eventType, exception.getClass().getSimpleName());
+        }
+    }
+
+    private FailureReason resolveAuditFailureReason(Throwable throwable) {
+        if (throwable instanceof NotLoginException) {
+            return FailureReason.AUTH_REQUIRED;
+        }
+        if (throwable instanceof ApiAuthorizationDeniedException) {
+            return FailureReason.AUTH_FORBIDDEN;
+        }
+        return FailureReason.INTERNAL_ERROR;
+    }
+
+    private Long currentUserId() {
+        Object rawLoginId = StpUtil.getLoginIdDefaultNull();
+        if (rawLoginId == null) {
+            return null;
+        }
+        try {
+            LoginIdentity identity = LoginIdentityCodec.decode(String.valueOf(rawLoginId));
+            long userId = Long.parseLong(identity.userId());
+            return userId > 0 ? userId : null;
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
+    }
+
+    private AuthenticationAuditRequestContext currentAuditRequestContext() {
+        Object source = SaHolder.getRequest().getSource();
+        if (source instanceof HttpServletRequest request) {
+            return new AuthenticationAuditRequestContext(
+                    request.getRemoteAddr(),
+                    request.getHeader("User-Agent"),
+                    request.getMethod(),
+                    request.getRequestURI()
+            );
+        }
+        return new AuthenticationAuditRequestContext(
+                null,
+                SaHolder.getRequest().getHeader("User-Agent"),
+                SaHolder.getRequest().getMethod(),
+                SaHolder.getRequest().getRequestPath()
+        );
     }
 }

@@ -2,16 +2,17 @@
  * @file MybatisPlusSystemPersistenceIntegrationTests.java
  * @project Pipker Framework
  * @module Pipker Server
- * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表映射、雪花主键、Java 枚举接口权限、用户与角色管理、页面权限和路由管理服务。
- * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，随后通过八个 Mapper 和应用服务验证实体读写、权限枚举加载、用户角色分配和保护账户约束、用户查看与管理 HTTP 权限分离、角色接口与页面权限替换、历史权限保留、密码重置，以及路由的扁平查询、树形结构和受限配置更新。
+ * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表、认证日志、Java 枚举接口权限、用户与角色管理、页面权限和路由服务。
+ * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，通过九个 Mapper 和应用服务验证实体读写、登录日志筛选与权限、用户角色约束、接口与页面权限、密码重置和路由配置。
  * @dependencies Spring Boot Test、Liquibase、SQLite JDBC、MyBatis-Plus、Pipker Business API、Pipker Security Starter
- * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、user、role、route、permission、hidden-menu、password-reset
+ * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、user、role、route、permission、login-log、hidden-menu、password-reset
  * @author holic512
  */
 package com.pipker.server;
 
 import com.pipker.business.api.common.mapper.SystemApiResourceMapper;
 import com.pipker.business.api.common.mapper.SystemMenuMapper;
+import com.pipker.business.api.common.mapper.SystemLoginLogMapper;
 import com.pipker.business.api.common.mapper.SystemPermissionMapper;
 import com.pipker.business.api.common.mapper.SystemRoleMapper;
 import com.pipker.business.api.common.mapper.SystemRoleMenuMapper;
@@ -21,6 +22,7 @@ import com.pipker.business.api.common.mapper.SystemUserRoleMapper;
 import com.pipker.business.api.common.model.SystemApiResource;
 import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
 import com.pipker.business.api.common.model.SystemMenu;
+import com.pipker.business.api.common.model.SystemLoginLog;
 import com.pipker.business.api.common.model.SystemPermission;
 import com.pipker.business.api.common.model.SystemRole;
 import com.pipker.business.api.common.model.SystemRoleMenu;
@@ -38,6 +40,8 @@ import com.pipker.business.api.system.role.RoleManagementService;
 import com.pipker.business.api.system.role.RoleManagementController;
 import com.pipker.business.api.system.user.UserManagementService;
 import com.pipker.business.api.system.user.UserManagementController;
+import com.pipker.business.api.system.loginlog.LoginLogManagementController;
+import com.pipker.business.api.system.loginlog.LoginLogManagementService;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchDelete;
 import com.pipker.business.api.system.role.RoleManagementRequest.BatchStatus;
 import com.pipker.business.api.system.role.RoleManagementRequest.Create;
@@ -81,6 +85,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -103,6 +108,9 @@ class MybatisPlusSystemPersistenceIntegrationTests {
 
     @Autowired
     private SystemMenuMapper systemMenuMapper;
+
+    @Autowired
+    private SystemLoginLogMapper systemLoginLogMapper;
 
     @Autowired
     private SystemApiResourceMapper systemApiResourceMapper;
@@ -133,6 +141,9 @@ class MybatisPlusSystemPersistenceIntegrationTests {
 
     @Autowired
     private RouteManagementService routeManagementService;
+
+    @Autowired
+    private LoginLogManagementService loginLogManagementService;
 
     @Autowired
     private SecurityCryptoService securityCryptoService;
@@ -446,6 +457,120 @@ class MybatisPlusSystemPersistenceIntegrationTests {
     }
 
     @Test
+    void loginLogsRemainImmutableSearchableAndProtectedByIndependentPermission() throws Exception {
+        String suffix = String.valueOf(System.nanoTime());
+        LocalDateTime firstTime = LocalDateTime.now().minusMinutes(2);
+        SystemLoginLog failed = loginLog(
+                "audit-user-" + suffix,
+                "LOGIN",
+                "FAILURE",
+                "INVALID_CREDENTIALS",
+                "192.0.2.10",
+                "trace-failed-" + suffix,
+                firstTime
+        );
+        failed.setUserId(987654321L);
+        assertThat(systemLoginLogMapper.insert(failed)).isEqualTo(1);
+        assertThat(failed.getId()).isPositive();
+
+        SystemLoginLog successful = loginLog(
+                "audit-user-" + suffix,
+                "AUTH_CHECK",
+                "SUCCESS",
+                null,
+                "192.0.2.11",
+                "trace-success-" + suffix,
+                firstTime.plusMinutes(1)
+        );
+        assertThat(systemLoginLogMapper.insert(successful)).isEqualTo(1);
+
+        var accountPage = loginLogManagementService.findPage(
+                1, 10, "audit-user-" + suffix, null, null, firstTime.minusSeconds(1), firstTime.plusMinutes(2)
+        );
+        assertThat(accountPage.records()).extracting(record -> record.id())
+                .containsExactly(String.valueOf(successful.getId()), String.valueOf(failed.getId()));
+        assertThat(loginLogManagementService.findPage(
+                1, 10, "192.0.2.10", "LOGIN", "FAILURE", null, null
+        ).records()).singleElement().satisfies(record -> {
+            assertThat(record.failureReason()).isEqualTo("INVALID_CREDENTIALS");
+            assertThat(record.userId()).isEqualTo("987654321");
+        });
+        assertThat(loginLogManagementService.findPage(
+                1, 10, "trace-success-" + suffix, "AUTH_CHECK", "SUCCESS", null, null
+        ).records()).singleElement().extracting(record -> record.id())
+                .isEqualTo(String.valueOf(successful.getId()));
+        assertThatThrownBy(() -> loginLogManagementService.findPage(
+                0, 10, null, null, null, null, null
+        )).isInstanceOf(ApiBusinessException.class);
+        assertThat(loginLogManagementService.findPage(
+                1, 100, null, null, null, null, null
+        ).pageSize()).isEqualTo(100);
+        assertThatThrownBy(() -> loginLogManagementService.findPage(
+                1, 101, null, null, null, null, null
+        )).isInstanceOf(ApiBusinessException.class);
+        assertThatThrownBy(() -> loginLogManagementService.findPage(
+                1, 10, null, "UNKNOWN", null, null, null
+        )).isInstanceOf(ApiBusinessException.class);
+        assertThatThrownBy(() -> loginLogManagementService.findPage(
+                1, 10, null, null, "UNKNOWN", null, null
+        )).isInstanceOf(ApiBusinessException.class);
+        assertThatThrownBy(() -> loginLogManagementService.findPage(
+                1, 10, null, null, null, firstTime, firstTime.minusSeconds(1)
+        )).isInstanceOf(ApiBusinessException.class);
+
+        assertThat(PermissionEnum.SYSTEM_LOGIN_LOG_VIEW.getCode()).isEqualTo("system:login-log:view");
+        assertThat(permissionRegistry.contains(PermissionEnum.SYSTEM_LOGIN_LOG_VIEW.getCode())).isTrue();
+        assertThat(systemRolePermissionMapper.selectById(2090000000000000606L).getPermissionCode())
+                .isEqualTo(PermissionEnum.SYSTEM_LOGIN_LOG_VIEW.getCode());
+        assertThat(systemMenuMapper.selectById(2090000000000000307L)).satisfies(menu -> {
+            assertThat(menu.getRoutePath()).isEqualTo("/system/login-logs");
+            assertThat(menu.getComponentKey()).isEqualTo("system/login-log/index");
+        });
+        loginLogHttp(false).perform(get("/api/admin/login-logs"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(403));
+        loginLogHttp(true).perform(get("/api/admin/login-logs").param("keyword", suffix))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.records.length()").value(2));
+    }
+
+    private MockMvc loginLogHttp(boolean permitted) {
+        CurrentSystemAuthorizationService authorization = new CurrentSystemAuthorizationService(null, null) {
+            @Override
+            public SystemAuthorizationSnapshot currentSnapshot() {
+                return new SystemAuthorizationSnapshot(null, List.of(), permitted
+                        ? List.of(PermissionEnum.SYSTEM_LOGIN_LOG_VIEW.getCode()) : List.of(),
+                        List.of(), List.of());
+            }
+        };
+        return MockMvcBuilders.standaloneSetup(new LoginLogManagementController(loginLogManagementService))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .addInterceptors(new PermissionAuthorizationInterceptor(authorization)).build();
+    }
+
+    private SystemLoginLog loginLog(
+            String username,
+            String eventType,
+            String result,
+            String failureReason,
+            String clientIp,
+            String traceId,
+            LocalDateTime occurredAt
+    ) {
+        SystemLoginLog log = new SystemLoginLog();
+        log.setUsername(username);
+        log.setEventType(eventType);
+        log.setResult(result);
+        log.setFailureReason(failureReason);
+        log.setClientIp(clientIp);
+        log.setUserAgent("integration-test-agent");
+        log.setHttpMethod("GET");
+        log.setRequestPath("/api/auth/me");
+        log.setTraceId(traceId);
+        log.setOccurredAt(occurredAt);
+        return log;
+    }
+
+    @Test
     void mapsAllSystemTablesWithSnowflakeIdsAndUsesEnumBasedPermissions() {
         String suffix = String.valueOf(System.nanoTime());
 
@@ -555,7 +680,8 @@ class MybatisPlusSystemPersistenceIntegrationTests {
                         PermissionEnum.SYSTEM_ROLE_MANAGE.getCode(),
                         PermissionEnum.SYSTEM_ROUTE_VIEW.getCode(),
                         PermissionEnum.SYSTEM_USER_VIEW.getCode(),
-                        PermissionEnum.SYSTEM_USER_MANAGE.getCode()
+                        PermissionEnum.SYSTEM_USER_MANAGE.getCode(),
+                        PermissionEnum.SYSTEM_LOGIN_LOG_VIEW.getCode()
                 )
                 .doesNotContain(
                         "system-authorization-view",

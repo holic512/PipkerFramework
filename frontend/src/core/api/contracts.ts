@@ -2,10 +2,10 @@
  * @file contracts.ts
  * @project Pipker Framework
  * @module Frontend API Contracts
- * @description Defines the server envelope, enum permission points, user and role management projections, and route-management list, tree, detail and configuration projections shared by frontend features.
- * @logic Keeps all backend field names and business result codes at the transport boundary so pages only consume verified data, including string-form Snowflake IDs, user role assignments, recursive route-management trees, the separate navigation/route authorization model, and the memory-defined interface permission model.
+ * @description Defines the server envelope, authentication lifecycle, enum permissions, user and role projections, login logs, and route-management contracts shared by frontend features.
+ * @logic Keeps backend field names and business codes at the transport boundary, including string Snowflake IDs, current-token logout, immutable authentication audit records, recursive routes, and memory-defined permissions.
  * @dependencies TypeScript
- * @index_tags api, contracts, rbac, user, role, route, permission, authorization, authentication
+ * @index_tags api, contracts, rbac, user, role, route, permission, authorization, authentication, login-log
  * @author holic512
  */
 
@@ -83,6 +83,35 @@ export interface LoginResponse {
 export interface LoginRequest {
   username: string
   password: string
+}
+
+export interface LogoutResponse {
+  loggedOut: boolean
+}
+
+export type AuthenticationEventType = 'LOGIN' | 'LOGOUT' | 'AUTH_CHECK'
+export type AuthenticationEventResult = 'SUCCESS' | 'FAILURE'
+export type AuthenticationFailureReason =
+  | 'INVALID_CREDENTIALS'
+  | 'ACCOUNT_DISABLED'
+  | 'AUTH_REQUIRED'
+  | 'AUTH_FORBIDDEN'
+  | 'VALIDATION_FAILED'
+  | 'INTERNAL_ERROR'
+
+export interface SystemLoginLogSummary {
+  id: string
+  userId: string | null
+  username: string | null
+  eventType: AuthenticationEventType
+  result: AuthenticationEventResult
+  failureReason: AuthenticationFailureReason | null
+  clientIp: string | null
+  userAgent: string | null
+  httpMethod: string | null
+  requestPath: string | null
+  traceId: string | null
+  occurredAt: string
 }
 
 export type SystemRoleStatus = 'ENABLED' | 'DISABLED'

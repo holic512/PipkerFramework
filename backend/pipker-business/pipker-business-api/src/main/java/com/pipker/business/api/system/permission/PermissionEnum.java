@@ -2,7 +2,7 @@
  * @file PermissionEnum.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description 定义系统唯一有效的接口权限点及其面向管理端的展示元数据。
+ * @description 定义系统唯一有效的接口权限点及其面向管理端的展示元数据，包括独立的认证日志查看权限。
  * @logic 枚举编码同时被接口注解、角色权限保存校验和权限点列表读取复用；新增权限必须先在此声明，数据库记录只保存已选编码而不定义权限本身。
  * @dependencies Java Standard Library
  * @index_tags permission、enum、rbac、api-authorization、administration
@@ -47,6 +47,11 @@ public enum PermissionEnum {
             "system:user:manage",
             "管理系统用户",
             "创建、编辑、删除、启停用户，分配角色并重置密码"
+    ),
+    SYSTEM_LOGIN_LOG_VIEW(
+            "system:login-log:view",
+            "查看登录日志",
+            "分页筛选登录、登出和当前会话鉴权的安全审计记录"
     );
 
     private final String code;

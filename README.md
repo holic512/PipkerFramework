@@ -4,11 +4,12 @@ Pipker Framework 是一个由 Spring Boot 后端与 Vue 前端组成的后台基
 
 ## 本期能力与边界
 
-- `system_` 前缀的框架 Liquibase 系统表，以及由 changeset 管理的唯一初始管理员；用户表和对框架表的扩展保留在数据库专属的 `business` 迁移入口。
+- 9 张 `system_` 前缀的框架 Liquibase 系统表，以及由 changeset 管理的唯一初始管理员；用户表和对框架表的扩展保留在数据库专属的 `business` 迁移入口。
 - 统一的 `SYSTEM` 登录域；用户—角色—权限 RBAC 由数据库裁决，`SUPER_ADMIN` 自动拥有全部启用权限。
 - 角色—菜单关联控制数据库页面路由，`API` 权限通过 `HTTP 方法 + MVC 路径模板` 的数据库资源映射控制后端接口。
 - Sa-Token Filter 统一执行登录校验，MVC 注解执行接口授权；用户授权快照使用本地 60 秒 TTL 缓存，启用角色到接口权限的映射在启动时载入内存并默认每 5 分钟刷新。
-- `POST /api/auth/login`、`GET /api/auth/me`、`GET /api/admin/authorization` 与 `{ code, data, message }` 统一响应；已注册 API 的业务失败保持 HTTP 200。
+- `POST /api/auth/login`、当前 Token 登出、`GET /api/auth/me`、管理员登录日志查询与 `{ code, data, message }` 统一响应；已注册 API 的业务失败保持 HTTP 200。
+- 登录、登出和 `/api/auth/me` 鉴权事件同步尽力写入独立的 `system_login_log` 审计表；日志长期保留且不保存密码、Token、Cookie、Authorization 请求头或请求体。
 - 前端登录页、`sessionStorage` Bearer 令牌、授权恢复和仅由已授权角色菜单生成的 Vue 页面路由；包含仅供 `SUPER_ADMIN` 使用的角色路由配置页，不提供按钮级权限控制。
 - 默认启用的本地文件持久化：后端服务保存后获得不含域名的 `/files/...` 相对访问路径，公开读取接口不提供 HTTP 上传。
 
@@ -79,4 +80,4 @@ cd frontend
 npm run build
 ```
 
-后端集成测试统一使用隔离的 SQLite 空库，验证 Liquibase 初始化、种子幂等性、密码不以明文保存、数据库 API 过滤器、页面菜单和本地授权缓存行为。MySQL 与 PostgreSQL 迁移资源用于实际部署；Docker/Testcontainers 不是本项目测试前置条件。
+后端集成测试统一使用隔离的 SQLite 空库，验证 Liquibase 初始化、种子幂等性、密码不以明文保存、认证生命周期审计、当前 Token 单独登出、页面菜单和本地授权缓存行为。MySQL 与 PostgreSQL 迁移资源用于实际部署；Docker/Testcontainers 不是本项目测试前置条件。

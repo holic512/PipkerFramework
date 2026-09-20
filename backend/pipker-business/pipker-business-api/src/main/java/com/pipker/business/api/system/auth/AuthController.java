@@ -2,8 +2,8 @@
  * @file AuthController.java
  * @project Pipker Framework
  * @module Pipker Business API
- * @description Provides system-user login and current authorization projection endpoints.
- * @logic Login is explicitly anonymous; the protected current-user endpoint requires the coarse authorization-view permission and resolves the cached role, enum-permission, route and menu snapshot.
+ * @description Provides system-user login, current-token logout and current authorization projection endpoints.
+ * @logic Login is explicitly anonymous; logout relies on the global session filter and invalidates only the current token; the protected current-user endpoint requires authorization-view permission.
  * @dependencies Permission、PermissionEnum、SystemAuthenticationService, CurrentSystemAuthorizationService, Spring Web MVC
  * @index_tags controller, auth, rbac, permission, cache
  * @author holic512
@@ -15,6 +15,7 @@ import com.pipker.business.api.system.permission.Permission;
 import com.pipker.business.api.system.permission.PermissionEnum;
 import com.pipker.business.api.system.auth.dto.LoginRequest;
 import com.pipker.business.api.system.auth.dto.LoginResponse;
+import com.pipker.business.api.system.auth.dto.LogoutResponse;
 import com.pipker.business.common.api.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -56,6 +57,12 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success(systemAuthenticationService.login(request));
+    }
+
+    /** 注销当前请求携带的 Bearer Token。 */
+    @PostMapping("/logout")
+    public ApiResponse<LogoutResponse> logout() {
+        return ApiResponse.success(systemAuthenticationService.logoutCurrent());
     }
 
     /**

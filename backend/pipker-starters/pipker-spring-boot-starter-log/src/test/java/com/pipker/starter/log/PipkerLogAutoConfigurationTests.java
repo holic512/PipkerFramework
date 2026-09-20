@@ -55,7 +55,8 @@ class PipkerLogAutoConfigurationTests {
                 .withPropertyValues(
                         "pipker.log.trace.enabled=false",
                         "pipker.log.request.enabled=false",
-                        "pipker.log.slow-request.enabled=false"
+                        "pipker.log.slow-request.enabled=false",
+                        "pipker.log.api-access.enabled=false"
                 )
                 .run(context -> assertThat(context).doesNotHaveBean(FilterRegistrationBean.class));
     }

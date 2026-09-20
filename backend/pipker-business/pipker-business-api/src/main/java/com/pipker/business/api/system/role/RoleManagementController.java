@@ -28,6 +28,7 @@ import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteConfi
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleRouteUpdateResult;
 import com.pipker.business.api.system.role.RoleManagementResponse.RoleSummary;
 import com.pipker.business.common.api.ApiResponse;
+import com.pipker.starter.log.annotation.ApiLog;
 import com.pipker.business.api.system.permission.Permission;
 import com.pipker.business.api.system.permission.PermissionEnum;
 import jakarta.validation.Valid;
@@ -59,6 +60,7 @@ public class RoleManagementController {
 
     /** 分页筛选角色。 */
     @GetMapping
+    @ApiLog(purpose = "分页筛选系统角色")
     public ApiResponse<PageResult<RoleSummary>> rolePage(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
@@ -70,18 +72,21 @@ public class RoleManagementController {
 
     /** 创建角色。 */
     @PostMapping
+    @ApiLog(purpose = "创建系统角色")
     public ApiResponse<RoleSummary> createRole(@Valid @RequestBody Create request) {
         return ApiResponse.success(roleManagementService.createRole(request));
     }
 
     /** 查询角色详情。 */
     @GetMapping("/{roleId}")
+    @ApiLog(purpose = "查询系统角色详情")
     public ApiResponse<RoleDetail> roleDetail(@PathVariable String roleId) {
         return ApiResponse.success(roleManagementService.findRoleDetail(roleId));
     }
 
     /** 编辑角色。 */
     @PutMapping("/{roleId}")
+    @ApiLog(purpose = "更新系统角色")
     public ApiResponse<RoleSummary> updateRole(
             @PathVariable String roleId,
             @Valid @RequestBody Update request
@@ -91,18 +96,21 @@ public class RoleManagementController {
 
     /** 删除单个普通角色。 */
     @DeleteMapping("/{roleId}")
+    @ApiLog(purpose = "删除系统角色")
     public ApiResponse<OperationResult> deleteRole(@PathVariable String roleId) {
         return ApiResponse.success(roleManagementService.deleteRoles(new BatchDelete(List.of(roleId))));
     }
 
     /** 查询一个角色的页面访问权限和可配置路由树。 */
     @GetMapping("/{roleId}/routes")
+    @ApiLog(purpose = "查询角色页面权限")
     public ApiResponse<RoleRouteConfiguration> routeConfiguration(@PathVariable String roleId) {
         return ApiResponse.success(roleManagementService.findRoleRouteConfiguration(roleId));
     }
 
     /** 全量替换一个普通角色的页面访问权限。 */
     @PutMapping("/{roleId}/routes")
+    @ApiLog(purpose = "替换角色页面权限")
     public ApiResponse<RoleRouteUpdateResult> replaceRouteConfiguration(
             @PathVariable String roleId,
             @Valid @RequestBody ReplaceRoutes request
@@ -112,12 +120,14 @@ public class RoleManagementController {
 
     /** 查询一个角色保存的接口权限和历史失效权限。 */
     @GetMapping("/{roleId}/permissions")
+    @ApiLog(purpose = "查询角色接口权限")
     public ApiResponse<RolePermissionConfiguration> permissionConfiguration(@PathVariable String roleId) {
         return ApiResponse.success(roleManagementService.findRolePermissionConfiguration(roleId));
     }
 
     /** 覆盖一个普通启用角色的当前有效接口权限。 */
     @PutMapping("/{roleId}/permissions")
+    @ApiLog(purpose = "替换角色接口权限")
     public ApiResponse<RolePermissionUpdateResult> replacePermissionConfiguration(
             @PathVariable String roleId,
             @Valid @RequestBody ReplacePermissions request
@@ -127,24 +137,28 @@ public class RoleManagementController {
 
     /** 手动刷新当前应用实例的角色接口权限一级缓存。 */
     @PostMapping("/permission-cache/refresh")
+    @ApiLog(purpose = "刷新角色接口权限缓存")
     public ApiResponse<RolePermissionCacheRefreshResult> refreshPermissionCache() {
         return ApiResponse.success(roleManagementService.refreshRolePermissionCache());
     }
 
     /** 批量变更普通角色状态。 */
     @PatchMapping("/batch-status")
+    @ApiLog(purpose = "批量变更系统角色状态")
     public ApiResponse<OperationResult> batchUpdateStatus(@Valid @RequestBody BatchStatus request) {
         return ApiResponse.success(roleManagementService.updateRoleStatus(request));
     }
 
     /** 批量删除普通角色。 */
     @PostMapping("/batch-delete")
+    @ApiLog(purpose = "批量删除系统角色")
     public ApiResponse<OperationResult> batchDelete(@Valid @RequestBody BatchDelete request) {
         return ApiResponse.success(roleManagementService.deleteRoles(request));
     }
 
     /** 分页筛选一个角色下的成员账户。 */
     @GetMapping("/{roleId}/members")
+    @ApiLog(purpose = "分页查询角色成员")
     public ApiResponse<PageResult<RoleMember>> memberPage(
             @PathVariable String roleId,
             @RequestParam(defaultValue = "1") int page,
@@ -156,6 +170,7 @@ public class RoleManagementController {
 
     /** 重置一个角色成员账户的密码。 */
     @PutMapping("/{roleId}/members/{userId}/password")
+    @ApiLog(purpose = "重置角色成员密码")
     public ApiResponse<OperationResult> resetMemberPassword(
             @PathVariable String roleId,
             @PathVariable String userId,

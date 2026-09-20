@@ -2,10 +2,10 @@
  * @file PipkerLogAutoConfiguration.java
  * @project Pipker Framework
  * @module Pipker Spring Boot Starter Log
- * @description 条件化装配 Pipker 日志 Starter 的核心、Servlet/MVC 与 AOP 能力。
- * @logic 总开关控制全部功能；各嵌套配置按运行环境和功能开关注册单一 Filter、异常观察器与操作日志 Aspect。
- * @dependencies Spring Boot AutoConfiguration、Jackson、Spring MVC、Spring AOP
- * @index_tags log、starter、autoconfigure
+ * @description 条件化装配 Pipker 日志 Starter 的核心、Servlet/MVC、接口访问异步队列与 AOP 能力。
+ * @logic 总开关控制全部功能；按环境和功能开关注册单一生命周期 Filter、API 元数据切面与发布器、异常观察器和操作日志切面。
+ * @dependencies Spring Boot AutoConfiguration、Jackson、Spring MVC、Spring AOP、ApiAccessLogHandler
+ * @index_tags log、starter、autoconfigure、api-access、async
  * @author holic512
  */
 package com.pipker.starter.log.config;
@@ -13,6 +13,9 @@ package com.pipker.starter.log.config;
 import com.pipker.starter.log.exception.DefaultExceptionLogReporter;
 import com.pipker.starter.log.exception.ExceptionLogReporter;
 import com.pipker.starter.log.exception.ExceptionLoggingInterceptor;
+import com.pipker.starter.log.api.ApiAccessLogAspect;
+import com.pipker.starter.log.api.ApiAccessLogHandler;
+import com.pipker.starter.log.api.AsyncApiAccessLogPublisher;
 import com.pipker.starter.log.operation.DefaultSlf4jOperationLogHandler;
 import com.pipker.starter.log.operation.OperationLogAspect;
 import com.pipker.starter.log.operation.OperationLogHandler;
@@ -117,7 +120,8 @@ public class PipkerLogAutoConfiguration {
                 LogValueRenderer valueRenderer,
                 JsonMapper jsonMapper,
                 ObjectProvider<com.pipker.starter.log.context.LogContextContributor> contributors,
-                ObjectProvider<ExceptionLogReporter> exceptionLogReporter
+                ObjectProvider<ExceptionLogReporter> exceptionLogReporter,
+                ObjectProvider<AsyncApiAccessLogPublisher> apiAccessLogPublisher
         ) {
             PipkerRequestLoggingFilter filter = new PipkerRequestLoggingFilter(
                     properties,
@@ -125,12 +129,37 @@ public class PipkerLogAutoConfiguration {
                     valueRenderer,
                     jsonMapper,
                     contributors.orderedStream().toList(),
-                    exceptionLogReporter.getIfAvailable()
+                    exceptionLogReporter.getIfAvailable(),
+                    apiAccessLogPublisher.getIfAvailable()
             );
             FilterRegistrationBean<PipkerRequestLoggingFilter> registration = new FilterRegistrationBean<>(filter);
             registration.setOrder(properties.getRequest().getFilterOrder());
             registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ASYNC);
             return registration;
+        }
+    }
+
+    /**
+     * 全量 API 访问日志的 Controller 元数据切面和异步发布器配置。
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+    @ConditionalOnClass({HttpServletRequest.class, ProceedingJoinPoint.class})
+    @ConditionalOnProperty(prefix = "pipker.log.api-access", name = "enabled", havingValue = "true", matchIfMissing = true)
+    @EnableAspectJAutoProxy
+    static class ApiAccessLogConfiguration {
+
+        @Bean
+        AsyncApiAccessLogPublisher apiAccessLogPublisher(
+                PipkerLogProperties properties,
+                List<ApiAccessLogHandler> handlers
+        ) {
+            return new AsyncApiAccessLogPublisher(properties, handlers);
+        }
+
+        @Bean
+        ApiAccessLogAspect apiAccessLogAspect(PipkerLogProperties properties) {
+            return new ApiAccessLogAspect(properties);
         }
     }
 

@@ -2,15 +2,19 @@
  * @file PipkerRequestLoggingFilter.java
  * @project Pipker Framework
  * @module Pipker Spring Boot Starter Log
- * @description 使用单一 Servlet Filter 管理 TraceId、请求 MDC、HTTP 日志与慢请求日志。
- * @logic 建立受控 MDC 作用域，使用公共 UUID 工具生成 TraceId，安全包装可选 Body，按请求完成时间输出日志，并在异步完成回调中恢复快照。
- * @dependencies Pipker Common Starter、Spring Web、Jakarta Servlet、PipkerLogProperties、LogValueRenderer、SLF4J
- * @index_tags log、trace、mdc、http、slow-request
+ * @description 使用单一 Servlet Filter 管理 TraceId、请求 MDC、HTTP 日志、慢请求日志与接口访问生命周期采集。
+ * @logic 建立受控 MDC 作用域并有界包装响应；同步或异步完成时只发布一条安全元数据记录，以顶层业务码判定结果且不持久化内容体。
+ * @dependencies Pipker Common Starter、Spring Web、Jakarta Servlet、PipkerLogProperties、ApiAccessLogPublisher、LogValueRenderer、SLF4J
+ * @index_tags log、trace、mdc、http、slow-request、api-access、async
  * @author holic512
  */
 package com.pipker.starter.log.web;
 
 import com.pipker.starter.common.util.UuidUtils;
+import com.pipker.starter.log.api.ApiAccessLogRecord;
+import com.pipker.starter.log.api.ApiAccessLogMessageSanitizer;
+import com.pipker.starter.log.api.ApiAccessLogRequestAttributes;
+import com.pipker.starter.log.api.AsyncApiAccessLogPublisher;
 import com.pipker.starter.log.config.PipkerLogProperties;
 import com.pipker.starter.log.context.LogContext;
 import com.pipker.starter.log.context.LogContextContributor;
@@ -32,15 +36,21 @@ import org.springframework.core.env.Environment;
 import org.springframework.lang.Nullable;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 在单个 Servlet Filter 中建立请求上下文，并输出 HTTP、慢请求和异常日志。
@@ -56,6 +66,7 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
     private final JsonMapper jsonMapper;
     private final List<LogContextContributor> contributors;
     private final ExceptionLogReporter exceptionLogReporter;
+    private final AsyncApiAccessLogPublisher apiAccessLogPublisher;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     /**
@@ -76,12 +87,26 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
             List<LogContextContributor> contributors,
             @Nullable ExceptionLogReporter exceptionLogReporter
     ) {
+        this(properties, environment, valueRenderer, jsonMapper, contributors, exceptionLogReporter, null);
+    }
+
+    /** 创建带接口访问日志异步发布能力的请求 Filter。 */
+    public PipkerRequestLoggingFilter(
+            PipkerLogProperties properties,
+            Environment environment,
+            LogValueRenderer valueRenderer,
+            JsonMapper jsonMapper,
+            List<LogContextContributor> contributors,
+            @Nullable ExceptionLogReporter exceptionLogReporter,
+            @Nullable AsyncApiAccessLogPublisher apiAccessLogPublisher
+    ) {
         this.properties = properties;
         this.environment = environment;
         this.valueRenderer = valueRenderer;
         this.jsonMapper = jsonMapper;
         this.contributors = List.copyOf(contributors);
         this.exceptionLogReporter = exceptionLogReporter;
+        this.apiAccessLogPublisher = apiAccessLogPublisher;
     }
 
     /**
@@ -94,7 +119,8 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return !properties.getTrace().isEnabled()
                 && !properties.getRequest().isEnabled()
-                && !properties.getSlowRequest().isEnabled();
+                && !properties.getSlowRequest().isEnabled()
+                && !properties.getApiAccess().isEnabled();
     }
 
     /**
@@ -123,13 +149,15 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
         long startedAt = System.nanoTime();
+        Instant occurredAt = Instant.now();
+        AtomicBoolean completed = new AtomicBoolean();
         Map<String, String> contextValues = createContextValues(request);
         LogContext context = new LogContext(contextValues);
         contribute(context);
         Map<String, String> mdcValues = context.snapshot();
 
         HttpServletRequest wrappedRequest = wrapRequestIfNecessary(request);
-        HttpServletResponse wrappedResponse = wrapResponseIfNecessary(response);
+        HttpServletResponse wrappedResponse = wrapResponseIfNecessary(request, response);
         if (properties.getTrace().isEnabled() && properties.getTrace().isWriteResponseHeader()) {
             response.setHeader(properties.getTrace().getHeaderName(), mdcValues.get(LogMdcKeys.TRACE_ID));
         }
@@ -138,13 +166,18 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
             try {
                 filterChain.doFilter(wrappedRequest, wrappedResponse);
             } catch (ServletException | IOException | RuntimeException | Error exception) {
+                request.setAttribute(ApiAccessLogRequestAttributes.EXCEPTION_TYPE, exception.getClass().getName());
+                request.setAttribute(ApiAccessLogRequestAttributes.EXCEPTION_MESSAGE,
+                        sanitizeExceptionMessage(exception.getMessage()));
                 reportException(request, exception);
                 throw exception;
             } finally {
                 if (request.isAsyncStarted()) {
-                    registerAsyncCompletion(request, wrappedRequest, wrappedResponse, mdcValues, startedAt);
+                    registerAsyncCompletion(
+                            request, wrappedRequest, wrappedResponse, mdcValues, occurredAt, startedAt, completed
+                    );
                 } else {
-                    logCompletedRequest(wrappedRequest, wrappedResponse, startedAt);
+                    completeRequest(wrappedRequest, wrappedResponse, occurredAt, startedAt, completed);
                 }
             }
         }
@@ -201,11 +234,17 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
     /**
      * 仅在启用响应体日志时使用受限响应捕获包装器。
      */
-    private HttpServletResponse wrapResponseIfNecessary(HttpServletResponse response) {
-        if (!properties.getRequest().isEnabled() || !properties.getRequest().isIncludeResponseBody()) {
+    private HttpServletResponse wrapResponseIfNecessary(HttpServletRequest request, HttpServletResponse response) {
+        boolean responseBodyLogging = properties.getRequest().isEnabled()
+                && properties.getRequest().isIncludeResponseBody();
+        boolean outcomeCapture = isApiAccessIncluded(request.getRequestURI());
+        if (!responseBodyLogging && !outcomeCapture) {
             return response;
         }
-        return new BoundedResponseCaptureWrapper(response, bodyLimit());
+        int maxLength = responseBodyLogging
+                ? Math.max(bodyLimit(), responsePrefixLimit())
+                : responsePrefixLimit();
+        return new BoundedResponseCaptureWrapper(response, maxLength);
     }
 
     /**
@@ -216,25 +255,35 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
             HttpServletRequest wrappedRequest,
             HttpServletResponse wrappedResponse,
             Map<String, String> mdcValues,
-            long startedAt
+            Instant occurredAt,
+            long startedAt,
+            AtomicBoolean completed
     ) {
         try {
             request.getAsyncContext().addListener(new AsyncListener() {
                 @Override
                 public void onComplete(AsyncEvent event) {
                     try (MdcContextScope ignored = MdcContextScope.activate(mdcValues)) {
-                        logCompletedRequest(wrappedRequest, wrappedResponse, startedAt);
+                        completeRequest(wrappedRequest, wrappedResponse, occurredAt, startedAt, completed);
                     }
                 }
 
                 @Override
                 public void onTimeout(AsyncEvent event) {
-                    logAsyncFailure(request, event.getThrowable());
+                    markAsyncFailure(request, event.getThrowable(), "jakarta.servlet.AsyncTimeout");
+                    try (MdcContextScope ignored = MdcContextScope.activate(mdcValues)) {
+                        logAsyncFailure(request, event.getThrowable());
+                        completeRequest(wrappedRequest, wrappedResponse, occurredAt, startedAt, completed);
+                    }
                 }
 
                 @Override
                 public void onError(AsyncEvent event) {
-                    logAsyncFailure(request, event.getThrowable());
+                    markAsyncFailure(request, event.getThrowable(), "jakarta.servlet.AsyncError");
+                    try (MdcContextScope ignored = MdcContextScope.activate(mdcValues)) {
+                        logAsyncFailure(request, event.getThrowable());
+                        completeRequest(wrappedRequest, wrappedResponse, occurredAt, startedAt, completed);
+                    }
                 }
 
                 @Override
@@ -244,7 +293,24 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
             });
         } catch (IllegalStateException exception) {
             LOGGER.debug("Could not register async request logging callback", exception);
+            try (MdcContextScope ignored = MdcContextScope.activate(mdcValues)) {
+                completeRequest(wrappedRequest, wrappedResponse, occurredAt, startedAt, completed);
+            }
         }
+    }
+
+    /** 确保同步、异步和重复回调只完成一次访问日志。 */
+    private void completeRequest(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Instant occurredAt,
+            long startedAt,
+            AtomicBoolean completed
+    ) {
+        if (!completed.compareAndSet(false, true)) {
+            return;
+        }
+        logCompletedRequest(request, response, occurredAt, startedAt);
     }
 
     /**
@@ -256,25 +322,87 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         }
     }
 
+    private void markAsyncFailure(HttpServletRequest request, Throwable exception, String fallbackType) {
+        request.setAttribute(ApiAccessLogRequestAttributes.ASYNC_FAILURE, true);
+        request.setAttribute(ApiAccessLogRequestAttributes.EXCEPTION_TYPE,
+                exception == null ? fallbackType : exception.getClass().getName());
+        if (exception != null) {
+            request.setAttribute(ApiAccessLogRequestAttributes.EXCEPTION_MESSAGE,
+                    sanitizeExceptionMessage(exception.getMessage()));
+        }
+    }
+
     /**
      * 在请求完成时按忽略规则输出普通请求日志和慢请求日志。
      */
-    private void logCompletedRequest(HttpServletRequest request, HttpServletResponse response, long startedAt) {
-        if (isIgnoredPath(request.getRequestURI())) {
-            return;
+    private void logCompletedRequest(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Instant occurredAt,
+            long startedAt
+    ) {
+        if (response instanceof BoundedResponseCaptureWrapper wrapper) {
+            wrapper.getCapturedContent();
         }
         long costMillis = Math.max(0, (System.nanoTime() - startedAt) / 1_000_000);
-        if (properties.getRequest().isEnabled()) {
-            logRequest(request, response, costMillis);
+        if (!isIgnoredPath(request.getRequestURI())) {
+            if (properties.getRequest().isEnabled()) {
+                logRequest(request, response, costMillis);
+            }
+            if (properties.getSlowRequest().isEnabled()
+                    && costMillis >= Math.max(0, properties.getSlowRequest().getThreshold())) {
+                logAt(
+                        properties.getSlowRequest().getLevel(),
+                        "[SLOW] {} {} status={} cost={}ms clientIp={} traceId={}",
+                        request.getMethod(), request.getRequestURI(), response.getStatus(), costMillis,
+                        MDC.get(LogMdcKeys.CLIENT_IP), MDC.get(LogMdcKeys.TRACE_ID)
+                );
+            }
         }
-        if (properties.getSlowRequest().isEnabled() && costMillis >= Math.max(0, properties.getSlowRequest().getThreshold())) {
-            logAt(
-                    properties.getSlowRequest().getLevel(),
-                    "[SLOW] {} {} status={} cost={}ms clientIp={} traceId={}",
-                    request.getMethod(), request.getRequestURI(), response.getStatus(), costMillis,
-                    MDC.get(LogMdcKeys.CLIENT_IP), MDC.get(LogMdcKeys.TRACE_ID)
-            );
+        publishApiAccessLog(request, response, occurredAt, costMillis);
+    }
+
+    /** 构造不含请求或响应内容的接口访问记录并非阻塞发布。 */
+    private void publishApiAccessLog(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            Instant occurredAt,
+            long durationMs
+    ) {
+        if (apiAccessLogPublisher == null || !isApiAccessIncluded(request.getRequestURI())) {
+            return;
         }
+        Integer businessCode = extractBusinessCode(response);
+        String exceptionType = attributeString(request, ApiAccessLogRequestAttributes.EXCEPTION_TYPE);
+        boolean asyncFailure = Boolean.TRUE.equals(request.getAttribute(ApiAccessLogRequestAttributes.ASYNC_FAILURE));
+        boolean httpSuccess = response.getStatus() >= 200 && response.getStatus() < 300;
+        boolean success = !asyncFailure && exceptionType == null && httpSuccess
+                && (businessCode == null || businessCode == 200);
+        Object handlerDuration = request.getAttribute(ApiAccessLogRequestAttributes.HANDLER_DURATION_MS);
+        Object bestMatchingHandler = request.getAttribute(HandlerMapping.BEST_MATCHING_HANDLER_ATTRIBUTE);
+        Object routePattern = bestMatchingHandler instanceof HandlerMethod
+                ? request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE)
+                : null;
+        apiAccessLogPublisher.publish(new ApiAccessLogRecord(
+                occurredAt,
+                truncate(resolveServiceName(), 100),
+                truncate(request.getMethod(), 16),
+                truncate(request.getRequestURI(), 512),
+                truncate(routePattern == null ? null : routePattern.toString(), 512),
+                truncate(attributeString(request, ApiAccessLogRequestAttributes.HANDLER_METHOD), 512),
+                defaultString(truncate(attributeString(request, ApiAccessLogRequestAttributes.PURPOSE), 255)),
+                defaultString(truncate(attributeString(request, ApiAccessLogRequestAttributes.REMARK), 500)),
+                response.getStatus(),
+                businessCode,
+                success,
+                handlerDuration instanceof Number number ? Math.max(0, number.longValue()) : null,
+                durationMs,
+                truncate(MDC.get(LogMdcKeys.TRACE_ID), 128),
+                truncate(MDC.get(LogMdcKeys.REQUEST_ID), 64),
+                truncate(MDC.get(LogMdcKeys.CLIENT_IP), 64),
+                truncate(exceptionType, 255),
+                truncate(attributeString(request, ApiAccessLogRequestAttributes.EXCEPTION_MESSAGE), 1_024)
+        ));
     }
 
     /**
@@ -409,6 +537,131 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
         return ignoredPaths != null && ignoredPaths.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 
+    private boolean isApiAccessIncluded(String path) {
+        if (!properties.getApiAccess().isEnabled() || path == null) {
+            return false;
+        }
+        List<String> patterns = properties.getApiAccess().getIncludePaths();
+        return patterns != null && patterns.stream()
+                .filter(pattern -> pattern != null && !pattern.isBlank())
+                .anyMatch(pattern -> pathMatcher.match(pattern.trim(), path));
+    }
+
+    private Integer extractBusinessCode(HttpServletResponse response) {
+        if (!(response instanceof BoundedResponseCaptureWrapper wrapper)) {
+            return null;
+        }
+        byte[] content = wrapper.getCapturedContent();
+        if (content.length == 0) {
+            return null;
+        }
+        Charset charset = resolveCharset(response.getCharacterEncoding());
+        return extractTopLevelBusinessCode(new String(content, charset));
+    }
+
+    /** 在有界 JSON 前缀中流式查找顶层数值 code，忽略嵌套对象中的同名字段。 */
+    private Integer extractTopLevelBusinessCode(String json) {
+        int depth = 0;
+        boolean inString = false;
+        boolean escaped = false;
+        int stringStart = -1;
+        for (int index = 0; index < json.length(); index++) {
+            char character = json.charAt(index);
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                } else if (character == '\\') {
+                    escaped = true;
+                } else if (character == '"') {
+                    inString = false;
+                    if (depth == 1 && "code".contentEquals(json.subSequence(stringStart, index))) {
+                        Integer code = parseNumericFieldValue(json, index + 1);
+                        if (code != null) {
+                            return code;
+                        }
+                    }
+                }
+                continue;
+            }
+            if (character == '"') {
+                inString = true;
+                stringStart = index + 1;
+            } else if (character == '{' || character == '[') {
+                depth++;
+            } else if (character == '}' || character == ']') {
+                depth--;
+            }
+        }
+        return null;
+    }
+
+    private Integer parseNumericFieldValue(String json, int offset) {
+        int index = skipWhitespace(json, offset);
+        if (index >= json.length() || json.charAt(index) != ':') {
+            return null;
+        }
+        index = skipWhitespace(json, index + 1);
+        int start = index;
+        if (index < json.length() && json.charAt(index) == '-') {
+            index++;
+        }
+        int digits = index;
+        while (index < json.length() && Character.isDigit(json.charAt(index))) {
+            index++;
+        }
+        if (digits == index) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(json.substring(start, index));
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
+    private int skipWhitespace(String value, int offset) {
+        int index = offset;
+        while (index < value.length() && Character.isWhitespace(value.charAt(index))) {
+            index++;
+        }
+        return index;
+    }
+
+    private Charset resolveCharset(String encoding) {
+        if (encoding == null || encoding.isBlank()) {
+            return StandardCharsets.UTF_8;
+        }
+        try {
+            return Charset.forName(encoding);
+        } catch (RuntimeException exception) {
+            return StandardCharsets.UTF_8;
+        }
+    }
+
+    private String attributeString(HttpServletRequest request, String name) {
+        Object value = request.getAttribute(name);
+        return value == null ? null : value.toString();
+    }
+
+    private String defaultString(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String sanitizeExceptionMessage(String message) {
+        return ApiAccessLogMessageSanitizer.sanitize(
+                message,
+                Math.min(1_024, Math.max(0, properties.getException().getMaxMessageLength())),
+                properties.getSensitive().getMaskText()
+        );
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
+    }
+
     /**
      * 优先采用合法的上游 TraceId，否则生成新的随机标识。
      */
@@ -465,6 +718,10 @@ public class PipkerRequestLoggingFilter extends OncePerRequestFilter {
      */
     private int bodyLimit() {
         return Math.max(1, properties.getRequest().getMaxBodyLength());
+    }
+
+    private int responsePrefixLimit() {
+        return Math.max(128, properties.getApiAccess().getResponsePrefixLength());
     }
 
     /**

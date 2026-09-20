@@ -29,7 +29,7 @@ backend/
 - Sa-Token Starter 只提供会话与过滤器，不放置 User、Role、Mapper 或任何数据库授权逻辑。
 - `pipker-spring-boot-starter-file` 提供本地文件服务、逻辑存储键和根相对访问路径；Servlet Web 应用中可按开关注册公开只读资源映射，但不提供 HTTP 上传、删除或目录枚举能力。
 
-`pipker-business-api` 以业务功能而非分层目录组织：`system/auth` 负责认证和当前会话，`system/loginlog` 负责认证审计落库与管理员只读查询，`system/user` 负责账户，`system/authorization` 负责 RBAC 与菜单，`system/role` 负责角色生命周期与成员密码重置，`system/route` 只读查询已落库的路由定义，`system/permission` 提供 Java 权限枚举目录读取，`system/health` 负责存活检测；仅跨功能模型、Mapper 和 Web 异常映射位于 API 自身的 `common` 包。根 POM 管理 Spring Boot `4.1.1`、Java `21` 与内部模块版本。系统表 Mapper 使用 MyBatis-Plus `3.5.16`，由 `PipkerApplication` 的 `@MapperScan` 扫描；管理列表统一使用 MyBatis-Plus 分页拦截器，单页最大 100 条。
+`pipker-business-api` 以业务功能而非分层目录组织：`system/auth` 负责认证和当前会话，`system/loginlog` 负责认证审计落库与管理员只读查询，`system/apilog` 负责接口访问日志批量落库、聚合查询与定时清理，`system/user` 负责账户，`system/authorization` 负责 RBAC 与菜单，`system/role` 负责角色生命周期与成员密码重置，`system/route` 只读查询已落库的路由定义，`system/permission` 提供 Java 权限枚举目录读取，`system/health` 负责存活检测；仅跨功能模型、Mapper 和 Web 异常映射位于 API 自身的 `common` 包。根 POM 管理 Spring Boot `4.1.1`、Java `21` 与内部模块版本。系统表 Mapper 使用 MyBatis-Plus `3.5.16`，由 `PipkerApplication` 的 `@MapperScan` 扫描；管理列表统一使用 MyBatis-Plus 分页拦截器，单页最大 100 条。
 
 ## 系统身份与 RBAC
 
@@ -80,10 +80,11 @@ Liquibase 的 `DATABASECHANGELOG` 记录已执行 changeset；重复启动不会
 | `system_role_menu` | 角色与可访问页面菜单的独立雪花主键关联，并以外键对保持唯一 |
 | `system_api_resource` | 历史兼容的 `API` 路径映射，不是当前 MVC 注解授权的唯一来源 |
 | `system_login_log` | 追加式保存登录、当前 Token 登出和 `/api/auth/me` 鉴权结果；用户名按事件快照保留，`user_id` 不设外键 |
+| `system_api_access_log` | 追加式保存 `/api/**` 的接口定位、结果、端到端与 Controller 耗时、Trace 和安全异常摘要；小时/日期桶由应用预计算 |
 
 SQLite、MySQL 和 PostgreSQL 均使用独立的迁移树。SQLite 在建表阶段直接声明外键、联合主键、唯一约束和检查约束，以适配其不支持后置 `addForeignKeyConstraint`、`addUniqueConstraint` 的限制；MySQL 与 PostgreSQL 各自保留适用的约束调整 SQL。`009-system-database-rbac` 删除按钮和旧菜单关系；`010-system-role-route-menu` 恢复角色菜单关系。当前项目处于可重建阶段，不兼容改造前的 changelog 文件路径、changeset 历史或 `postgresql` Profile 别名。
 
-初始数据包含 `SUPER_ADMIN`、`ADMIN`、系统概览、角色路由、角色管理、只读路由管理、只读权限点目录和只读登录日志菜单，以及历史兼容权限表和当前角色权限关联。`SUPER_ADMIN` 不需要任何显式角色关联并自动拥有 `system:login-log:view`；`ADMIN` 通过追加式 changeset 获得登录日志的独立页面关系与接口权限，权限点目录读取继续复用 `system:role:manage`。路由管理将 `system_menu` 作为路径、路由名、页面索引和菜单展示状态的唯一数据源；`DIRECTORY` 分类只组织导航层级，不需要真实页面文件或 `component_key`。不存在 `MERCHANT`、`USER` 或任何业务表。唯一初始管理员由 Liquibase 写入：`admin / admin123`，数据库只保存当前 `SecurityCryptoService` 可验证的 `{bcrypt}` 密码哈希。
+初始数据包含 `SUPER_ADMIN`、`ADMIN`、系统概览、角色路由、角色管理、只读路由管理、只读权限点目录、只读登录日志和接口监控菜单，以及历史兼容权限表和当前角色权限关联。`SUPER_ADMIN` 不需要任何显式角色关联并自动拥有当前全部枚举权限；`ADMIN` 通过追加式 changeset 获得 `system:login-log:view`、`system:api-log:view` 及对应页面关系，权限点目录读取继续复用 `system:role:manage`。路由管理将 `system_menu` 作为路径、路由名、页面索引和菜单展示状态的唯一数据源；`DIRECTORY` 分类只组织导航层级，不需要真实页面文件或 `component_key`。不存在 `MERCHANT`、`USER` 或任何业务表。唯一初始管理员由 Liquibase 写入：`admin / admin123`，数据库只保存当前 `SecurityCryptoService` 可验证的 `{bcrypt}` 密码哈希。
 
 > 安全警告：默认管理员口令只可用于首次本地初始化。公开部署前必须立即更换为受控的 `{bcrypt}` 哈希；不要把 `admin123` 用于共享或生产数据库。角色管理页面可为该角色成员设置新密码，但不会返回、记录或保存任何明文密码；非 `SUPER_ADMIN` 不能重置超级管理员账户。
 
@@ -219,6 +220,9 @@ Authorization: Bearer <accessToken>
 | `GET /api/auth/me` | 已登录且具备 `system:authorization:view` | 当前用户、角色编码、权限编码、可见菜单树和全部已授权页面路由 |
 | `GET /api/admin/authorization` | 已登录且具备 `system:authorization:view` | 当前授权投影 |
 | `GET /api/admin/login-logs` | 已登录且具备 `system:login-log:view` | 按账号/IP/TraceId、事件、结果和时间范围筛选的登录日志分页，固定按发生时间和 ID 倒序 |
+| `GET /api/admin/api-logs/overview` | 已登录且具备 `system:api-log:view` | 请求总量、成功率、耗时、慢请求、连续趋势和本实例异步采集器状态 |
+| `GET /api/admin/api-logs/endpoints` | 已登录且具备 `system:api-log:view` | 按方法与标准路由聚合的接口性能分页，支持关键字和白名单排序 |
+| `GET /api/admin/api-logs`、`GET /api/admin/api-logs/{logId}` | 已登录且具备 `system:api-log:view` | 原始元数据分页与单条详情；不返回请求或响应内容 |
 | `/api/admin/roles` | 已登录且具备 `system:role:manage` | 角色筛选分页、增删改、批量状态/删除、详情、页面与接口权限、成员分页与成员密码重置 |
 | `POST /api/admin/roles/permission-cache/refresh` | 已登录且具备 `system:role:manage` | 全量刷新当前应用实例的角色接口权限一级缓存并返回刷新统计 |
 | `GET /api/admin/permissions` | 已登录且具备 `system:role:manage` | 只读返回当前 `PermissionEnum` 的全部有效权限点，按枚举声明顺序排列 |
@@ -236,6 +240,39 @@ Sa-Token 只显式放行 `GET /api/ping` 和 `POST /api/auth/login`。其他 `/a
 
 登录日志长期保留，不随用户删除而删除，用户名表示事件发生时的快照。当前版本不提供详情、更新、删除、导出、归档或自动清理接口；部署方应监控表增长，并在未来需要保留策略时通过新的受控迁移和运维流程实现。
 
+### 接口访问日志与监控
+
+接口访问日志与技术日志、认证审计和显式业务操作日志彼此独立：SLF4J 技术日志继续只输出控制台，`data/log` 不写入接口日志；`@OperationLog` 继续表达业务操作；`system_login_log` 同步尽力写入并长期保留；只有新的 `system_api_access_log` 用于接口成功率和性能分析。
+
+日志 Starter 的请求 Filter 覆盖所有 `/api/**` 生命周期，包括正常调用、参数绑定失败、登录失效、权限拒绝、未匹配 API 和 Servlet 异步请求。Controller AOP 只补充方法签名、`@ApiLog(purpose, remark)`、Controller 耗时和异常摘要；有没有注解都不影响采集。Filter 在同步或异步最终完成时只发布一条记录，并按以下顺序判断成功：
+
+1. Controller 异常、异步错误或超时为失败；
+2. 捕获前缀可识别统一响应顶层 `code` 时，仅 HTTP 2xx 且 `code == 200` 成功；
+3. 不能识别统一响应时，仅 HTTP 2xx 成功。
+
+捕获的响应前缀只在内存中用于提取顶层业务码，用完即丢弃。持久化记录只包含服务、方法、实际路径、标准路由、处理方法、用途、备注、HTTP/业务状态码、成功标记、Controller/端到端耗时、TraceId、RequestId、客户端 IP 与清理截断后的异常摘要；查询参数、方法参数、请求体、响应体、Cookie、Token、Authorization 和密码均不进入记录或数据库。
+
+请求线程只执行计时、元数据组装和非阻塞入队。单消费者按批次调用业务模块提供的数据库 Handler；数据库或事务失败只增加诊断计数并输出不含业务内容的告警。队列满时丢弃新记录，不回退到同步写库，也不改变原接口结果。后台“接口监控”状态条展示队列深度、容量、启动以来丢弃数和写入失败数；这些进程内计数会在实例重启后归零。
+
+默认配置如下，可通过 Spring Boot 外部配置覆盖：
+
+```yaml
+pipker:
+  log:
+    api-access:
+      enabled: true
+      include-paths: /api/**
+      slow-threshold: 1s
+      retention: 30d
+      cleanup-cron: "0 30 2 * * *"
+      queue-capacity: 4096
+      batch-size: 200
+      flush-interval: 500ms
+      shutdown-drain-timeout: 10s
+```
+
+每天服务器本地时间 `02:30` 清理严格早于 30 天截止点的接口访问日志，每批最多 1000 条并独立提交；任一批失败即终止本轮，等待下次调度。该任务只操作 `system_api_access_log`，不会删除 `system_login_log`。默认查询最近 24 小时，自定义时间必须同时给出起止且跨度不超过保留期；不超过 48 小时按小时补桶，更长范围按天补桶。慢请求以端到端耗时 `duration_ms >= slowThresholdMs` 判断，默认 1000 ms。概览与接口聚合默认排除 `/api/admin/api-logs/**`，可用 `includeMonitorEndpoints=true` 纳入；原始日志列表始终可查询监控请求。
+
 ## 本地构建与测试
 
 前置条件：JDK `21`、Maven `3.9+`。在本目录执行：
@@ -244,4 +281,4 @@ Sa-Token 只显式放行 `GET /api/ping` 和 `POST /api/auth/login`。其他 `/a
 mvn clean test
 ```
 
-Server 集成测试统一使用隔离的临时 SQLite 空库，验证共享 changelog、9 张目标 `system_` 表、约束、种子数据、认证生命周期审计、当前 Token 单独登出、角色并集、页面菜单、本地缓存、角色 CRUD、分页、批量操作、成员密码重置及重复执行幂等性。Liquibase 离线测试同时验证 SQLite、MySQL 与 PostgreSQL SQL 生成；本项目不将 Docker 或 Testcontainers 作为测试前置条件。
+Server 集成测试统一使用隔离的临时 SQLite 空库，验证共享 changelog、10 张目标 `system_` 表、约束、种子数据、认证生命周期审计、接口日志聚合/分页/清理、当前 Token 单独登出、角色并集、页面菜单、本地缓存、角色 CRUD、分页、批量操作、成员密码重置及重复执行幂等性。Liquibase 离线测试同时验证 SQLite、MySQL 与 PostgreSQL SQL 生成；本项目不将 Docker 或 Testcontainers 作为测试前置条件。

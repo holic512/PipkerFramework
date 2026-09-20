@@ -17,6 +17,7 @@ import com.pipker.business.api.system.route.RouteManagementResponse.RouteDetail;
 import com.pipker.business.api.system.route.RouteManagementResponse.RouteSummary;
 import com.pipker.business.api.system.route.RouteManagementResponse.RouteTreeNode;
 import com.pipker.business.common.api.ApiResponse;
+import com.pipker.starter.log.annotation.ApiLog;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -42,6 +43,7 @@ public class RouteManagementController {
 
     /** 分页筛选所有数据库路由与目录定义。 */
     @GetMapping
+    @ApiLog(purpose = "分页筛选系统路由和目录")
     public ApiResponse<PageResult<RouteSummary>> routePage(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
@@ -62,12 +64,14 @@ public class RouteManagementController {
 
     /** 返回完整的目录—页面管理树，支持任意深度的目录嵌套。 */
     @GetMapping("/tree")
+    @ApiLog(purpose = "查询完整路由管理树")
     public ApiResponse<List<RouteTreeNode>> routeTree() {
         return ApiResponse.success(routeManagementService.findRouteTree());
     }
 
     /** 更新展示配置，不改变源码对应的路由结构。 */
     @PutMapping("/{routeId}/configuration")
+    @ApiLog(purpose = "更新路由展示配置")
     @Permission(PermissionEnum.SYSTEM_ROUTE_MANAGE)
     public ApiResponse<RouteDetail> updateConfiguration(
             @PathVariable String routeId, @RequestBody RouteConfigurationRequest request
@@ -77,6 +81,7 @@ public class RouteManagementController {
 
     /** 查看单条路由或目录的完整落库定义。 */
     @GetMapping("/{routeId}")
+    @ApiLog(purpose = "查询路由或目录详情")
     public ApiResponse<RouteDetail> routeDetail(@PathVariable String routeId) {
         return ApiResponse.success(routeManagementService.findRouteDetail(routeId));
     }

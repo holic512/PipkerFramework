@@ -4,9 +4,9 @@
     @project Pipker Framework
     @module Pipker Business API
     @description 定义可由 Server 启动的 Pipker 应用业务、HTTP 接口和 MyBatis-Plus 数据访问能力。
-    @logic 按系统功能聚合认证、用户、授权、角色管理和健康检查，使用 MyBatis-Plus 与 Lombok 提供系统表持久化能力，且不依赖 Server 源码。
-    @dependencies pipker-framework、pipker-business-common、Pipker Sa-Token Starter、Pipker Security Starter、MyBatis-Plus、Lombok、Spring Web、Spring Validation、Caffeine
-    @index_tags maven、模块、业务、api、mybatis-plus、lombok
+    @logic 按系统功能聚合认证、接口访问观测、用户、授权、角色管理和健康检查，使用 MyBatis-Plus 与 Lombok 提供系统表持久化能力，且不依赖 Server 源码。
+    @dependencies pipker-framework、pipker-business-common、Pipker Sa-Token/Security/Log Starter、MyBatis-Plus、Lombok、Spring Web、Spring Validation、Caffeine
+    @index_tags maven、模块、业务、api、mybatis-plus、lombok、api-log
     @author holic512
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -40,6 +40,10 @@
         <dependency>
             <groupId>com.pipker</groupId>
             <artifactId>pipker-spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.pipker</groupId>
+            <artifactId>pipker-spring-boot-starter-log</artifactId>
         </dependency>
         <dependency>
             <groupId>com.baomidou</groupId>

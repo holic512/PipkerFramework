@@ -3,7 +3,7 @@
  * @project Pipker Framework
  * @module Pipker Spring Boot Starter Log
  * @description 判断是否至少有一个需要 Servlet 请求生命周期的日志能力处于启用状态。
- * @logic 当 Trace、普通请求日志和慢请求均显式关闭时阻止共享 Filter 注册，避免无意义的 Web Bean。
+ * @logic 当 Trace、普通请求日志、慢请求和 API 访问观测均显式关闭时阻止共享 Filter 注册，避免无意义的 Web Bean。
  * @dependencies Spring Framework Condition API
  * @index_tags log、autoconfigure、condition
  * @author holic512
@@ -20,7 +20,7 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
 public class PipkerLogWebFeatureCondition implements Condition {
 
     /**
-     * 当 Trace、普通请求日志或慢请求日志任一能力启用时匹配条件。
+     * 当 Trace、普通请求日志、慢请求日志或接口访问观测任一能力启用时匹配条件。
      *
      * @param context 条件评估上下文
      * @param metadata 被评估组件的元数据
@@ -30,7 +30,8 @@ public class PipkerLogWebFeatureCondition implements Condition {
     public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
         return isEnabled(context, "pipker.log.trace.enabled", true)
                 || isEnabled(context, "pipker.log.request.enabled", false)
-                || isEnabled(context, "pipker.log.slow-request.enabled", true);
+                || isEnabled(context, "pipker.log.slow-request.enabled", true)
+                || isEnabled(context, "pipker.log.api-access.enabled", true);
     }
 
     /**

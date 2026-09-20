@@ -11,6 +11,7 @@
 package com.pipker.business.api.system.health;
 
 import com.pipker.business.common.api.ApiResponse;
+import com.pipker.starter.log.annotation.ApiLog;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,6 +29,7 @@ public class PingController {
      * @return Server 运行状态文本
      */
     @GetMapping("/ping")
+    @ApiLog(purpose = "检查服务存活状态")
     public ApiResponse<String> ping() {
         return ApiResponse.success("Pipker Server is running.");
     }

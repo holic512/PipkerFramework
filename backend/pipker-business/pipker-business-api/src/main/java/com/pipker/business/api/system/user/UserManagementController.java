@@ -23,6 +23,7 @@ import com.pipker.business.api.system.user.UserManagementResponse.PageResult;
 import com.pipker.business.api.system.user.UserManagementResponse.UserDetail;
 import com.pipker.business.api.system.user.UserManagementResponse.UserSummary;
 import com.pipker.business.common.api.ApiResponse;
+import com.pipker.starter.log.annotation.ApiLog;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -52,6 +53,7 @@ public class UserManagementController {
 
     /** 分页筛选用户。 */
     @GetMapping
+    @ApiLog(purpose = "分页筛选系统用户")
     public ApiResponse<PageResult<UserSummary>> userPage(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
@@ -63,12 +65,14 @@ public class UserManagementController {
 
     /** 查询用户详情。 */
     @GetMapping("/{userId}")
+    @ApiLog(purpose = "查询系统用户详情")
     public ApiResponse<UserDetail> userDetail(@PathVariable String userId) {
         return ApiResponse.success(userManagementService.findUserDetail(userId));
     }
 
     /** 返回创建和编辑时可分配的启用普通角色。 */
     @GetMapping("/assignable-roles")
+    @ApiLog(purpose = "查询可分配角色")
     @Permission(PermissionEnum.SYSTEM_USER_MANAGE)
     public ApiResponse<List<AssignableRole>> assignableRoles() {
         return ApiResponse.success(userManagementService.findAssignableRoles());
@@ -76,6 +80,7 @@ public class UserManagementController {
 
     /** 创建用户。 */
     @PostMapping
+    @ApiLog(purpose = "创建系统用户")
     @Permission(PermissionEnum.SYSTEM_USER_MANAGE)
     public ApiResponse<UserSummary> createUser(@Valid @RequestBody Create request) {
         return ApiResponse.success(userManagementService.createUser(request));
@@ -83,6 +88,7 @@ public class UserManagementController {
 
     /** 更新用户资料与角色分配。 */
     @PutMapping("/{userId}")
+    @ApiLog(purpose = "更新系统用户资料和角色")
     @Permission(PermissionEnum.SYSTEM_USER_MANAGE)
     public ApiResponse<UserSummary> updateUser(@PathVariable String userId, @Valid @RequestBody Update request) {
         return ApiResponse.success(userManagementService.updateUser(userId, request));
@@ -90,6 +96,7 @@ public class UserManagementController {
 
     /** 删除一个普通用户。 */
     @DeleteMapping("/{userId}")
+    @ApiLog(purpose = "删除系统用户")
     @Permission(PermissionEnum.SYSTEM_USER_MANAGE)
     public ApiResponse<OperationResult> deleteUser(@PathVariable String userId) {
         return ApiResponse.success(userManagementService.deleteUsers(new BatchDelete(List.of(userId))));
@@ -97,6 +104,7 @@ public class UserManagementController {
 
     /** 重置一个普通用户的密码。 */
     @PutMapping("/{userId}/password")
+    @ApiLog(purpose = "重置系统用户密码")
     @Permission(PermissionEnum.SYSTEM_USER_MANAGE)
     public ApiResponse<OperationResult> resetPassword(
             @PathVariable String userId,
@@ -107,6 +115,7 @@ public class UserManagementController {
 
     /** 批量变更普通用户状态。 */
     @PatchMapping("/batch-status")
+    @ApiLog(purpose = "批量变更系统用户状态")
     @Permission(PermissionEnum.SYSTEM_USER_MANAGE)
     public ApiResponse<OperationResult> batchUpdateStatus(@Valid @RequestBody BatchStatus request) {
         return ApiResponse.success(userManagementService.updateUserStatus(request));
@@ -114,6 +123,7 @@ public class UserManagementController {
 
     /** 批量删除普通用户。 */
     @PostMapping("/batch-delete")
+    @ApiLog(purpose = "批量删除系统用户")
     @Permission(PermissionEnum.SYSTEM_USER_MANAGE)
     public ApiResponse<OperationResult> batchDelete(@Valid @RequestBody BatchDelete request) {
         return ApiResponse.success(userManagementService.deleteUsers(request));

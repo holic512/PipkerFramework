@@ -12,10 +12,12 @@ package com.pipker.server;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.jayway.jsonpath.JsonPath;
+import com.pipker.business.api.common.mapper.SystemApiAccessLogMapper;
 import com.pipker.business.api.common.mapper.SystemLoginLogMapper;
 import com.pipker.business.api.common.mapper.SystemRoleMenuMapper;
 import com.pipker.business.api.common.mapper.SystemRolePermissionMapper;
 import com.pipker.business.api.common.mapper.SystemUserMapper;
+import com.pipker.business.api.common.model.SystemApiAccessLog;
 import com.pipker.business.api.common.model.SystemLoginLog;
 import com.pipker.business.api.common.model.SystemUser;
 import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
@@ -35,6 +37,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
@@ -58,6 +61,9 @@ class AuthenticationLifecycleAuditIntegrationTests {
 
     @Autowired
     private SystemLoginLogMapper systemLoginLogMapper;
+
+    @Autowired
+    private SystemApiAccessLogMapper systemApiAccessLogMapper;
 
     @Autowired
     private SystemUserMapper systemUserMapper;
@@ -180,6 +186,23 @@ class AuthenticationLifecycleAuditIntegrationTests {
                     unprivilegedToken, "invalid-current-token", "Authorization", "Bearer "
             );
         });
+
+        List<SystemApiAccessLog> accessLogs = awaitApiAccessLogs(19);
+        assertThat(accessLogs).hasSize(19);
+        assertThat(accessLogs).anySatisfy(log -> {
+            assertThat(log.getRequestPath()).isEqualTo("/api/auth/me");
+            assertThat(log.getBusinessCode()).isEqualTo(401);
+            assertThat(log.getSuccess()).isFalse();
+        });
+        assertThat(accessLogs).anySatisfy(log -> {
+            assertThat(log.getRequestPath()).isEqualTo("/api/admin/login-logs");
+            assertThat(log.getBusinessCode()).isEqualTo(403);
+            assertThat(log.getSuccess()).isFalse();
+        });
+        assertThat(accessLogs).allSatisfy(log -> assertThat(secretSafeText(log)).doesNotContain(
+                "admin123", "incorrect-password", tokenA, tokenB,
+                unprivilegedToken, "invalid-current-token", "Authorization", "Bearer "
+        ));
     }
 
     private void assertDefaultLoginLogAuthorizationSeeds() {
@@ -249,6 +272,21 @@ class AuthenticationLifecycleAuditIntegrationTests {
                 .orderByAsc(SystemLoginLog::getId));
     }
 
+    private List<SystemApiAccessLog> awaitApiAccessLogs(int expectedCount) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        List<SystemApiAccessLog> logs;
+        do {
+            logs = systemApiAccessLogMapper.selectList(new LambdaQueryWrapper<SystemApiAccessLog>()
+                    .orderByAsc(SystemApiAccessLog::getOccurredAt)
+                    .orderByAsc(SystemApiAccessLog::getId));
+            if (logs.size() >= expectedCount) {
+                return logs;
+            }
+            Thread.sleep(20);
+        } while (System.nanoTime() < deadline);
+        return logs;
+    }
+
     private String bearer(String token) {
         return "Bearer " + token;
     }
@@ -266,6 +304,25 @@ class AuthenticationLifecycleAuditIntegrationTests {
                 String.valueOf(log.getRequestPath()),
                 String.valueOf(log.getTraceId()),
                 String.valueOf(log.getOccurredAt())
+        );
+    }
+
+    private String secretSafeText(SystemApiAccessLog log) {
+        return String.join("|",
+                String.valueOf(log.getServiceName()),
+                String.valueOf(log.getHttpMethod()),
+                String.valueOf(log.getRequestPath()),
+                String.valueOf(log.getRoutePattern()),
+                String.valueOf(log.getHandlerMethod()),
+                String.valueOf(log.getPurpose()),
+                String.valueOf(log.getRemark()),
+                String.valueOf(log.getHttpStatus()),
+                String.valueOf(log.getBusinessCode()),
+                String.valueOf(log.getTraceId()),
+                String.valueOf(log.getRequestId()),
+                String.valueOf(log.getClientIp()),
+                String.valueOf(log.getExceptionType()),
+                String.valueOf(log.getExceptionMessage())
         );
     }
 

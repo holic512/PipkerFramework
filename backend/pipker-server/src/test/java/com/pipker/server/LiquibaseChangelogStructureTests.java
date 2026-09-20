@@ -2,8 +2,8 @@
  * @file LiquibaseChangelogStructureTests.java
  * @project Pipker Framework
  * @module Pipker Server
- * @description 离线验证共享 Liquibase XML changelog 的三种数据库分支、认证日志结构和生成 SQL。
- * @logic 使用 OfflineConnection 为 MySQL、PostgreSQL 和 SQLite 分别解析 changelog、执行 validate，并核验系统表、认证日志索引、权限和菜单种子。
+ * @description 离线验证共享 Liquibase XML changelog 的三种数据库分支、认证日志与接口访问日志结构和生成 SQL。
+ * @logic 使用 OfflineConnection 为 MySQL、PostgreSQL 和 SQLite 分别解析 changelog、执行 validate，并核验系统表、日志索引、权限、API 资源和菜单种子。
  * @dependencies Liquibase、JUnit Jupiter、AssertJ
  * @index_tags server、test、liquibase、offline、mysql、postgresql、sqlite
  * @author holic512
@@ -46,7 +46,8 @@ class LiquibaseChangelogStructureTests {
             "db/changelog/system/system-role-permission.xml",
             "db/changelog/system/system-role-menu.xml",
             "db/changelog/system/system-permission-point-feature.xml",
-            "db/changelog/system/system-login-log.xml"
+            "db/changelog/system/system-login-log.xml",
+            "db/changelog/system/system-api-access-log.xml"
     );
 
     @Test
@@ -70,6 +71,7 @@ class LiquibaseChangelogStructureTests {
                 .contains("CREATE TABLE SYSTEM_ROLE_PERMISSION")
                 .contains("CREATE TABLE SYSTEM_ROLE_MENU")
                 .contains("CREATE TABLE SYSTEM_LOGIN_LOG")
+                .contains("CREATE TABLE SYSTEM_API_ACCESS_LOG")
                 .contains("SYSTEM:AUTHORIZATION:VIEW")
                 .contains("SYSTEM:ROLE:MANAGE")
                 .contains("SYSTEM:ROUTE:VIEW")
@@ -77,14 +79,17 @@ class LiquibaseChangelogStructureTests {
                 .contains("SYSTEM:USER:VIEW")
                 .contains("SYSTEM:USER:MANAGE")
                 .contains("SYSTEM:LOGIN-LOG:VIEW")
+                .contains("SYSTEM:API-LOG:VIEW")
                 .contains("SYSTEMOVERVIEW")
                 .contains("SYSTEMROLEMANAGEMENT")
                 .contains("SYSTEMROUTEMANAGEMENT")
                 .contains("SYSTEMUSERMANAGEMENT")
                 .contains("SYSTEMPERMISSIONPOINTMANAGEMENT")
                 .contains("SYSTEMLOGINLOG")
+                .contains("SYSTEMAPIMONITOR")
                 .contains("/SYSTEM/PERMISSIONS")
                 .contains("/SYSTEM/LOGIN-LOGS")
+                .contains("/SYSTEM/API-MONITOR")
                 .contains("2090000000000000306")
                 .contains("2090000000000000705")
                 .contains("2090000000000000307")
@@ -100,6 +105,14 @@ class LiquibaseChangelogStructureTests {
                 .contains("IDX_SYSTEM_LOGIN_LOG_CLIENT_IP_TIME")
                 .contains("IDX_SYSTEM_LOGIN_LOG_TRACE_ID")
                 .contains("IDX_SYSTEM_LOGIN_LOG_EVENT_RESULT_TIME")
+                .contains("IDX_SYSTEM_API_LOG_OCCURRED_AT")
+                .contains("IDX_SYSTEM_API_LOG_ROUTE_TIME")
+                .contains("IDX_SYSTEM_API_LOG_SUCCESS_TIME")
+                .contains("IDX_SYSTEM_API_LOG_DURATION_TIME")
+                .contains("IDX_SYSTEM_API_LOG_TRACE_ID")
+                .contains("2090000000000000308")
+                .contains("2090000000000000607")
+                .contains("2090000000000000707")
                 .doesNotContain("FK_SYSTEM_LOGIN_LOG_USER")
                 .doesNotContain("FK_SYSTEM_ROLE_PERMISSION_PERMISSION")
                 .doesNotContain("IDX_SYSTEM_ROLE_PERMISSION_PERMISSION_ID");

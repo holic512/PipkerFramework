@@ -11,6 +11,7 @@
 package com.pipker.business.api.system.permission;
 
 import com.pipker.business.common.api.ApiResponse;
+import com.pipker.starter.log.annotation.ApiLog;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,6 +35,7 @@ public class PermissionPointController {
 
     /** @return 当前 Java 枚举定义的所有有效权限点。 */
     @GetMapping
+    @ApiLog(purpose = "查询有效接口权限点目录")
     public ApiResponse<List<PermissionRegistry.PermissionPoint>> list() {
         return ApiResponse.success(permissionRegistry.list());
     }

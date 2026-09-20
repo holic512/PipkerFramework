@@ -15,6 +15,7 @@ import com.pipker.business.api.system.auth.CurrentSystemAuthorizationService;
 import com.pipker.business.api.system.permission.Permission;
 import com.pipker.business.api.system.permission.PermissionEnum;
 import com.pipker.business.common.api.ApiResponse;
+import com.pipker.starter.log.annotation.ApiLog;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,6 +44,7 @@ public class AdminAuthorizationController {
      * @return 当前授权快照
      */
     @GetMapping
+    @ApiLog(purpose = "查询当前管理员授权投影")
     @Permission(PermissionEnum.SYSTEM_AUTHORIZATION_VIEW)
     public ApiResponse<SystemAuthorizationSnapshot> authorization() {
         return ApiResponse.success(currentSystemAuthorizationService.currentSnapshot());

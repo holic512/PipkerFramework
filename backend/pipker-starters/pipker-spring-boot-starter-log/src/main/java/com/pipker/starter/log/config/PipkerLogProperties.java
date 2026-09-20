@@ -2,10 +2,10 @@
  * @file PipkerLogProperties.java
  * @project Pipker Framework
  * @module Pipker Spring Boot Starter Log
- * @description 绑定 pipker.log 下的统一日志基础设施配置和安全默认值。
- * @logic 集中定义 Trace、请求、慢请求、操作、脱敏和异常日志的开关及参数，避免实现层写死运行策略。
+ * @description 绑定 pipker.log 下的统一日志与接口访问观测配置和安全默认值。
+ * @logic 集中定义 Trace、请求、慢请求、操作、脱敏、异常和 API 异步采集/保留策略，避免实现层写死运行参数。
  * @dependencies Spring Boot Configuration Properties、LogLevel、SensitiveType
- * @index_tags log、configuration、starter
+ * @index_tags log、configuration、starter、api-access、retention、queue
  * @author holic512
  */
 package com.pipker.starter.log.config;
@@ -15,6 +15,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.logging.LogLevel;
 import org.springframework.core.Ordered;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -58,6 +59,10 @@ public class PipkerLogProperties {
      * 异常日志配置。
      */
     private Exception exception = new Exception();
+    /**
+     * API 访问观测配置。
+     */
+    private ApiAccess apiAccess = new ApiAccess();
 
     /**
      * 返回日志 Starter 总开关。
@@ -201,6 +206,121 @@ public class PipkerLogProperties {
      */
     public void setException(Exception exception) {
         this.exception = exception;
+    }
+
+    /**
+     * 返回 API 访问观测配置。
+     *
+     * @return API 访问观测配置
+     */
+    public ApiAccess getApiAccess() {
+        return apiAccess;
+    }
+
+    /**
+     * 设置 API 访问观测配置。
+     *
+     * @param apiAccess API 访问观测配置
+     */
+    public void setApiAccess(ApiAccess apiAccess) {
+        this.apiAccess = apiAccess;
+    }
+
+    /**
+     * 定义全量 API 访问采集、异步缓冲和数据库保留策略。
+     */
+    public static class ApiAccess {
+
+        private boolean enabled = true;
+        private List<String> includePaths = new ArrayList<>(List.of("/api/**"));
+        private Duration slowThreshold = Duration.ofSeconds(1);
+        private Duration retention = Duration.ofDays(30);
+        private String cleanupCron = "0 30 2 * * *";
+        private int queueCapacity = 4_096;
+        private int batchSize = 200;
+        private Duration flushInterval = Duration.ofMillis(500);
+        private Duration shutdownDrainTimeout = Duration.ofSeconds(10);
+        private int responsePrefixLength = 1_024;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public List<String> getIncludePaths() {
+            return includePaths;
+        }
+
+        public void setIncludePaths(List<String> includePaths) {
+            this.includePaths = includePaths;
+        }
+
+        public Duration getSlowThreshold() {
+            return slowThreshold;
+        }
+
+        public void setSlowThreshold(Duration slowThreshold) {
+            this.slowThreshold = slowThreshold;
+        }
+
+        public Duration getRetention() {
+            return retention;
+        }
+
+        public void setRetention(Duration retention) {
+            this.retention = retention;
+        }
+
+        public String getCleanupCron() {
+            return cleanupCron;
+        }
+
+        public void setCleanupCron(String cleanupCron) {
+            this.cleanupCron = cleanupCron;
+        }
+
+        public int getQueueCapacity() {
+            return queueCapacity;
+        }
+
+        public void setQueueCapacity(int queueCapacity) {
+            this.queueCapacity = queueCapacity;
+        }
+
+        public int getBatchSize() {
+            return batchSize;
+        }
+
+        public void setBatchSize(int batchSize) {
+            this.batchSize = batchSize;
+        }
+
+        public Duration getFlushInterval() {
+            return flushInterval;
+        }
+
+        public void setFlushInterval(Duration flushInterval) {
+            this.flushInterval = flushInterval;
+        }
+
+        public Duration getShutdownDrainTimeout() {
+            return shutdownDrainTimeout;
+        }
+
+        public void setShutdownDrainTimeout(Duration shutdownDrainTimeout) {
+            this.shutdownDrainTimeout = shutdownDrainTimeout;
+        }
+
+        public int getResponsePrefixLength() {
+            return responsePrefixLength;
+        }
+
+        public void setResponsePrefixLength(int responsePrefixLength) {
+            this.responsePrefixLength = responsePrefixLength;
+        }
     }
 
     /**

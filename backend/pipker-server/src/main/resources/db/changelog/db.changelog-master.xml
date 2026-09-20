@@ -3,10 +3,10 @@
     @file db/changelog/db.changelog-master.xml
     @project Pipker Framework
     @module Pipker Server
-    @description 统一加载框架最终系统结构、认证审计结构和初始化数据的 Liquibase XML 基线。
-    @logic 按外键和初始化数据依赖顺序加载各表 changelog，最后追加登录日志权限与菜单；同一入口根据运行数据源选择对应的 changeset 分支。
+    @description 统一加载框架最终系统结构、认证审计、接口访问观测结构和初始化数据的 Liquibase XML 基线。
+    @logic 按外键和初始化数据依赖顺序加载各表 changelog，最后追加登录日志与接口监控权限、资源和菜单。
     @dependencies Liquibase、MySQL Connector/J、PostgreSQL JDBC、SQLite JDBC
-    @index_tags liquibase、database、baseline、mysql、postgresql、sqlite、rbac、login-log
+    @index_tags liquibase、database、baseline、mysql、postgresql、sqlite、rbac、login-log、api-log
     @author holic512
 -->
 <databaseChangeLog
@@ -26,6 +26,7 @@
     <include file="db/changelog/system/system-role-menu.xml"/>
     <include file="db/changelog/system/system-permission-point-feature.xml"/>
     <include file="db/changelog/system/system-login-log.xml"/>
+    <include file="db/changelog/system/system-api-access-log.xml"/>
 
     <!-- 业务表 changelog 统一放在 business 目录；当前基线没有独立业务表，避免保留空入口。 -->
 </databaseChangeLog>

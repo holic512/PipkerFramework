@@ -2,10 +2,10 @@
  * @file contracts.ts
  * @project Pipker Framework
  * @module Frontend API Contracts
- * @description Defines the server envelope, authentication lifecycle, enum permissions, user and role projections, login logs, and route-management contracts shared by frontend features.
- * @logic Keeps backend field names and business codes at the transport boundary, including string Snowflake IDs, current-token logout, immutable authentication audit records, recursive routes, and memory-defined permissions.
+ * @description Defines the server envelope, authentication lifecycle, enum permissions, user and role projections, login logs, API access observability, and route-management contracts shared by frontend features.
+ * @logic Keeps backend field names and business codes at the transport boundary, including string Snowflake IDs, current-token logout, immutable audit records, API performance summaries, recursive routes, and memory-defined permissions.
  * @dependencies TypeScript
- * @index_tags api, contracts, rbac, user, role, route, permission, authorization, authentication, login-log
+ * @index_tags api, contracts, rbac, user, role, route, permission, authorization, authentication, login-log, api-monitor
  * @author holic512
  */
 
@@ -145,6 +145,81 @@ export interface PageResult<T> {
   pageSize: number
   total: number
   records: T[]
+}
+
+export interface ApiAccessCollectorStatus {
+  queueDepth: number
+  queueCapacity: number
+  droppedSinceStartup: number
+  writeFailuresSinceStartup: number
+}
+
+export interface ApiAccessOverviewSummary {
+  totalCount: number
+  successCount: number
+  failureCount: number
+  successRate: number
+  avgDurationMs: number
+  maxDurationMs: number
+  slowCount: number
+}
+
+export interface ApiAccessTrendPoint {
+  bucketStart: string
+  totalCount: number
+  successCount: number
+  failureCount: number
+  successRate: number
+  avgDurationMs: number
+  slowCount: number
+}
+
+export interface ApiAccessOverview {
+  startTime: string
+  endTime: string
+  bucket: 'HOUR' | 'DAY'
+  slowThresholdMs: number
+  summary: ApiAccessOverviewSummary
+  trend: ApiAccessTrendPoint[]
+  collector: ApiAccessCollectorStatus
+}
+
+export interface ApiAccessEndpointSummary {
+  httpMethod: string
+  routePattern: string | null
+  purpose: string
+  totalCount: number
+  successCount: number
+  failureCount: number
+  successRate: number
+  avgDurationMs: number
+  maxDurationMs: number
+  slowCount: number
+}
+
+export interface ApiAccessLogSummary {
+  id: string
+  occurredAt: string
+  httpMethod: string
+  requestPath: string
+  routePattern: string | null
+  purpose: string
+  httpStatus: number
+  businessCode: number | null
+  success: boolean
+  handlerDurationMs: number | null
+  durationMs: number
+  traceId: string | null
+}
+
+export interface ApiAccessLogDetail extends ApiAccessLogSummary {
+  serviceName: string
+  handlerMethod: string | null
+  remark: string
+  requestId: string | null
+  clientIp: string | null
+  exceptionType: string | null
+  exceptionMessage: string | null
 }
 
 export interface RoleManagementOperationResult {

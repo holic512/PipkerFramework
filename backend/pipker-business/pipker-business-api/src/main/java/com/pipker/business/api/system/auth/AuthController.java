@@ -17,6 +17,7 @@ import com.pipker.business.api.system.auth.dto.LoginRequest;
 import com.pipker.business.api.system.auth.dto.LoginResponse;
 import com.pipker.business.api.system.auth.dto.LogoutResponse;
 import com.pipker.business.common.api.ApiResponse;
+import com.pipker.starter.log.annotation.ApiLog;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -55,12 +56,14 @@ public class AuthController {
      * @return 令牌和公开用户资料
      */
     @PostMapping("/login")
+    @ApiLog(purpose = "使用系统账号登录")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success(systemAuthenticationService.login(request));
     }
 
     /** 注销当前请求携带的 Bearer Token。 */
     @PostMapping("/logout")
+    @ApiLog(purpose = "注销当前访问令牌")
     public ApiResponse<LogoutResponse> logout() {
         return ApiResponse.success(systemAuthenticationService.logoutCurrent());
     }
@@ -71,6 +74,7 @@ public class AuthController {
      * @return 当前授权快照
      */
     @GetMapping("/me")
+    @ApiLog(purpose = "查询当前用户授权快照")
     @Permission(PermissionEnum.SYSTEM_AUTHORIZATION_VIEW)
     public ApiResponse<SystemAuthorizationSnapshot> me() {
         return ApiResponse.success(currentSystemAuthorizationService.currentSnapshot());

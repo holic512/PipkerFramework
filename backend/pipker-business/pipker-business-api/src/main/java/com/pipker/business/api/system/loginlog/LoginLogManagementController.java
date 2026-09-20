@@ -15,6 +15,7 @@ import com.pipker.business.api.system.loginlog.LoginLogManagementResponse.PageRe
 import com.pipker.business.api.system.permission.Permission;
 import com.pipker.business.api.system.permission.PermissionEnum;
 import com.pipker.business.common.api.ApiResponse;
+import com.pipker.starter.log.annotation.ApiLog;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,6 +39,7 @@ public class LoginLogManagementController {
 
     /** 分页筛选认证生命周期日志。 */
     @GetMapping
+    @ApiLog(purpose = "分页筛选认证生命周期日志")
     public ApiResponse<PageResult<LoginLogSummary>> loginLogPage(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,

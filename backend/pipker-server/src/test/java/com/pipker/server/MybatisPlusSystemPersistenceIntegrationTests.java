@@ -2,14 +2,15 @@
  * @file MybatisPlusSystemPersistenceIntegrationTests.java
  * @project Pipker Framework
  * @module Pipker Server
- * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表、认证日志、Java 枚举接口权限、用户与角色管理、页面权限和路由服务。
- * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，通过九个 Mapper 和应用服务验证实体读写、登录日志筛选与权限、用户角色约束、接口与页面权限、密码重置和路由配置。
+ * @description 在隔离 SQLite 数据库中验证 MyBatis-Plus 系统表、认证与接口访问日志、Java 枚举接口权限、用户与角色管理、页面权限和路由服务。
+ * @logic 由完整 Spring Boot 上下文执行 Liquibase 基线，通过 Mapper 和应用服务验证实体读写、日志筛选聚合与清理、权限、用户角色约束、密码重置和路由配置。
  * @dependencies Spring Boot Test、Liquibase、SQLite JDBC、MyBatis-Plus、Pipker Business API、Pipker Security Starter
  * @index_tags server、test、mybatis-plus、liquibase、sqlite、rbac、user、role、route、permission、login-log、hidden-menu、password-reset
  * @author holic512
  */
 package com.pipker.server;
 
+import com.pipker.business.api.common.mapper.SystemApiAccessLogMapper;
 import com.pipker.business.api.common.mapper.SystemApiResourceMapper;
 import com.pipker.business.api.common.mapper.SystemMenuMapper;
 import com.pipker.business.api.common.mapper.SystemLoginLogMapper;
@@ -19,6 +20,7 @@ import com.pipker.business.api.common.mapper.SystemRoleMenuMapper;
 import com.pipker.business.api.common.mapper.SystemRolePermissionMapper;
 import com.pipker.business.api.common.mapper.SystemUserMapper;
 import com.pipker.business.api.common.mapper.SystemUserRoleMapper;
+import com.pipker.business.api.common.model.SystemApiAccessLog;
 import com.pipker.business.api.common.model.SystemApiResource;
 import com.pipker.business.api.common.model.SystemAuthorizationSnapshot;
 import com.pipker.business.api.common.model.SystemMenu;
@@ -32,6 +34,9 @@ import com.pipker.business.api.common.model.SystemUser;
 import com.pipker.business.api.common.model.SystemUserRole;
 import com.pipker.business.api.system.authorization.RolePermissionCache;
 import com.pipker.business.api.system.authorization.SystemAuthorizationService;
+import com.pipker.business.api.system.apilog.ApiAccessLogCleanupWriter;
+import com.pipker.business.api.system.apilog.ApiLogManagementController;
+import com.pipker.business.api.system.apilog.ApiLogManagementService;
 import com.pipker.business.api.system.authorization.SystemAuthorizationCache;
 import com.pipker.business.api.system.permission.PermissionEnum;
 import com.pipker.business.api.system.permission.PermissionPointController;
@@ -86,6 +91,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -111,6 +117,9 @@ class MybatisPlusSystemPersistenceIntegrationTests {
 
     @Autowired
     private SystemLoginLogMapper systemLoginLogMapper;
+
+    @Autowired
+    private SystemApiAccessLogMapper systemApiAccessLogMapper;
 
     @Autowired
     private SystemApiResourceMapper systemApiResourceMapper;
@@ -144,6 +153,12 @@ class MybatisPlusSystemPersistenceIntegrationTests {
 
     @Autowired
     private LoginLogManagementService loginLogManagementService;
+
+    @Autowired
+    private ApiLogManagementService apiLogManagementService;
+
+    @Autowired
+    private ApiAccessLogCleanupWriter apiAccessLogCleanupWriter;
 
     @Autowired
     private SecurityCryptoService securityCryptoService;
@@ -571,6 +586,175 @@ class MybatisPlusSystemPersistenceIntegrationTests {
     }
 
     @Test
+    void apiAccessLogsAggregateFilterCleanAndUseIndependentPermission() throws Exception {
+        String suffix = String.valueOf(System.nanoTime());
+        LocalDateTime start = LocalDateTime.now().minusMinutes(10).truncatedTo(ChronoUnit.SECONDS);
+        SystemApiAccessLog fast = apiAccessLog(
+                start.plusMinutes(1), "GET", "/api/test/1", "/api/test/{id}",
+                "查询测试接口", true, 200, 200, 420L, 999, "trace-fast-" + suffix
+        );
+        SystemApiAccessLog slowBoundary = apiAccessLog(
+                start.plusMinutes(2), "GET", "/api/test/2", "/api/test/{id}",
+                "查询测试接口", true, 200, 200, 600L, 1_000, "trace-boundary-" + suffix
+        );
+        SystemApiAccessLog businessFailure = apiAccessLog(
+                start.plusMinutes(3), "GET", "/api/test/3", "/api/test/{id}",
+                "查询测试接口", false, 200, 400, 800L, 1_500, "trace-failed-" + suffix
+        );
+        SystemApiAccessLog unresolved = apiAccessLog(
+                start.plusMinutes(4), "GET", "/api/missing/42", null,
+                "", false, 404, null, null, 200, "trace-unresolved-" + suffix
+        );
+        SystemApiAccessLog monitor = apiAccessLog(
+                start.plusMinutes(5), "GET", "/api/admin/api-logs/overview", null,
+                "查询接口访问概览和趋势", true, 200, 200, 8L, 10, "trace-monitor-" + suffix
+        );
+        for (SystemApiAccessLog log : List.of(fast, slowBoundary, businessFailure, unresolved, monitor)) {
+            assertThat(systemApiAccessLogMapper.insert(log)).isEqualTo(1);
+        }
+
+        LocalDateTime end = start.plusMinutes(6);
+        var overview = apiLogManagementService.overview(start, end, 1_000L, false);
+        assertThat(overview.summary()).satisfies(summary -> {
+            assertThat(summary.totalCount()).isEqualTo(4);
+            assertThat(summary.successCount()).isEqualTo(2);
+            assertThat(summary.failureCount()).isEqualTo(2);
+            assertThat(summary.successRate()).isEqualTo(50.0);
+            assertThat(summary.avgDurationMs()).isEqualTo(924.75);
+            assertThat(summary.maxDurationMs()).isEqualTo(1_500);
+            assertThat(summary.slowCount()).isEqualTo(2);
+        });
+        assertThat(overview.trend()).isNotEmpty();
+        assertThat(apiLogManagementService.overview(start, end, 1_000L, true).summary().totalCount()).isEqualTo(5);
+
+        var endpoints = apiLogManagementService.endpointPage(
+                1, 20, start, end, 1_000L, "测试", "SUCCESS_RATE", "DESC", false
+        );
+        assertThat(endpoints.records()).singleElement().satisfies(endpoint -> {
+            assertThat(endpoint.httpMethod()).isEqualTo("GET");
+            assertThat(endpoint.routePattern()).isEqualTo("/api/test/{id}");
+            assertThat(endpoint.totalCount()).isEqualTo(3);
+            assertThat(endpoint.successRate()).isEqualTo(66.67);
+            assertThat(endpoint.slowCount()).isEqualTo(2);
+        });
+        assertThat(apiLogManagementService.endpointPage(
+                1, 20, start, end, 1_000L, null, "REQUEST_COUNT", "DESC", false
+        ).records()).anySatisfy(endpoint -> assertThat(endpoint.routePattern()).isNull());
+
+        var rawPage = apiLogManagementService.logPage(
+                1, 20, start, end, "trace-failed-" + suffix, "GET", false, 1_000L,
+                "/api/test/{id}", false
+        );
+        assertThat(rawPage.records()).singleElement().satisfies(log -> {
+            assertThat(log.id()).isEqualTo(String.valueOf(businessFailure.getId()));
+            assertThat(log.businessCode()).isEqualTo(400);
+            assertThat(log.success()).isFalse();
+        });
+        assertThat(apiLogManagementService.detail(String.valueOf(businessFailure.getId())))
+                .satisfies(log -> {
+                    assertThat(log.durationMs()).isEqualTo(1_500);
+                    assertThat(log.handlerDurationMs()).isEqualTo(800);
+                    assertThat(log.traceId()).isEqualTo("trace-failed-" + suffix);
+                });
+        assertThat(apiLogManagementService.logPage(
+                1, 20, start, end, null, "GET", false, null, null, true
+        ).records()).singleElement().satisfies(log -> {
+            assertThat(log.id()).isEqualTo(String.valueOf(unresolved.getId()));
+            assertThat(log.routePattern()).isNull();
+        });
+
+        assertThat(PermissionEnum.SYSTEM_API_LOG_VIEW.getCode()).isEqualTo("system:api-log:view");
+        assertThat(permissionRegistry.contains(PermissionEnum.SYSTEM_API_LOG_VIEW.getCode())).isTrue();
+        assertThat(systemRolePermissionMapper.selectById(2090000000000000607L).getPermissionCode())
+                .isEqualTo(PermissionEnum.SYSTEM_API_LOG_VIEW.getCode());
+        assertThat(systemMenuMapper.selectById(2090000000000000308L)).satisfies(menu -> {
+            assertThat(menu.getRoutePath()).isEqualTo("/system/api-monitor");
+            assertThat(menu.getRouteName()).isEqualTo("SystemApiMonitor");
+            assertThat(menu.getComponentKey()).isEqualTo("system/api-monitor/index");
+        });
+        assertThat(systemAuthorizationService.findSnapshot(2090000000000000001L).permissions())
+                .contains(PermissionEnum.SYSTEM_API_LOG_VIEW.getCode());
+        apiLogHttp(false).perform(get("/api/admin/api-logs/overview")
+                        .param("startTime", start.toString()).param("endTime", end.toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(403));
+        apiLogHttp(true).perform(get("/api/admin/api-logs/overview")
+                        .param("startTime", start.toString()).param("endTime", end.toString())
+                        .param("slowThresholdMs", "1000"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.summary.totalCount").value(4))
+                .andExpect(jsonPath("$.data.summary.slowCount").value(2));
+
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(20).truncatedTo(ChronoUnit.SECONDS);
+        SystemApiAccessLog expired = apiAccessLog(
+                cutoff.minusSeconds(1), "GET", "/api/expired", "/api/expired",
+                "过期记录", true, 200, 200, 1L, 2, "trace-expired-" + suffix
+        );
+        SystemApiAccessLog boundary = apiAccessLog(
+                cutoff, "GET", "/api/boundary", "/api/boundary",
+                "边界记录", true, 200, 200, 1L, 2, "trace-boundary-cleanup-" + suffix
+        );
+        systemApiAccessLogMapper.insert(expired);
+        systemApiAccessLogMapper.insert(boundary);
+        SystemLoginLog retainedLoginLog = loginLog(
+                "cleanup-login-" + suffix, "LOGIN", "SUCCESS", null,
+                "192.0.2.20", "login-trace-" + suffix, cutoff.minusDays(40)
+        );
+        systemLoginLogMapper.insert(retainedLoginLog);
+
+        assertThat(apiAccessLogCleanupWriter.deleteBatchBefore(cutoff)).isEqualTo(1);
+        assertThat(systemApiAccessLogMapper.selectById(expired.getId())).isNull();
+        assertThat(systemApiAccessLogMapper.selectById(boundary.getId())).isNotNull();
+        assertThat(systemLoginLogMapper.selectById(retainedLoginLog.getId())).isNotNull();
+    }
+
+    private MockMvc apiLogHttp(boolean permitted) {
+        CurrentSystemAuthorizationService authorization = new CurrentSystemAuthorizationService(null, null) {
+            @Override
+            public SystemAuthorizationSnapshot currentSnapshot() {
+                return new SystemAuthorizationSnapshot(null, List.of(), permitted
+                        ? List.of(PermissionEnum.SYSTEM_API_LOG_VIEW.getCode()) : List.of(),
+                        List.of(), List.of());
+            }
+        };
+        return MockMvcBuilders.standaloneSetup(new ApiLogManagementController(apiLogManagementService))
+                .setControllerAdvice(new ApiExceptionHandler())
+                .addInterceptors(new PermissionAuthorizationInterceptor(authorization)).build();
+    }
+
+    private SystemApiAccessLog apiAccessLog(
+            LocalDateTime occurredAt,
+            String method,
+            String requestPath,
+            String routePattern,
+            String purpose,
+            boolean success,
+            int httpStatus,
+            Integer businessCode,
+            Long handlerDuration,
+            long duration,
+            String traceId
+    ) {
+        SystemApiAccessLog log = new SystemApiAccessLog();
+        log.setOccurredAt(occurredAt);
+        log.setOccurredHour(occurredAt.truncatedTo(ChronoUnit.HOURS));
+        log.setOccurredDate(occurredAt.toLocalDate());
+        log.setServiceName("integration-test");
+        log.setHttpMethod(method);
+        log.setRequestPath(requestPath);
+        log.setRoutePattern(routePattern);
+        log.setHandlerMethod(routePattern == null ? null : "IntegrationController.test()");
+        log.setPurpose(purpose);
+        log.setRemark("");
+        log.setHttpStatus(httpStatus);
+        log.setBusinessCode(businessCode);
+        log.setSuccess(success);
+        log.setHandlerDurationMs(handlerDuration);
+        log.setDurationMs(duration);
+        log.setTraceId(traceId);
+        return log;
+    }
+
+    @Test
     void mapsAllSystemTablesWithSnowflakeIdsAndUsesEnumBasedPermissions() {
         String suffix = String.valueOf(System.nanoTime());
 
@@ -681,7 +865,8 @@ class MybatisPlusSystemPersistenceIntegrationTests {
                         PermissionEnum.SYSTEM_ROUTE_VIEW.getCode(),
                         PermissionEnum.SYSTEM_USER_VIEW.getCode(),
                         PermissionEnum.SYSTEM_USER_MANAGE.getCode(),
-                        PermissionEnum.SYSTEM_LOGIN_LOG_VIEW.getCode()
+                        PermissionEnum.SYSTEM_LOGIN_LOG_VIEW.getCode(),
+                        PermissionEnum.SYSTEM_API_LOG_VIEW.getCode()
                 )
                 .doesNotContain(
                         "system-authorization-view",

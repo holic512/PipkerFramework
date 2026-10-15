@@ -3,16 +3,16 @@
   @project Pipker Framework
   @module Frontend Permission Point Directory
   @description Provides a read-only tree directory for interface permissions declared by Java PermissionEnum.
-  @logic Loads the flat enum catalog, preserves declaration order while building colon-delimited namespace groups, and filters locally while retaining matching ancestor groups.
-  @dependencies Vue、Element Plus、permission point API、frontend API contracts
+  @logic 操作反馈统一经 notification 展示，页面状态与消息分离；Loads the flat enum catalog, preserves declaration order while building colon-delimited namespace groups, and filters locally while retaining matching ancestor groups.
+  @dependencies Vue、Element Plus、permission point API、frontend API contracts、统一通知与错误文案
   @index_tags page、permission、permission-point、tree、read-only、rbac、administration
   @author holic512
 -->
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { isAxiosError } from 'axios'
 import { FolderOpened, Key } from '@element-plus/icons-vue'
-import { ApiBusinessError } from '../../../core/api/contracts'
+import { getErrorMessage } from '../../../core/api/errorMessage'
+import { notification } from '../../../core/notification'
 import type { SystemPermissionPoint } from '../../../core/api/contracts'
 import { getPermissionPoints } from './api/permissionManagement'
 
@@ -33,7 +33,7 @@ const appliedKeyword = ref('')
 const permissionPoints = ref<SystemPermissionPoint[]>([])
 const loading = ref(false)
 const loaded = ref(false)
-const errorMessage = ref('')
+const loadFailed = ref(false)
 let loadSequence = 0
 
 const permissionTree = computed(() => buildPermissionTree(permissionPoints.value))
@@ -42,7 +42,7 @@ const visiblePermissionCount = computed(() => countNodes(filteredPermissionTree.
 const visibleGroupCount = computed(() => countResourceGroups(filteredPermissionTree.value))
 const hasSearch = computed(() => appliedKeyword.value.length > 0)
 const emptyText = computed(() => {
-  if (errorMessage.value) return '加载失败，请重试'
+  if (loadFailed.value) return '加载失败，请重试'
   if (!loaded.value) return '正在加载…'
   if (hasSearch.value) return '没有符合筛选条件的权限点'
   return '暂无权限点定义'
@@ -56,14 +56,16 @@ async function loadPermissionPoints(): Promise<void> {
   const sequence = ++loadSequence
   loading.value = true
   loaded.value = false
-  errorMessage.value = ''
+  loadFailed.value = false
   try {
     const result = await getPermissionPoints()
     if (sequence !== loadSequence) return
     permissionPoints.value = result
     loaded.value = true
   } catch (error) {
-    if (sequence === loadSequence) errorMessage.value = readableError(error, '无法读取权限点目录，请重试。')
+    if (sequence !== loadSequence) return
+    loadFailed.value = true
+    notification.error(getErrorMessage(error, '无法读取权限点目录，请重试。'))
   } finally {
     if (sequence === loadSequence) loading.value = false
   }
@@ -149,16 +151,6 @@ function countResourceGroups(nodes: PermissionTreeNode[]): number {
     + countResourceGroups(node.children), 0)
 }
 
-function readableError(error: unknown, fallback: string): string {
-  if (error instanceof ApiBusinessError) return error.message
-  if (isAxiosError(error)) {
-    if (error.response?.status === 403) return '没有查看权限，请联系管理员。'
-    if (error.response?.status === 401) return '登录已失效，请重新登录。'
-    if (error.response?.status === 404) return '权限点接口不存在，请检查服务版本。'
-    if (!error.response) return '服务连接失败或请求超时，请重试。'
-  }
-  return fallback
-}
 </script>
 
 <template>
@@ -180,8 +172,8 @@ function readableError(error: unknown, fallback: string): string {
       </div>
     </form>
 
-    <div v-if="errorMessage" class="permission-notice" role="alert">
-      <span>{{ errorMessage }}</span>
+    <div v-if="loadFailed" class="permission-notice" role="status">
+      <span>加载失败，请重试。</span>
       <el-button link type="primary" :loading="loading" @click="loadPermissionPoints">重试</el-button>
     </div>
 
@@ -189,7 +181,7 @@ function readableError(error: unknown, fallback: string): string {
       <div class="permission-table-container">
         <el-table
           v-loading="loading"
-          :data="errorMessage ? [] : filteredPermissionTree"
+          :data="loadFailed ? [] : filteredPermissionTree"
           height="100%"
           :empty-text="emptyText"
           row-key="id"
@@ -231,7 +223,7 @@ function readableError(error: unknown, fallback: string): string {
         </el-table>
       </div>
       <footer class="permission-tree-summary">
-        <span v-if="errorMessage || !loaded">—</span>
+        <span v-if="loadFailed || !loaded">—</span>
         <span v-else-if="hasSearch">匹配 {{ visiblePermissionCount }} 个权限点，{{ visibleGroupCount }} 个分组</span>
         <span v-else>共 {{ visiblePermissionCount }} 个权限点，{{ visibleGroupCount }} 个分组</span>
         <span v-if="loaded && permissionPoints.length > 0">目录支持展开与收起</span>

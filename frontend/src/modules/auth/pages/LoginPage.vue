@@ -3,15 +3,16 @@
   @project Pipker Framework
   @module Frontend Authentication
   @description Provides the SYSTEM-domain sign-in surface, optional session persistence, remembered-username preference, and shared visual-theme selection.
-  @logic Restores only a saved username, submits credentials with the selected token persistence, stores no password, refreshes database authorization, then redirects only after dynamic routes are registered.
-  @dependencies Vue, Vue Router, Pinia session store, runtime configuration, authentication storage, LoginPulseVisual, ThemeSwitcher, Element Plus
+  @logic Restores only a saved username, submits credentials with the selected token persistence, stores no password, refreshes database authorization, then redirects only after dynamic routes are registered; guarded submissions report validation and errors through notification.
+  @dependencies Vue, Vue Router, Pinia session store, runtime configuration, authentication storage, LoginPulseVisual, ThemeSwitcher, Element Plus、统一通知与错误文案
   @index_tags login, authentication, rbac, session, remembered-username, theme, echarts
   @author holic512
 -->
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ApiBusinessError } from '../../../core/api/contracts'
+import { getErrorMessage } from '../../../core/api/errorMessage'
+import { notification } from '../../../core/notification'
 import {
   clearRememberedUsername,
   readRememberedUsername,
@@ -27,7 +28,6 @@ const router = useRouter()
 const route = useRoute()
 const sessionStore = useSessionStore()
 const submitting = ref(false)
-const errorMessage = ref<string | null>(null)
 const rememberedUsername = readRememberedUsername()
 const rememberUsername = ref(rememberedUsername !== null)
 const persistSession = ref(false)
@@ -37,13 +37,13 @@ const credentials = reactive({
 })
 
 async function submit(): Promise<void> {
+  if (submitting.value) return
   if (!credentials.username.trim() || !credentials.password) {
-    errorMessage.value = '请输入用户名和密码。'
+    notification.warning('请输入用户名和密码。')
     return
   }
 
   submitting.value = true
-  errorMessage.value = null
   try {
     await sessionStore.login(
       credentials,
@@ -61,9 +61,7 @@ async function submit(): Promise<void> {
       : getDefaultAuthorizedPath() ?? '/'
     await router.replace(destination)
   } catch (error) {
-    errorMessage.value = error instanceof ApiBusinessError
-      ? error.message
-      : '无法连接到服务，请确认后端已启动后重试。'
+    notification.error(getErrorMessage(error, '无法连接到服务，请确认后端已启动后重试。'))
   } finally {
     submitting.value = false
   }
@@ -117,7 +115,6 @@ async function submit(): Promise<void> {
           <el-checkbox v-model="rememberUsername">记住账号</el-checkbox>
         </div>
 
-        <p v-if="errorMessage" class="login-form__error" role="alert">{{ errorMessage }}</p>
         <el-button class="login-form__submit" native-type="submit" :loading="submitting" size="large" type="primary">
           登 录 <span class="login-form__arrow" aria-hidden="true">→</span>
         </el-button>
@@ -181,7 +178,6 @@ async function submit(): Promise<void> {
 .login-form__preferences { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .login-form__preferences :deep(.el-checkbox) { display: inline-flex; height: 22px; margin: 0; font-weight: 400; }
 .login-form__preferences :deep(.el-checkbox__label) { font-size: 12px; padding-left: 7px; }
-.login-form__error { margin: 0; color: var(--color-accent-danger); font-size: 12px; line-height: 1.5; }
 .login-form__submit { width: 100%; height: 48px; margin: 2px 0 0; border-radius: 8px; font-size: 14px; font-weight: 600; }
 .login-form__arrow { position: absolute; right: 18px; font-size: 20px; font-weight: 400; }
 .login-form__submit { position: relative; }

@@ -3,15 +3,15 @@
   @project Pipker Framework
   @module 系统用户管理
   @description 提供系统用户的筛选分页、创建编辑、多角色分配、状态维护、删除、详情与密码重置工作区。
-  @logic 主列表只展示安全用户投影；创建和编辑使用完整角色选择，受保护账户仅可查看，所有写操作完成后重新读取当前页以保持角色和状态显示一致。
-  @dependencies Vue、Element Plus、Pinia 会话 Store、用户管理 API、frontend API contracts
+  @logic 操作反馈统一经 notification 展示，页面状态与消息分离；主列表只展示安全用户投影；创建和编辑使用完整角色选择，受保护账户仅可查看，所有写操作完成后重新读取当前页以保持角色和状态显示一致。
+  @dependencies Vue、Element Plus、Pinia 会话 Store、用户管理 API、frontend API contracts、统一通知与错误文案
   @index_tags user、rbac、role-assignment、password-reset、pagination、administration
   @author holic512
 -->
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessageBox } from 'element-plus'
-import { ApiBusinessError } from '../../../core/api/contracts'
+import { getErrorMessage } from '../../../core/api/errorMessage'
 import { notification } from '../../../core/notification'
 import type {
   AssignableSystemRole,
@@ -59,7 +59,7 @@ const userPage = ref<PageResult<SystemUserSummary>>(EMPTY_USER_PAGE)
 const selectedUsers = ref<SystemUserSummary[]>([])
 const loading = ref(false)
 const operating = ref(false)
-const errorMessage = ref<string | null>(null)
+const loadFailed = ref(false)
 
 const userDialogVisible = ref(false)
 const editingUser = ref<SystemUserSummary | null>(null)
@@ -87,7 +87,7 @@ onMounted(() => {
 
 async function loadUsers(page = userPage.value.page): Promise<void> {
   loading.value = true
-  errorMessage.value = null
+  loadFailed.value = false
   try {
     userPage.value = await getUserPage({
       page,
@@ -98,7 +98,8 @@ async function loadUsers(page = userPage.value.page): Promise<void> {
     selectedUsers.value = []
   } catch (error) {
     selectedUsers.value = []
-    errorMessage.value = readableError(error, '无法读取用户列表。')
+    loadFailed.value = true
+    notification.error(getErrorMessage(error, '无法读取用户列表。'))
   } finally {
     loading.value = false
   }
@@ -159,7 +160,7 @@ async function openEditDialog(user: SystemUserSummary): Promise<void> {
       roleIds: detail.roles.map(role => role.id),
     })
   } catch (error) {
-    notification.error(readableError(error, '无法读取用户资料。'))
+    notification.error(getErrorMessage(error, '无法读取用户资料。'))
     userDialogVisible.value = false
   } finally {
     dialogLoading.value = false
@@ -171,7 +172,7 @@ async function loadAssignableRoles(): Promise<boolean> {
     assignableRoles.value = await getAssignableRoles()
     return true
   } catch (error) {
-    notification.error(readableError(error, '无法读取可分配角色。'))
+    notification.error(getErrorMessage(error, '无法读取可分配角色。'))
     return false
   }
 }
@@ -206,7 +207,7 @@ async function saveUser(): Promise<void> {
     userDialogVisible.value = false
     await loadUsers(editingUser.value ? userPage.value.page : 1)
   } catch (error) {
-    notification.error(readableError(error, '保存用户失败。'))
+    notification.error(getErrorMessage(error, '保存用户失败。'))
   } finally {
     savingUser.value = false
   }
@@ -227,7 +228,7 @@ async function batchChangeStatus(status: SystemUserStatus): Promise<void> {
     notification.success(`已${action} ${selectedUserIds.value.length} 个用户。`)
     await loadUsers()
   } catch (error) {
-    notification.error(readableError(error, `批量${action}失败。`))
+    notification.error(getErrorMessage(error, `批量${action}失败。`))
   } finally {
     operating.value = false
   }
@@ -253,7 +254,7 @@ async function batchDelete(): Promise<void> {
       ? userPage.value.page - 1
       : userPage.value.page)
   } catch (error) {
-    notification.error(readableError(error, '批量删除失败。'))
+    notification.error(getErrorMessage(error, '批量删除失败。'))
   } finally {
     operating.value = false
   }
@@ -271,7 +272,7 @@ async function removeUser(user: SystemUserSummary): Promise<void> {
       ? userPage.value.page - 1
       : userPage.value.page)
   } catch (error) {
-    notification.error(readableError(error, '删除用户失败。'))
+    notification.error(getErrorMessage(error, '删除用户失败。'))
   } finally {
     operating.value = false
   }
@@ -284,7 +285,7 @@ async function openDetail(user: SystemUserSummary): Promise<void> {
   try {
     userDetail.value = await getUserDetail(user.id)
   } catch (error) {
-    notification.error(readableError(error, '无法读取用户详情。'))
+    notification.error(getErrorMessage(error, '无法读取用户详情。'))
   } finally {
     detailLoading.value = false
   }
@@ -314,7 +315,7 @@ async function submitPasswordReset(): Promise<void> {
     resetPassword.value = ''
     notification.success('密码已重置。请通过安全渠道通知用户。')
   } catch (error) {
-    notification.error(readableError(error, '重置密码失败。'))
+    notification.error(getErrorMessage(error, '重置密码失败。'))
   } finally {
     resettingPassword.value = false
   }
@@ -342,10 +343,6 @@ function formatTime(value: string | null): string {
     timeStyle: 'short',
     hour12: false,
   }).format(date)
-}
-
-function readableError(error: unknown, fallback: string): string {
-  return error instanceof ApiBusinessError ? error.message : fallback
 }
 
 async function confirm(
@@ -408,14 +405,14 @@ function newUserForm(): UserFormState {
       </div>
     </form>
 
-    <div v-if="errorMessage" class="user-notice" role="alert">
-      <span>{{ errorMessage }}</span>
+    <div v-if="loadFailed" class="user-notice" role="status">
+      <span>加载失败，请重试。</span>
       <el-button link type="primary" :loading="loading" @click="loadUsers()">重试</el-button>
     </div>
 
     <section class="user-workspace ui-panel">
       <div class="user-table-container">
-        <el-table v-loading="loading" :data="errorMessage ? [] : userPage.records" height="100%" empty-text="没有符合当前筛选条件的用户" @selection-change="setSelectedUsers">
+        <el-table v-loading="loading" :data="loadFailed ? [] : userPage.records" height="100%" :empty-text="loadFailed ? '加载失败，请重试' : '没有符合当前筛选条件的用户'" @selection-change="setSelectedUsers">
           <el-table-column v-if="canManage" type="selection" width="48" :selectable="isUserSelectable" />
           <el-table-column label="账户 / 昵称" min-width="178">
             <template #default="{ row }: { row: SystemUserSummary }">
@@ -453,7 +450,7 @@ function newUserForm(): UserFormState {
       </div>
 
       <footer class="user-page-summary">
-        <span>{{ errorMessage ? '—' : `共 ${userPage.total} 个用户${selectedUserIds.length > 0 ? `，已选择 ${selectedUserIds.length} 项` : ''}` }}</span>
+        <span>{{ loadFailed ? '—' : `共 ${userPage.total} 个用户${selectedUserIds.length > 0 ? `，已选择 ${selectedUserIds.length} 项` : ''}` }}</span>
         <el-pagination background :current-page="userPage.page" :page-size="userPage.pageSize" :page-sizes="[10, 20, 50, 100]" :total="userPage.total" layout="sizes, prev, pager, next" @current-change="changeUserPage" @size-change="changeUserPageSize" />
       </footer>
     </section>

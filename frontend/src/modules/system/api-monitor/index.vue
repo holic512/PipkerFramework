@@ -3,8 +3,8 @@
   @project Pipker Framework
   @module 系统接口监控
   @description 提供接口调用量、成功率、响应耗时、采集质量和慢请求的只读分析工作区。
-  @logic 统一时间范围驱动概览、接口聚合和慢请求分页；趋势图随主题和容器更新，接口行可下钻到明细与单条安全元数据详情。
-  @dependencies Vue、Element Plus、ECharts、接口监控 API、frontend API contracts
+  @logic 操作反馈统一经 notification 展示，页面状态与消息分离；统一时间范围驱动概览、接口聚合和慢请求分页；趋势图随主题和容器更新，接口行可下钻到明细与单条安全元数据详情。
+  @dependencies Vue、Element Plus、ECharts、接口监控 API、frontend API contracts、统一通知与错误文案
   @index_tags api-monitor、observability、performance、success-rate、slow-request、echarts
   @author holic512
 -->
@@ -15,7 +15,8 @@ import { init, use, type ECharts, type EChartsCoreOption } from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { ApiBusinessError } from '../../../core/api/contracts'
+import { getErrorMessage } from '../../../core/api/errorMessage'
+import { notification } from '../../../core/notification'
 import type {
   ApiAccessEndpointSummary,
   ApiAccessLogDetail,
@@ -95,10 +96,19 @@ const detailLoading = ref(false)
 const overviewLoading = ref(false)
 const endpointLoading = ref(false)
 const logLoading = ref(false)
-const overviewError = ref<string | null>(null)
-const endpointError = ref<string | null>(null)
-const logError = ref<string | null>(null)
+const overviewFailed = ref(false)
+const endpointFailed = ref(false)
+const logFailed = ref(false)
 const chartElement = ref<HTMLElement | null>(null)
+interface LoadFailure {
+  sequence: number
+  message: string
+}
+
+let overviewSequence = 0
+let endpointSequence = 0
+let logSequence = 0
+let detailSequence = 0
 let trendChart: ECharts | null = null
 let resizeObserver: ResizeObserver | null = null
 let themeObserver: MutationObserver | null = null
@@ -135,6 +145,10 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  overviewSequence++
+  endpointSequence++
+  logSequence++
+  detailSequence++
   resizeObserver?.disconnect()
   themeObserver?.disconnect()
   motionQuery?.removeEventListener('change', renderTrendChart)
@@ -156,36 +170,53 @@ async function loadAll(
   endpointPageNumber = endpointPage.value.page,
   logPageNumber = logPage.value.page,
 ): Promise<void> {
-  await Promise.all([
-    loadOverview(),
-    loadEndpoints(endpointPageNumber),
-    loadLogs(logPageNumber),
+  const results = await Promise.all([
+    loadOverview(false),
+    loadEndpoints(endpointPageNumber, false),
+    loadLogs(logPageNumber, false),
   ])
+  // A later retry/filter change supersedes that partition's result, including its notification.
+  const sequences = [overviewSequence, endpointSequence, logSequence]
+  const labels = ['接口概览', '接口分析', '慢请求明细']
+  const failures = results.flatMap((result, index) => result && result.sequence === sequences[index]
+    ? [`${labels[index]}：${result.message}`]
+    : [])
+  if (failures.length > 0) notification.error(`监控数据加载失败。${failures.join('；')}`)
 }
 
-async function loadOverview(): Promise<void> {
+async function loadOverview(reportFailure = true): Promise<LoadFailure | undefined> {
+  const sequence = ++overviewSequence
   overviewLoading.value = true
-  overviewError.value = null
+  overviewFailed.value = false
   try {
-    overview.value = await getApiLogOverview({
+    const result = await getApiLogOverview({
       ...rangeQuery(),
       slowThresholdMs: slowThresholdMs.value,
       includeMonitorEndpoints: includeMonitorEndpoints.value,
     })
+    if (sequence !== overviewSequence) return
+    overview.value = result
     await nextTick()
-    renderTrendChart()
+    if (sequence === overviewSequence) renderTrendChart()
   } catch (error) {
-    overviewError.value = readableError(error, '无法读取接口概览。')
+    if (sequence !== overviewSequence) return
+    overviewFailed.value = true
+    overview.value = null
+    trendChart?.clear()
+    const message = getErrorMessage(error, '无法读取接口概览。')
+    if (reportFailure) notification.error(message)
+    return { sequence, message }
   } finally {
-    overviewLoading.value = false
+    if (sequence === overviewSequence) overviewLoading.value = false
   }
 }
 
-async function loadEndpoints(page = endpointPage.value.page): Promise<void> {
+async function loadEndpoints(page = endpointPage.value.page, reportFailure = true): Promise<LoadFailure | undefined> {
+  const sequence = ++endpointSequence
   endpointLoading.value = true
-  endpointError.value = null
+  endpointFailed.value = false
   try {
-    endpointPage.value = await getApiEndpointPage({
+    const result = await getApiEndpointPage({
       ...rangeQuery(),
       page,
       pageSize: endpointPage.value.pageSize,
@@ -195,18 +226,25 @@ async function loadEndpoints(page = endpointPage.value.page): Promise<void> {
       sortBy: endpointFilters.sortBy,
       sortDirection: endpointFilters.sortDirection,
     })
+    if (sequence !== endpointSequence) return
+    endpointPage.value = result
   } catch (error) {
-    endpointError.value = readableError(error, '无法读取接口分析。')
+    if (sequence !== endpointSequence) return
+    endpointFailed.value = true
+    const message = getErrorMessage(error, '无法读取接口分析。')
+    if (reportFailure) notification.error(message)
+    return { sequence, message }
   } finally {
-    endpointLoading.value = false
+    if (sequence === endpointSequence) endpointLoading.value = false
   }
 }
 
-async function loadLogs(page = logPage.value.page): Promise<void> {
+async function loadLogs(page = logPage.value.page, reportFailure = true): Promise<LoadFailure | undefined> {
+  const sequence = ++logSequence
   logLoading.value = true
-  logError.value = null
+  logFailed.value = false
   try {
-    logPage.value = await getApiAccessLogPage({
+    const result = await getApiAccessLogPage({
       ...rangeQuery(),
       page,
       pageSize: logPage.value.pageSize,
@@ -217,10 +255,16 @@ async function loadLogs(page = logPage.value.page): Promise<void> {
       routePattern: selectedEndpoint.value?.routePattern || undefined,
       unresolvedRoute: selectedEndpoint.value?.routePattern === null || undefined,
     })
+    if (sequence !== logSequence) return
+    logPage.value = result
   } catch (error) {
-    logError.value = readableError(error, '无法读取慢请求明细。')
+    if (sequence !== logSequence) return
+    logFailed.value = true
+    const message = getErrorMessage(error, '无法读取慢请求明细。')
+    if (reportFailure) notification.error(message)
+    return { sequence, message }
   } finally {
-    logLoading.value = false
+    if (sequence === logSequence) logLoading.value = false
   }
 }
 
@@ -271,16 +315,20 @@ function clearSelectedEndpoint(): void {
 }
 
 async function openDetail(logId: string): Promise<void> {
+  const sequence = ++detailSequence
   detailVisible.value = true
   detailLoading.value = true
   detail.value = null
   try {
-    detail.value = await getApiAccessLogDetail(logId)
+    const result = await getApiAccessLogDetail(logId)
+    if (sequence !== detailSequence) return
+    detail.value = result
   } catch (error) {
-    logError.value = readableError(error, '无法读取日志详情。')
+    if (sequence !== detailSequence) return
+    notification.error(getErrorMessage(error, '无法读取日志详情。'))
     detailVisible.value = false
   } finally {
-    detailLoading.value = false
+    if (sequence === detailSequence) detailLoading.value = false
   }
 }
 
@@ -447,9 +495,6 @@ function readPalette(): MonitorPalette {
   }
 }
 
-function readableError(error: unknown, fallback: string): string {
-  return error instanceof ApiBusinessError ? error.message : fallback
-}
 </script>
 
 <template>
@@ -488,9 +533,9 @@ function readableError(error: unknown, fallback: string): string {
       <el-button type="primary" :icon="Refresh" :loading="refreshing" @click="applyControls">刷新</el-button>
     </header>
 
-    <div v-if="overviewError" class="api-monitor__notice" role="alert">
-      <span>{{ overviewError }}</span>
-      <el-button link type="primary" :loading="overviewLoading" @click="loadOverview">重试概览</el-button>
+    <div v-if="overviewFailed" class="api-monitor__notice" role="status">
+      <span>概览加载失败，请重试。</span>
+      <el-button link type="primary" :loading="overviewLoading" @click="loadOverview()">重试概览</el-button>
     </div>
 
     <section
@@ -509,7 +554,7 @@ function readableError(error: unknown, fallback: string): string {
       <span v-if="collectorHasGap" class="api-monitor__collector-explanation">队列满或数据库写入失败会造成统计低估，但不会影响业务接口响应。</span>
     </section>
 
-    <section class="api-monitor__metrics" aria-label="接口汇总">
+    <section v-if="!overviewFailed" class="api-monitor__metrics" aria-label="接口汇总">
       <article class="api-monitor__metric ui-panel">
         <span>请求总量</span><strong>{{ formatNumber(summary.totalCount) }}</strong><small>选定范围内的接口请求</small>
       </article>
@@ -532,7 +577,7 @@ function readableError(error: unknown, fallback: string): string {
         </div>
         <el-icon aria-hidden="true"><DataAnalysis /></el-icon>
       </header>
-      <div v-if="!overviewError && (overview?.trend.length ?? 0) === 0" class="api-monitor__empty">当前范围暂无趋势数据。</div>
+      <div v-if="!overviewFailed && (overview?.trend.length ?? 0) === 0" class="api-monitor__empty">当前范围暂无趋势数据。</div>
       <div ref="chartElement" class="api-monitor__chart" role="img" aria-label="请求量、平均耗时和失败数量组合趋势图"></div>
     </article>
 
@@ -545,13 +590,13 @@ function readableError(error: unknown, fallback: string): string {
           <el-button :disabled="endpointLoading" @click="clearEndpointFilters">重置</el-button>
         </form>
       </header>
-      <div v-if="endpointError" class="api-monitor__section-error" role="alert">
-        <span>{{ endpointError }}</span><el-button link type="primary" @click="loadEndpoints()">重试</el-button>
+      <div v-if="endpointFailed" class="api-monitor__section-error" role="status">
+        <span>接口分析加载失败，请重试。</span><el-button link type="primary" @click="loadEndpoints()">重试</el-button>
       </div>
       <el-table
         v-loading="endpointLoading"
-        :data="endpointError ? [] : endpointPage.records"
-        empty-text="当前时间范围内没有接口聚合数据"
+        :data="endpointFailed ? [] : endpointPage.records"
+        :empty-text="endpointFailed ? '加载失败，请重试' : '当前时间范围内没有接口聚合数据'"
         @sort-change="handleEndpointSort"
       >
         <el-table-column label="用途" min-width="165" show-overflow-tooltip>
@@ -580,7 +625,7 @@ function readableError(error: unknown, fallback: string): string {
         <el-table-column prop="slowCount" label="慢请求" width="105" align="right" sortable="custom" />
       </el-table>
       <footer class="api-monitor__pagination">
-        <span>共 {{ endpointError ? 0 : endpointPage.total }} 个接口分组</span>
+        <span>共 {{ endpointFailed ? '—' : endpointPage.total }} 个接口分组</span>
         <el-pagination
           background
           :current-page="endpointPage.page"
@@ -612,10 +657,10 @@ function readableError(error: unknown, fallback: string): string {
           <el-button v-if="selectedEndpoint" @click="clearSelectedEndpoint">取消接口联动</el-button>
         </form>
       </header>
-      <div v-if="logError" class="api-monitor__section-error" role="alert">
-        <span>{{ logError }}</span><el-button link type="primary" @click="loadLogs()">重试</el-button>
+      <div v-if="logFailed" class="api-monitor__section-error" role="status">
+        <span>慢请求明细加载失败，请重试。</span><el-button link type="primary" @click="loadLogs()">重试</el-button>
       </div>
-      <el-table v-loading="logLoading" :data="logError ? [] : logPage.records" empty-text="当前筛选条件下没有慢请求">
+      <el-table v-loading="logLoading" :data="logFailed ? [] : logPage.records" :empty-text="logFailed ? '加载失败，请重试' : '当前筛选条件下没有慢请求'">
         <el-table-column label="时间" min-width="165">
           <template #default="{ row }: { row: ApiAccessLogSummary }">{{ formatTime(row.occurredAt) }}</template>
         </el-table-column>
@@ -644,7 +689,7 @@ function readableError(error: unknown, fallback: string): string {
         </el-table-column>
       </el-table>
       <footer class="api-monitor__pagination">
-        <span>共 {{ logError ? 0 : logPage.total }} 条慢请求</span>
+        <span>共 {{ logFailed ? '—' : logPage.total }} 条慢请求</span>
         <el-pagination
           background
           :current-page="logPage.page"

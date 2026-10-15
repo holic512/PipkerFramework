@@ -3,15 +3,15 @@
   @project Pipker Framework
   @module Frontend Role Management
   @description 提供系统角色的筛选分页、生命周期维护、页面与接口权限工作台、本机权限缓存刷新、批量操作、详情成员查看和成员密码重置工作台。
-  @logic 优先显示可批量处理的角色清单；权限工作台在本地筛选并保留历史编码只读信息，顶部工具栏可独立刷新当前实例的角色接口权限一级缓存；所有雪花 ID 均以字符串传递。
-  @dependencies Vue、Element Plus、角色页面权限树、角色管理 API、frontend API contracts
+  @logic 操作反馈统一经 notification 展示，页面状态与消息分离；优先显示可批量处理的角色清单；权限工作台在本地筛选并保留历史编码只读信息，顶部工具栏可独立刷新当前实例的角色接口权限一级缓存；所有雪花 ID 均以字符串传递。
+  @dependencies Vue、Element Plus、角色页面权限树、角色管理 API、frontend API contracts、统一通知与错误文案
   @index_tags page、rbac、role、route、permission、cache、pagination、batch、password-reset、administration
   @author holic512
 -->
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessageBox } from 'element-plus'
-import { ApiBusinessError } from '../../../core/api/contracts'
+import { getErrorMessage } from '../../../core/api/errorMessage'
 import { notification } from '../../../core/notification'
 import type {
   PageResult,
@@ -82,7 +82,7 @@ const selectedRoles = ref<SystemRoleSummary[]>([])
 const loading = ref(false)
 const operating = ref(false)
 const refreshingPermissionCache = ref(false)
-const errorMessage = ref<string | null>(null)
+const loadFailed = ref(false)
 
 const roleDialogVisible = ref(false)
 const editingRole = ref<SystemRoleSummary | null>(null)
@@ -175,7 +175,7 @@ onMounted(() => {
 
 async function loadRoles(page = rolePage.value.page): Promise<void> {
   loading.value = true
-  errorMessage.value = null
+  loadFailed.value = false
   try {
     rolePage.value = await getRolePage({
       page,
@@ -186,7 +186,8 @@ async function loadRoles(page = rolePage.value.page): Promise<void> {
     selectedRoles.value = []
   } catch (error) {
     selectedRoles.value = []
-    errorMessage.value = readableError(error, '无法读取角色列表。')
+    loadFailed.value = true
+    notification.error(getErrorMessage(error, '无法读取角色列表。'))
   } finally {
     loading.value = false
   }
@@ -200,7 +201,7 @@ async function refreshPermissionCache(): Promise<void> {
       `权限缓存已刷新：${result.enabledRoleCount} 个启用角色，${result.effectivePermissionGrantCount} 项有效授权。`,
     )
   } catch (error) {
-    notification.error(readableError(error, '刷新权限缓存失败。'))
+    notification.error(getErrorMessage(error, '刷新权限缓存失败。'))
   } finally {
     refreshingPermissionCache.value = false
   }
@@ -277,7 +278,7 @@ async function saveRole(): Promise<void> {
     roleDialogVisible.value = false
     await loadRoles(editingRole.value ? rolePage.value.page : 1)
   } catch (error) {
-    notification.error(readableError(error, '保存角色失败。'))
+    notification.error(getErrorMessage(error, '保存角色失败。'))
   } finally {
     savingRole.value = false
   }
@@ -299,7 +300,7 @@ async function batchChangeStatus(status: SystemRoleStatus): Promise<void> {
     notification.success(`已${action} ${selectedRoleIds.value.length} 个角色。`)
     await loadRoles()
   } catch (error) {
-    notification.error(readableError(error, `批量${action}失败。`))
+    notification.error(getErrorMessage(error, `批量${action}失败。`))
   } finally {
     operating.value = false
   }
@@ -326,7 +327,7 @@ async function batchDelete(): Promise<void> {
       ? rolePage.value.page - 1
       : rolePage.value.page)
   } catch (error) {
-    notification.error(readableError(error, '批量删除失败。'))
+    notification.error(getErrorMessage(error, '批量删除失败。'))
   } finally {
     operating.value = false
   }
@@ -349,7 +350,7 @@ async function removeRole(role: SystemRoleSummary): Promise<void> {
       ? rolePage.value.page - 1
       : rolePage.value.page)
   } catch (error) {
-    notification.error(readableError(error, '删除角色失败。'))
+    notification.error(getErrorMessage(error, '删除角色失败。'))
   } finally {
     operating.value = false
   }
@@ -478,7 +479,7 @@ async function openRoutePermissionDialog(role: SystemRoleSummary): Promise<void>
     routePermissionConfiguration.value = configuration
     selectedRouteIds.value = [...configuration.routeIds]
   } catch (error) {
-    notification.error(readableError(error, '无法读取角色页面权限。'))
+    notification.error(getErrorMessage(error, '无法读取角色页面权限。'))
   } finally {
     routePermissionLoading.value = false
   }
@@ -507,7 +508,7 @@ async function saveRoutePermissions(): Promise<void> {
     selectedRouteIds.value = [...result.routeIds]
     notification.success(`已保存 ${result.routeIds.length} 项页面权限；受影响账户将使用新的路由与导航授权。`)
   } catch (error) {
-    notification.error(readableError(error, '保存角色页面权限失败。'))
+    notification.error(getErrorMessage(error, '保存角色页面权限失败。'))
   } finally {
     routePermissionSaving.value = false
   }
@@ -530,7 +531,7 @@ async function openInterfacePermissionDialog(role: SystemRoleSummary): Promise<v
     rolePermissionConfiguration.value = configuration
     selectedPermissionCodes.value = [...configuration.permissionCodes]
   } catch (error) {
-    notification.error(readableError(error, '无法读取角色接口权限。'))
+    notification.error(getErrorMessage(error, '无法读取角色接口权限。'))
   } finally {
     interfacePermissionLoading.value = false
   }
@@ -562,7 +563,7 @@ async function saveInterfacePermissions(): Promise<void> {
     selectedPermissionCodes.value = [...result.permissionCodes]
     notification.success(`已保存 ${result.permissionCodes.length} 项接口权限；受影响账户将使用新的后端访问权限。`)
   } catch (error) {
-    notification.error(readableError(error, '保存角色接口权限失败。'))
+    notification.error(getErrorMessage(error, '保存角色接口权限失败。'))
   } finally {
     interfacePermissionSaving.value = false
   }
@@ -578,7 +579,7 @@ async function openDetail(role: SystemRoleSummary): Promise<void> {
     roleDetail.value = await getRoleDetail(role.id)
     await loadMembers(1)
   } catch (error) {
-    notification.error(readableError(error, '无法读取角色详情。'))
+    notification.error(getErrorMessage(error, '无法读取角色详情。'))
   } finally {
     detailLoading.value = false
   }
@@ -596,7 +597,7 @@ async function loadMembers(page = memberPage.value.page): Promise<void> {
       keyword: memberKeyword.value.trim() || undefined,
     })
   } catch (error) {
-    notification.error(readableError(error, '无法读取角色成员。'))
+    notification.error(getErrorMessage(error, '无法读取角色成员。'))
   } finally {
     memberLoading.value = false
   }
@@ -636,7 +637,7 @@ async function submitPasswordReset(): Promise<void> {
     resetPassword.value = ''
     notification.success('密码已重置。请通过安全渠道通知账户持有人。')
   } catch (error) {
-    notification.error(readableError(error, '重置密码失败。'))
+    notification.error(getErrorMessage(error, '重置密码失败。'))
   } finally {
     resettingPassword.value = false
   }
@@ -663,10 +664,6 @@ function formatTime(value: string | null): string {
     timeStyle: 'short',
     hour12: false,
   }).format(date)
-}
-
-function readableError(error: unknown, fallback: string): string {
-  return error instanceof ApiBusinessError ? error.message : fallback
 }
 
 async function confirm(
@@ -739,8 +736,8 @@ function newRoleForm(): RoleFormState {
       </div>
     </form>
 
-    <div v-if="errorMessage" class="role-notice" role="alert">
-      <span>{{ errorMessage }}</span>
+    <div v-if="loadFailed" class="role-notice" role="status">
+      <span>加载失败，请重试。</span>
       <el-button link type="primary" :loading="loading" @click="loadRoles()">重试</el-button>
     </div>
 
@@ -748,9 +745,9 @@ function newRoleForm(): RoleFormState {
       <div class="role-table-container">
         <el-table
           v-loading="loading"
-          :data="errorMessage ? [] : rolePage.records"
+          :data="loadFailed ? [] : rolePage.records"
           height="100%"
-          empty-text="没有符合当前筛选条件的角色"
+          :empty-text="loadFailed ? '加载失败，请重试' : '没有符合当前筛选条件的角色'"
           @selection-change="setSelectedRoles"
         >
           <el-table-column type="selection" width="48" />
@@ -786,7 +783,7 @@ function newRoleForm(): RoleFormState {
       </div>
 
       <footer class="role-page-summary">
-        <span>{{ errorMessage ? '—' : `共 ${rolePage.total} 个角色${selectedRoleIds.length > 0 ? `，已选择 ${selectedRoleIds.length} 项` : ''}` }}</span>
+        <span>{{ loadFailed ? '—' : `共 ${rolePage.total} 个角色${selectedRoleIds.length > 0 ? `，已选择 ${selectedRoleIds.length} 项` : ''}` }}</span>
         <el-pagination
           background
           :current-page="rolePage.page"

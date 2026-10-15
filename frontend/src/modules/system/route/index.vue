@@ -3,16 +3,15 @@
   @project Pipker Framework
   @module 系统路由管理
   @description 全宽树形路由查询与展示配置工作区。
-  @logic 加载完整目录—页面树并在前端保留筛选命中节点的祖先上下文；受控表单仅维护展示配置，路由结构字段只读。
-  @dependencies Vue、Element Plus、路由管理 API、会话 Store、共享图标目录
+  @logic 操作反馈统一经 notification 展示，页面状态与消息分离；加载完整目录—页面树并在前端保留筛选命中节点的祖先上下文；受控表单仅维护展示配置，路由结构字段只读。
+  @dependencies Vue、Element Plus、路由管理 API、会话 Store、共享图标目录、统一通知与错误文案
   @index_tags route、tree、configuration、authorization
   @author holic512
 -->
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { isAxiosError } from 'axios'
 import { useRoute } from 'vue-router'
-import { ApiBusinessError } from '../../../core/api/contracts'
+import { getErrorMessage } from '../../../core/api/errorMessage'
 import type { SystemRouteDetail, SystemRouteMenuType, SystemRouteStatus, SystemRouteTreeNode } from '../../../core/api/contracts'
 import { notification } from '../../../core/notification'
 import { useSessionStore } from '../../../stores/session'
@@ -29,13 +28,12 @@ const appliedFilters = ref<RouteTreeQuery>({})
 const routeTree = ref<SystemRouteTreeNode[]>([])
 const loading = ref(false)
 const loaded = ref(false)
-const errorMessage = ref('')
-const authorizationError = ref('')
+const loadFailed = ref(false)
+const authorizationRefreshFailed = ref(false)
 const refreshingAuthorization = ref(false)
 const drawerVisible = ref(false)
 const detailLoading = ref(false)
-const detailError = ref('')
-const saveError = ref('')
+const detailFailed = ref(false)
 const editing = ref(false)
 const saving = ref(false)
 const detail = ref<SystemRouteDetail | null>(null)
@@ -44,7 +42,7 @@ const configuration = reactive<RouteConfiguration>({ menuName: '', icon: null, s
 let querySequence = 0
 let detailSequence = 0
 const hasFilters = computed(() => Object.values(appliedFilters.value).some(value => value !== undefined))
-const emptyText = computed(() => errorMessage.value ? '加载失败，请重试' : !loaded.value ? '正在加载…' : hasFilters.value ? '没有符合筛选条件的路由' : '暂无路由记录')
+const emptyText = computed(() => loadFailed.value ? '加载失败，请重试' : !loaded.value ? '正在加载…' : hasFilters.value ? '没有符合筛选条件的路由' : '暂无路由记录')
 const iconOptions = computed(() => configuration.icon && !menuIconNames.includes(configuration.icon) ? [configuration.icon, ...menuIconNames] : menuIconNames)
 const filteredRouteTree = computed(() => filterRouteTree(routeTree.value, appliedFilters.value))
 const visibleRouteCount = computed(() => countTreeNodes(filteredRouteTree.value))
@@ -54,14 +52,16 @@ onMounted(() => { void loadRoutes() })
 async function loadRoutes(): Promise<void> {
   const sequence = ++querySequence
   loading.value = true
-  errorMessage.value = ''
+  loadFailed.value = false
   try {
     const result = await getRouteTree()
     if (sequence !== querySequence) return
     routeTree.value = result
     loaded.value = true
   } catch (error) {
-    if (sequence === querySequence) errorMessage.value = readableError(error, '无法读取路由，请重试。')
+    if (sequence !== querySequence) return
+    loadFailed.value = true
+    notification.error(getErrorMessage(error, '无法读取路由，请重试。'))
   } finally {
     if (sequence === querySequence) loading.value = false
   }
@@ -84,15 +84,16 @@ async function loadDetail(): Promise<void> {
   const sequence = ++detailSequence
   detailLoading.value = true
   detail.value = null
-  detailError.value = ''
-  saveError.value = ''
+  detailFailed.value = false
   try {
     const result = await getRouteDetail(selectedId.value)
     if (sequence !== detailSequence) return
     detail.value = result
     Object.assign(configuration, { menuName: result.menuName, icon: result.icon, sort: result.sort ?? 0, visible: result.visible, status: result.status })
   } catch (error) {
-    if (sequence === detailSequence) detailError.value = readableError(error, '无法读取路由详情。')
+    if (sequence !== detailSequence) return
+    detailFailed.value = true
+    notification.error(getErrorMessage(error, '无法读取路由详情。'))
   } finally {
     if (sequence === detailSequence) detailLoading.value = false
   }
@@ -103,7 +104,6 @@ async function refreshAuthorization(): Promise<void> {
     const activePath = currentRoute.path
     const activeId = currentRoute.meta.routeId
     await session.refreshAuthorization()
-    authorizationError.value = ''
     if (typeof activeId === 'string' && !session.routes.some(route => route.id === activeId && router.hasRoute(route.routeName))) {
       await router.replace(getDefaultAuthorizedPath() ?? '/')
     } else {
@@ -111,25 +111,26 @@ async function refreshAuthorization(): Promise<void> {
       const active = session.routes.find(route => route.path === activePath)
       if (active) document.title = `${active.title} · ${runtimeConfig.appName}`
     }
+    authorizationRefreshFailed.value = false
   } catch {
-    authorizationError.value = '配置已保存，导航刷新失败。请重试刷新。'
+    authorizationRefreshFailed.value = true
+    notification.warning('配置已保存，导航刷新失败。请重试刷新。')
   } finally {
     refreshingAuthorization.value = false
   }
 }
 async function save(): Promise<void> {
   if (!detail.value || saving.value || !canManage.value) return
-  saveError.value = ''
   const menuName = configuration.menuName.trim()
   if (!menuName || menuName.length > 100 || !Number.isInteger(configuration.sort) || configuration.sort < 0 || configuration.sort > 2147483647) {
-    saveError.value = '请输入 1–100 字符的菜单名称和有效的非负整数排序。'
+    notification.warning('请输入 1–100 字符的菜单名称和有效的非负整数排序。')
     return
   }
   saving.value = true
   try {
     detail.value = await updateRouteConfiguration(detail.value.id, { ...configuration, menuName, icon: configuration.icon?.trim() || null })
   } catch (error) {
-    saveError.value = readableError(error, '保存失败，请重试。')
+    notification.error(getErrorMessage(error, '保存失败，请重试。'))
     saving.value = false
     return
   }
@@ -138,16 +139,6 @@ async function save(): Promise<void> {
   await refreshAuthorization()
   await loadRoutes()
   saving.value = false
-}
-function readableError(error: unknown, fallback: string): string {
-  if (error instanceof ApiBusinessError) return error.message
-  if (isAxiosError(error)) {
-    if (error.response?.status === 403) return '没有此操作的权限。'
-    if (error.response?.status === 401) return '登录已失效，请重新登录。'
-    if (error.response?.status === 404) return '接口不存在，请检查服务版本和请求地址。'
-    if (!error.response) return '服务连接失败或请求超时，请重试。'
-  }
-  return fallback
 }
 function formatTime(value: string | null): string {
   if (!value) return '—'
@@ -185,11 +176,11 @@ function countTreeNodes(nodes: SystemRouteTreeNode[]): number {
       <el-divider direction="vertical" class="route-filter-divider" />
       <div class="route-filter-actions"><el-button native-type="submit" type="primary" :loading="loading">查询</el-button><el-button :disabled="loading" @click="reset">重置</el-button></div>
     </form>
-    <div v-if="errorMessage" class="route-notice" role="alert"><span>{{ errorMessage }}</span><el-button link type="primary" :loading="loading" @click="loadRoutes">重试</el-button></div>
-    <div v-if="authorizationError" class="route-notice" role="alert"><span>{{ authorizationError }}</span><el-button link type="primary" :loading="refreshingAuthorization" @click="refreshAuthorization">刷新导航</el-button></div>
+    <div v-if="loadFailed" class="route-notice" role="status"><span>加载失败，请重试。</span><el-button link type="primary" :loading="loading" @click="loadRoutes">重试</el-button></div>
+    <div v-if="authorizationRefreshFailed" class="route-notice" role="status"><span>导航待刷新。</span><el-button link type="primary" :loading="refreshingAuthorization" @click="refreshAuthorization">刷新导航</el-button></div>
     <div class="route-workspace ui-panel">
       <div class="route-table-container">
-        <el-table v-loading="loading" :data="errorMessage ? [] : filteredRouteTree" height="100%" :empty-text="emptyText" row-key="id" :tree-props="{ children: 'children' }" :indent="12" default-expand-all>
+        <el-table v-loading="loading" :data="loadFailed ? [] : filteredRouteTree" height="100%" :empty-text="emptyText" row-key="id" :tree-props="{ children: 'children' }" :indent="12" default-expand-all>
           <el-table-column class-name="route-tree-cell" label="名称 / 路由名" min-width="200"><template #default="{ row }"><div class="route-identity"><el-icon><component :is="resolveMenuIcon(row.icon)" /></el-icon><strong>{{ row.menuName }}</strong><code>{{ row.routeName || '—' }}</code></div></template></el-table-column>
           <el-table-column label="路径" prop="routePath" min-width="190" show-overflow-tooltip />
           <el-table-column label="页面索引" min-width="195" show-overflow-tooltip><template #default="{ row }"><span :class="{ 'route-missing': row.menuType === 'MENU' && !row.componentKey }">{{ row.menuType === 'DIRECTORY' ? '—' : row.componentKey || '未配置' }}</span></template></el-table-column>
@@ -200,11 +191,11 @@ function countTreeNodes(nodes: SystemRouteTreeNode[]): number {
           <el-table-column label="操作" fixed="right" :width="canManage ? 126 : 72"><template #default="{ row }"><el-button link type="primary" @click="openDetail(row)">详情</el-button><el-button v-if="canManage" link type="primary" @click="openDetail(row, true)">配置</el-button></template></el-table-column>
         </el-table>
       </div>
-      <footer class="route-tree-summary"><span>{{ errorMessage || !loaded ? '—' : hasFilters ? `匹配 ${visibleRouteCount} 个节点` : `共 ${visibleRouteCount} 个节点` }}</span><span v-if="visibleRouteCount > 0">目录支持展开与收起</span></footer>
+      <footer class="route-tree-summary"><span>{{ loadFailed || !loaded ? '—' : hasFilters ? `匹配 ${visibleRouteCount} 个节点` : `共 ${visibleRouteCount} 个节点` }}</span><span v-if="visibleRouteCount > 0">目录支持展开与收起</span></footer>
     </div>
     <el-drawer v-model="drawerVisible" :title="editing ? '路由配置' : '路由详情'" size="min(36rem, 100vw)" :close-on-click-modal="!saving" :close-on-press-escape="!saving" :show-close="!saving">
       <div v-loading="detailLoading" class="route-detail">
-        <div v-if="detailError" class="route-notice" role="alert"><span>{{ detailError }}</span><el-button link @click="loadDetail">重试</el-button></div>
+        <div v-if="detailFailed" class="route-notice" role="status"><span>详情加载失败，请重试。</span><el-button link @click="loadDetail">重试</el-button></div>
         <template v-if="detail">
           <el-form v-if="editing" label-position="top" @submit.prevent="save">
             <el-form-item label="菜单名称" required><el-input v-model="configuration.menuName" maxlength="100" show-word-limit :disabled="saving" /></el-form-item>
@@ -218,7 +209,6 @@ function countTreeNodes(nodes: SystemRouteTreeNode[]): number {
             <div><dt>类型 / 父级</dt><dd>{{ detail.menuType === 'DIRECTORY' ? '目录' : '页面' }} / {{ detail.parentName || '顶级' }}</dd></div>
             <div><dt>路径</dt><dd>{{ detail.routePath || '—' }}</dd></div><div><dt>路由名</dt><dd>{{ detail.routeName || '—' }}</dd></div><div><dt>页面索引</dt><dd>{{ detail.componentKey || '—' }}</dd></div><div><dt>ID</dt><dd>{{ detail.id }}</dd></div><div><dt>创建时间</dt><dd>{{ formatTime(detail.createdAt) }}</dd></div><div><dt>更新时间</dt><dd>{{ formatTime(detail.updatedAt) }}</dd></div>
           </dl>
-          <p v-if="saveError" class="route-notice" role="alert">{{ saveError }}</p>
         </template>
       </div>
       <template #footer><el-button :disabled="saving" @click="drawerVisible = false">{{ editing ? '取消' : '关闭' }}</el-button><el-button v-if="editing" type="primary" :loading="saving" :disabled="!detail || detailLoading || !canManage" @click="save">保存</el-button></template>

@@ -3,14 +3,15 @@
   @project Pipker Framework
   @module 系统登录日志
   @description 提供登录、登出和当前会话鉴权记录的只读筛选分页工作区。
-  @logic 按账号/IP/TraceId、事件、结果和本地时间范围请求服务端分页数据，以稳定中文标签展示结果，不提供删除、导出或清理操作。
-  @dependencies Vue、Element Plus、登录日志 API、frontend API contracts
+  @logic 操作反馈统一经 notification 展示，页面状态与消息分离；按账号/IP/TraceId、事件、结果和本地时间范围请求服务端分页数据，以稳定中文标签展示结果，不提供删除、导出或清理操作。
+  @dependencies Vue、Element Plus、登录日志 API、frontend API contracts、统一通知与错误文案
   @index_tags authentication、audit、login-log、pagination、read-only、administration
   @author holic512
 -->
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { ApiBusinessError } from '../../../core/api/contracts'
+import { getErrorMessage } from '../../../core/api/errorMessage'
+import { notification } from '../../../core/notification'
 import type {
   AuthenticationEventResult,
   AuthenticationEventType,
@@ -42,7 +43,7 @@ const filters = reactive<LoginLogFilters>({
 })
 const loginLogPage = ref<PageResult<SystemLoginLogSummary>>(EMPTY_PAGE)
 const loading = ref(false)
-const errorMessage = ref<string | null>(null)
+const loadFailed = ref(false)
 
 const eventLabels: Record<AuthenticationEventType, string> = {
   LOGIN: '登录',
@@ -65,7 +66,7 @@ onMounted(() => {
 
 async function loadLoginLogs(page = loginLogPage.value.page): Promise<void> {
   loading.value = true
-  errorMessage.value = null
+  loadFailed.value = false
   try {
     loginLogPage.value = await getLoginLogPage({
       page,
@@ -77,7 +78,8 @@ async function loadLoginLogs(page = loginLogPage.value.page): Promise<void> {
       endTime: filters.timeRange?.[1],
     })
   } catch (error) {
-    errorMessage.value = readableError(error, '无法读取登录日志。')
+    loadFailed.value = true
+    notification.error(getErrorMessage(error, '无法读取登录日志。'))
   } finally {
     loading.value = false
   }
@@ -128,9 +130,6 @@ function formatTime(value: string | null): string {
   }).format(date)
 }
 
-function readableError(error: unknown, fallback: string): string {
-  return error instanceof ApiBusinessError ? error.message : fallback
-}
 </script>
 
 <template>
@@ -172,8 +171,8 @@ function readableError(error: unknown, fallback: string): string {
       </div>
     </form>
 
-    <div v-if="errorMessage" class="login-log-notice" role="alert">
-      <span>{{ errorMessage }}</span>
+    <div v-if="loadFailed" class="login-log-notice" role="status">
+      <span>加载失败，请重试。</span>
       <el-button link type="primary" :loading="loading" @click="loadLoginLogs()">重试</el-button>
     </div>
 
@@ -181,9 +180,9 @@ function readableError(error: unknown, fallback: string): string {
       <div class="login-log-table-container">
         <el-table
           v-loading="loading"
-          :data="errorMessage ? [] : loginLogPage.records"
+          :data="loadFailed ? [] : loginLogPage.records"
           height="100%"
-          empty-text="没有符合当前筛选条件的登录日志"
+          :empty-text="loadFailed ? '加载失败，请重试' : '没有符合当前筛选条件的登录日志'"
         >
           <el-table-column label="发生时间" min-width="168">
             <template #default="{ row }: { row: SystemLoginLogSummary }">{{ formatTime(row.occurredAt) }}</template>
@@ -238,7 +237,7 @@ function readableError(error: unknown, fallback: string): string {
       </div>
 
       <footer class="login-log-page-summary">
-        <span>{{ errorMessage ? '—' : `共 ${loginLogPage.total} 条认证记录` }}</span>
+        <span>{{ loadFailed ? '—' : `共 ${loginLogPage.total} 条认证记录` }}</span>
         <el-pagination
           background
           :current-page="loginLogPage.page"

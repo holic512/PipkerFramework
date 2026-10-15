@@ -958,7 +958,7 @@ function newRoleForm(): RoleFormState {
           角色已停用 · 仅查看
         </p>
 
-        <div class="role-permission-scroll" :class="{ 'role-permission-scroll--readonly': !canSaveRoutePermissions }">
+        <el-scrollbar always class="role-permission-scroll" :class="{ 'role-permission-scroll--readonly': !canSaveRoutePermissions }">
           <RoleMenuTree
             v-if="routePermissionTree.length > 0"
             :disabled="!canSaveRoutePermissions || routePermissionSaving"
@@ -968,7 +968,7 @@ function newRoleForm(): RoleFormState {
           <div v-else class="role-permission-empty">
             {{ routePermissionOnlySelected ? '当前没有已选页面' : routePermissionKeyword ? '没有匹配的页面' : '暂无可配置页面' }}
           </div>
-        </div>
+        </el-scrollbar>
       </section>
       <div v-else v-loading="routePermissionLoading" class="role-route-permission__loading">正在读取角色页面权限…</div>
       <template #footer>
@@ -1041,7 +1041,7 @@ function newRoleForm(): RoleFormState {
           角色已停用 · 仅查看
         </p>
 
-        <div class="role-permission-scroll" :class="{ 'role-permission-scroll--readonly': !canSaveInterfacePermissions }">
+        <el-scrollbar always class="role-permission-scroll" :class="{ 'role-permission-scroll--readonly': !canSaveInterfacePermissions }">
           <div v-if="filteredPermissionGroups.length > 0" class="role-api-permission__groups">
             <section v-for="group in filteredPermissionGroups" :key="group.key" class="role-api-permission__group">
               <header class="role-api-permission__group-header">
@@ -1089,7 +1089,7 @@ function newRoleForm(): RoleFormState {
               <code v-for="code in rolePermissionConfiguration.historicalPermissionCodes" :key="code">{{ code }}</code>
             </div>
           </details>
-        </div>
+        </el-scrollbar>
       </section>
       <div v-else v-loading="interfacePermissionLoading" class="role-api-permission__loading">正在读取角色接口权限…</div>
       <template #footer>
@@ -1411,39 +1411,34 @@ function newRoleForm(): RoleFormState {
   color: var(--color-ink-muted);
 }
 
-.role-permission-dialog :deep(.el-dialog) {
+/* Dialog 传送到遮罩层后，使用限定类名的全局规则约束完整高度链。 */
+:global(.el-dialog.role-permission-dialog) {
   display: flex;
   flex-direction: column;
   height: min(78vh, 52rem);
-  margin: 0 auto;
+  padding: 0;
+  overflow: hidden;
 }
 
-:deep(.el-dialog.role-permission-dialog) {
-  display: flex;
-  flex-direction: column;
-  height: min(78vh, 52rem);
-  margin: 0 auto;
-}
-
-.role-permission-dialog :deep(.el-dialog__header) {
+:global(.role-permission-dialog .el-dialog__header) {
   flex: 0 0 auto;
   margin-right: 0;
   padding: 1rem 1.25rem 0.85rem;
   border-bottom: 1px solid var(--color-line-subtle);
 }
 
-.role-permission-dialog :deep(.el-dialog__title) {
+:global(.role-permission-dialog .el-dialog__title) {
   color: var(--color-ink-strong);
   font-size: 1rem;
   font-weight: 760;
 }
 
-.role-permission-dialog :deep(.el-dialog__headerbtn) {
+:global(.role-permission-dialog .el-dialog__headerbtn) {
   top: 0.85rem;
   right: 1rem;
 }
 
-.role-permission-dialog :deep(.el-dialog__body) {
+:global(.role-permission-dialog .el-dialog__body) {
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
@@ -1451,7 +1446,7 @@ function newRoleForm(): RoleFormState {
   overflow: hidden;
 }
 
-.role-permission-dialog :deep(.el-dialog__footer) {
+:global(.role-permission-dialog .el-dialog__footer) {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1570,10 +1565,17 @@ function newRoleForm(): RoleFormState {
 }
 
 .role-permission-scroll {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
-  padding: 0.85rem 0.25rem 0.75rem 0;
-  overflow: auto;
+  width: 100%;
+}
+
+.role-permission-scroll :deep(.el-scrollbar__wrap) {
+  overscroll-behavior: contain;
+}
+
+.role-permission-scroll :deep(.el-scrollbar__view) {
+  padding: 0.85rem 0.85rem 0.75rem 0;
 }
 
 .role-permission-scroll--readonly {
@@ -1844,23 +1846,21 @@ function newRoleForm(): RoleFormState {
 }
 
 @include at-most('phone') {
-  .role-permission-dialog :deep(.el-dialog),
-  :deep(.el-dialog.role-permission-dialog) {
+  :global(.el-dialog.role-permission-dialog) {
     width: calc(100vw - 1rem) !important;
-    height: calc(100vh - 1rem);
-    top: 0.5rem !important;
-    margin-top: 0.5rem;
+    height: calc(100dvh - 1rem);
+    margin: 0.5rem auto;
   }
 
-  .role-permission-dialog :deep(.el-dialog__header) {
+  :global(.role-permission-dialog .el-dialog__header) {
     padding: 0.8rem 0.9rem 0.7rem;
   }
 
-  .role-permission-dialog :deep(.el-dialog__body) {
+  :global(.role-permission-dialog .el-dialog__body) {
     padding: 0.8rem 0.9rem 0;
   }
 
-  .role-permission-dialog :deep(.el-dialog__footer) {
+  :global(.role-permission-dialog .el-dialog__footer) {
     display: grid;
     gap: 0.65rem;
     padding: 0.7rem 0.9rem;
@@ -1882,6 +1882,8 @@ function newRoleForm(): RoleFormState {
   }
 
   .role-permission-toolbar__search {
+    flex: 0 0 auto;
+    min-width: 0;
     width: 100%;
   }
 

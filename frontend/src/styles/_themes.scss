@@ -2,7 +2,7 @@
  * @file _themes.scss
  * @project Pipker Framework
  * @module Frontend Theme Tokens
- * @description Emits the monochrome Claude and Element visual-language tokens for light and dark color schemes.
+ * @description Emits Claude, Element and four coordinated accent palettes for light and dark schemes.
  * @logic Generates semantic CSS custom properties from one Sass theme matrix so every page responds to the same HTML theme attributes, with Claude deliberately restricted to a single neutral ink scale and all standard surfaces sharing a low-radius scale.
  * @dependencies Sass map module, frontend style abstracts
  * @index_tags sass, themes, claude, element-plus, dark-mode
@@ -10,6 +10,7 @@
  */
 
 @use 'sass:map';
+@use 'sass:color';
 @use 'abstracts' as *;
 
 $claude-light: (
@@ -153,9 +154,9 @@ $element-light: (
   line-strong: #c0c4cc,
   line-inverse: rgba(255, 255, 255, 0.16),
   line-contrast: rgba(255, 255, 255, 0.16),
-  accent-primary: #409eff,
-  accent-primary-rgb: (64, 158, 255),
-  accent-primary-hover: #66b1ff,
+  accent-primary: #1d6fc4,
+  accent-primary-rgb: (29, 111, 196),
+  accent-primary-hover: #185da5,
   accent-secondary: #909399,
   accent-success: #67c23a,
   accent-success-rgb: (103, 194, 58),
@@ -167,8 +168,8 @@ $element-light: (
   accent-info-rgb: (144, 147, 153),
   accent-on-primary: #ffffff,
   accent-on-secondary: #ffffff,
-  focus-ring: rgba(64, 158, 255, 0.4),
-  glow-primary: rgba(64, 158, 255, 0.16),
+  focus-ring: rgba(29, 111, 196, 0.4),
+  glow-primary: rgba(29, 111, 196, 0.16),
   glow-secondary: rgba(103, 194, 58, 0.13),
   panel-overlay: rgba(58, 62, 69, 0.88),
   panel-overlay-hover: rgba(48, 49, 51, 0.98),
@@ -176,7 +177,7 @@ $element-light: (
   sidebar-surface: #303133,
   sidebar-raised: #202124,
   sidebar-hover: #3c3f45,
-  sidebar-active: #409eff,
+  sidebar-active: #1d6fc4,
   sidebar-ink: #f4f4f5,
   sidebar-muted: rgba(244, 244, 245, 0.68),
   sidebar-active-ink: #ffffff,
@@ -239,7 +240,7 @@ $element-dark: (
   sidebar-active: #409eff,
   sidebar-ink: #f2f3f5,
   sidebar-muted: rgba(242, 243, 245, 0.66),
-  sidebar-active-ink: #ffffff,
+  sidebar-active-ink: #101722,
   sidebar-line: rgba(255, 255, 255, 0.16),
   layout-sidebar-width: 17.25rem,
   layout-sidebar-collapsed-width: 5rem,
@@ -252,7 +253,40 @@ $element-dark: (
   shadow-floating: 0 1.2rem 3.6rem rgba(0, 0, 0, 0.36),
 );
 
+// Keep existing surfaces, geometry and status semantics consistent across palettes.
+@function palette($base, $primary, $hover, $foreground) {
+  @return map.merge($base, (
+    accent-primary: $primary,
+    accent-primary-rgb: (color.channel($primary, 'red', $space: rgb), color.channel($primary, 'green', $space: rgb), color.channel($primary, 'blue', $space: rgb)),
+    accent-primary-hover: $hover,
+    accent-secondary: $primary,
+    accent-on-primary: $foreground,
+    accent-on-secondary: $foreground,
+    focus-ring: rgba($primary, 0.5),
+    glow-primary: rgba($primary, 0.16),
+    glow-secondary: rgba($primary, 0.1),
+    sidebar-active: $primary,
+    sidebar-active-ink: $foreground,
+  ));
+}
+
 $themes: (
+  teal: (
+    light: palette($element-light, #0f766e, #115e59, #ffffff),
+    dark: palette($element-dark, #5eead4, #99f6e4, #102824),
+  ),
+  forest: (
+    light: palette($element-light, #2f7145, #245936, #ffffff),
+    dark: palette($element-dark, #86d9a0, #b1e9c2, #15291c),
+  ),
+  iris: (
+    light: palette($element-light, #6d4bc3, #57399f, #ffffff),
+    dark: palette($element-dark, #c4b5fd, #ddd6fe, #241a3e),
+  ),
+  rose: (
+    light: palette($element-light, #b43f65, #963452, #ffffff),
+    dark: palette($element-dark, #f7a8c1, #fbcfe0, #351622),
+  ),
   claude: (
     light: $claude-light,
     dark: $claude-dark,

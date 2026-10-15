@@ -82,7 +82,7 @@ select {
 
 .ui-focusable:focus-visible,
 .theme-switcher summary:focus-visible,
-.theme-switcher button:focus-visible {
+.theme-switcher__panel button:focus-visible {
   outline: 3px solid var(--color-focus-ring);
   outline-offset: 0.25rem;
 }
@@ -152,9 +152,10 @@ select {
 
 .theme-switcher__panel {
   width: min(17rem, calc(100vw - 2rem));
-  position: absolute;
-  top: calc(100% + 0.55rem);
-  right: 0;
+  position: fixed;
+  z-index: 3000;
+  overflow-y: auto;
+  color: var(--color-ink-strong);
   display: grid;
   gap: 0.72rem;
   padding: 0.85rem;
@@ -170,8 +171,8 @@ select {
 }
 
 .theme-switcher__caption {
-  color: var(--color-ink-soft);
-  font-size: 0.62rem;
+  color: var(--color-ink-muted);
+  font-size: 0.68rem;
   font-weight: 750;
   letter-spacing: 0.08em;
 }
@@ -185,7 +186,11 @@ select {
 }
 
 .theme-switcher__options button {
-  min-height: 2rem;
+  min-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
   padding: 0.35rem 0.5rem;
   color: var(--color-ink-muted);
   cursor: pointer;
@@ -195,7 +200,7 @@ select {
   font-weight: 700;
 }
 
-.theme-switcher__options button + button {
+.theme-switcher__options button:nth-child(even) {
   border-left: 1px solid var(--color-line-subtle);
 }
 
@@ -204,6 +209,47 @@ select {
   color: var(--color-accent-on-primary);
   background: var(--color-accent-primary);
 }
+
+.theme-switcher__options button:nth-child(n + 3) {
+  border-top: 1px solid var(--color-line-subtle);
+}
+
+.theme-switcher__swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  flex-shrink: 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.theme-switcher__panel {
+  transform-origin: top right;
+  animation: theme-menu-in 160ms ease-out;
+}
+
+@keyframes theme-menu-in {
+  from { opacity: 0; transform: translateY(-0.25rem) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+// Capture final colors rather than intermediate component CSS transitions.
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: none !important;
+}
+
+html.theme-transitioning::view-transition-old(root),
+html.theme-transitioning::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html.theme-transitioning::view-transition-old(root) { z-index: 1; }
+html.theme-transitioning::view-transition-new(root) { z-index: 2; }
+html.theme-transitioning::view-transition-group(root) { animation-duration: 480ms; }
+html.theme-transitioning::view-transition { pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) {
   *,

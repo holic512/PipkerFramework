@@ -3,7 +3,7 @@
  * @project Pipker Framework
  * @module Frontend Theme State
  * @description Owns the selected design language and color scheme for the entire browser application.
- * @logic Restores one persisted preference object, reflects it on the HTML element, and keeps Element Plus dark variables aligned through the dark class.
+ * @logic Restores one persisted preference object, coordinates interruptible transitions for all theme changes, and keeps HTML attributes and Element Plus dark variables aligned.
  * @dependencies Pinia, Vue Composition API, browser localStorage, HTML document
  * @index_tags pinia, theme, claude, element-plus, dark-mode
  * @author holic512
@@ -11,8 +11,18 @@
 
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { transitionTheme, type ThemeOrigin } from '../utils/theme-transition'
 
-export type DesignTheme = 'claude' | 'element'
+export const DESIGN_THEMES = [
+  { value: 'claude', label: 'Claude', swatch: '#595852' },
+  { value: 'element', label: 'Element', swatch: '#1d6fc4' },
+  { value: 'teal', label: '青瓷', swatch: '#0f766e' },
+  { value: 'forest', label: '森林', swatch: '#2f7145' },
+  { value: 'iris', label: '鸢尾', swatch: '#6d4bc3' },
+  { value: 'rose', label: '玫瑰', swatch: '#b43f65' },
+] as const
+
+export type DesignTheme = typeof DESIGN_THEMES[number]['value']
 export type ColorScheme = 'light' | 'dark'
 
 interface ThemePreference {
@@ -29,38 +39,39 @@ const DEFAULT_PREFERENCE: ThemePreference = {
 export const useThemeStore = defineStore('theme', () => {
   const designTheme = ref<DesignTheme>(DEFAULT_PREFERENCE.designTheme)
   const colorScheme = ref<ColorScheme>(DEFAULT_PREFERENCE.colorScheme)
-  const themeLabel = computed(() => `${designTheme.value === 'claude' ? 'Claude' : 'Element'} · ${colorScheme.value === 'light' ? '浅色' : '深色'}`)
+  let requestedPreference = { ...DEFAULT_PREFERENCE }
+  const themeLabel = computed(() => `${DESIGN_THEMES.find(option => option.value === designTheme.value)?.label} · ${colorScheme.value === 'light' ? '浅色' : '深色'}`)
 
   function initializeTheme(): void {
     const preference = readPreference()
+    requestedPreference = preference
     designTheme.value = preference.designTheme
     colorScheme.value = preference.colorScheme
     applyTheme(preference)
   }
 
-  function setDesignTheme(nextDesignTheme: DesignTheme): void {
-    updatePreference({
-      designTheme: nextDesignTheme,
-      colorScheme: colorScheme.value,
-    })
+  function setDesignTheme(nextDesignTheme: DesignTheme, origin?: ThemeOrigin): Promise<void> {
+    return updatePreference({ ...requestedPreference, designTheme: nextDesignTheme }, origin)
   }
 
-  function setColorScheme(nextColorScheme: ColorScheme): void {
-    updatePreference({
-      designTheme: designTheme.value,
-      colorScheme: nextColorScheme,
-    })
+  function setColorScheme(nextColorScheme: ColorScheme, origin?: ThemeOrigin): Promise<void> {
+    return updatePreference({ ...requestedPreference, colorScheme: nextColorScheme }, origin)
   }
 
-  function toggleColorScheme(): void {
-    setColorScheme(colorScheme.value === 'light' ? 'dark' : 'light')
+  function toggleColorScheme(origin?: ThemeOrigin): Promise<void> {
+    return setColorScheme(requestedPreference.colorScheme === 'light' ? 'dark' : 'light', origin)
   }
 
-  function updatePreference(nextPreference: ThemePreference): void {
-    designTheme.value = nextPreference.designTheme
-    colorScheme.value = nextPreference.colorScheme
-    persistPreference(nextPreference)
-    applyTheme(nextPreference)
+  async function updatePreference(nextPreference: ThemePreference, origin?: ThemeOrigin): Promise<void> {
+    if (nextPreference.designTheme === requestedPreference.designTheme
+      && nextPreference.colorScheme === requestedPreference.colorScheme) return
+    requestedPreference = nextPreference
+    await transitionTheme(() => {
+      designTheme.value = nextPreference.designTheme
+      colorScheme.value = nextPreference.colorScheme
+      persistPreference(nextPreference)
+      applyTheme(nextPreference)
+    }, origin)
   }
 
   return {
@@ -109,7 +120,7 @@ function applyTheme(preference: ThemePreference): void {
 }
 
 function isDesignTheme(value: unknown): value is DesignTheme {
-  return value === 'claude' || value === 'element'
+  return DESIGN_THEMES.some(option => option.value === value)
 }
 
 function isColorScheme(value: unknown): value is ColorScheme {

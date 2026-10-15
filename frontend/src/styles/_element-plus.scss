@@ -60,3 +60,17 @@
     --el-color-#{$type}-dark-2: color-mix(in srgb, var(--color-accent-#{$source}) 80%, var(--color-surface-contrast));
   }
 }
+
+// Solid primary controls need a palette-specific foreground, especially in dark mode.
+:root .el-button--primary:not(.is-plain):not(.is-text):not(.is-link):not(.is-dashed) {
+  --el-button-text-color: var(--color-accent-on-primary);
+  --el-button-hover-text-color: var(--color-accent-on-primary);
+  --el-button-active-text-color: var(--color-accent-on-primary);
+  --el-button-hover-bg-color: var(--color-accent-primary-hover);
+  --el-button-hover-border-color: var(--color-accent-primary-hover);
+}
+
+:root .el-button--primary.is-plain {
+  --el-button-hover-text-color: var(--color-accent-on-primary);
+  --el-button-active-text-color: var(--color-accent-on-primary);
+}

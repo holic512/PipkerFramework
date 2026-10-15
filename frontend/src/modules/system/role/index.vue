@@ -909,8 +909,8 @@ function newRoleForm(): RoleFormState {
       :close-on-click-modal="false"
       class="role-permission-dialog role-route-permission-dialog"
       title="页面权限"
-      top="6vh"
-      width="min(72rem, calc(100vw - 2rem))"
+      top="4vh"
+      width="min(84rem, calc(100vw - 2rem))"
     >
       <section v-if="routePermissionConfiguration" v-loading="routePermissionLoading" class="role-permission-workbench role-route-permission">
         <header class="role-permission-identity">
@@ -992,8 +992,8 @@ function newRoleForm(): RoleFormState {
       :close-on-click-modal="false"
       class="role-permission-dialog role-api-permission-dialog"
       title="接口权限"
-      top="6vh"
-      width="min(72rem, calc(100vw - 2rem))"
+      top="4vh"
+      width="min(84rem, calc(100vw - 2rem))"
     >
       <section v-if="rolePermissionConfiguration" v-loading="interfacePermissionLoading" class="role-permission-workbench role-api-permission">
         <header class="role-permission-identity">
@@ -1415,7 +1415,7 @@ function newRoleForm(): RoleFormState {
 :global(.el-dialog.role-permission-dialog) {
   display: flex;
   flex-direction: column;
-  height: min(78vh, 52rem);
+  height: min(88vh, 60rem);
   padding: 0;
   overflow: hidden;
 }
